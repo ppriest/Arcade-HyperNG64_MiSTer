@@ -1,0 +1,16 @@
+rtl/cpu/vr4300/functions.vhd
+rtl/cpu/vr4300/export.vhd
+rtl/cpu/vr4300/dpram.vhd
+rtl/cpu/vr4300/RamMLAB.vhd
+rtl/cpu/vr4300/SyncFifoFallThroughMLAB.vhd
+rtl/cpu/vr4300/divider.vhd
+rtl/cpu/vr4300/cpu_mul.vhd
+rtl/cpu/vr4300/cpu_TLB_instr.vhd
+rtl/cpu/vr4300/cpu_TLB_data.vhd
+rtl/cpu/vr4300/cpu_cop0.vhd
+rtl/cpu/vr4300/cpu_instrcache.vhd
+rtl/cpu/vr4300/cpu_datacache.vhd
+rtl/cpu/vr4300/cpu_FPU_sqrt.vhd
+rtl/cpu/vr4300/cpu_FPU.vhd
+rtl/cpu/vr4300/cpu.vhd
+rtl/cpu/hng64_cpu.vhd

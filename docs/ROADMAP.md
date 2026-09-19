@@ -1,7 +1,6 @@
 # Hyper NeoGeo 64 — MiSTer Core Roadmap
 
-**This roadmap is a proposal until the user approves it. No phase executes before that approval,
-and a phase whose scope changes goes back for approval.**
+**Approved by the user. A phase whose scope changes goes back for approval.**
 
 ## Context
 
@@ -27,7 +26,33 @@ Working practice built on them is in [`WORKFLOW.md`](WORKFLOW.md).
 
 ## Progress
 
-**Research done; roadmap awaiting approval.** Repository bootstrapped from Template_MiSTer.
+**Phase 0 in progress.** Roadmap approved. Repository bootstrapped from Template_MiSTer.
+
+Phase 0 so far:
+- VR4300 vendored from the N64 core (`rtl/cpu/vr4300/`, PROVENANCE.md); all 15 files compile in
+  ModelSim. One local change: `cpu_mul.vhd` library clause.
+- MAME references: `scripts/mame_insn_trace.py` (per-instruction, all GPRs) and a multi-range
+  `mame_sys_trace.py`; boot sequence to frame 900, BIOS TLB windows and the sound-mailbox
+  handshake recorded in HARDWARE_NOTES. Criterion 2 answered for the BIOS: a mailbox stand-in
+  (ready + echo) and a readable 4 MB sound RAM; game play not yet traced.
+- **Criterion 1 met.** `rtl/hng64_bus.sv` (CPU port to a 64-bit backing store and a 32-bit
+  big-endian I/O port) and `rtl/cpu/hng64_cpu.vhd` (wrapper) run the hng64 BIOS in
+  `sim/boot_tb`: 199,998 instructions agree with MAME in PC and all 31 registers
+  (`scripts/compare_insn_trace.py`). I/O reads are replayed from MAME's trace in order.
+- Three reset-state differences had to be corrected, all because the N64 core boots as an N64
+  after its IPL: Status (soft-reset bit), Config clock ratio and Config bits 23:16. See
+  `rtl/cpu/vr4300/PROVENANCE.md` and `docs/MAME_KLUDGES.md`.
+- **Criterion 3, first figure:** CPI x1000 = 10091 over 20,000 instructions, 59% of cycles
+  waiting on memory, with the bench's placeholder memory latency (6 clk2x cycles, `LAT` in
+  `sim/boot_tb/tb_boot.sv`). Not a hardware figure until the memory design exists.
+- **Criterion 5 met:** every set's four texture regions are identical copies; largest set after
+  de-duplication and without the sound ROM is `sams64_2`, 187 MB.
+- **Criterion 4 measured** (`rtl/synth_check/`, HARDWARE_NOTES): CPU + bridge = 9,227 ALMs (22%),
+  26 M10K (5%), 9 DSP (8%). 62.5 and 125 MHz close; the 93.75 MHz CPU clock misses by 2.613 ns
+  (~75 MHz as placed, ~79 MHz on the best of four seeds), and every worst path is inside the
+  vendored CPU. Open: compile the N64 core itself on this toolchain to see whether it closes;
+  then Quartus edition, full-design placement, or pipelining that path.
+- Phase 0 criteria 1, 2, 3 and 5 met; criterion 4 measured with the clock question open.
 Hardware notes and feasibility from MAME (`E:/mame` 5ae594bafe9) and the N64 core
 (`MiSTer-devel/N64_MiSTer` adbf9b5). No RTL yet.
 
@@ -42,12 +67,13 @@ MACHINE_IMPERFECT_SOUND`.
 | `xrally` | drive | 131 MB | 71 MB |
 | `bbust2` | shoot | 155 MB | 95 MB |
 | `sams64` | fight | 183 MB | 123 MB |
-| `sams64_2` | fight | not measured | |
+| `sams64_2` | fight | 251 MB | 187 MB |
 | `buriki` | fight | 215 MB | 151 MB |
 | `fatfurwa` | fight | 239 MB | 175 MB |
 
-The last column assumes every set has identical copies in `textures0..3`, as `sams64` does
-(same CRCs); checked only for `sams64`. Each game also needs the 2 MB BIOS.
+**Criterion 5 met:** all seven sets have byte-identical `textures0..3` (CRCs from
+`mame -listxml`), so the last column holds for every set. The largest is `sams64_2` at 187 MB,
+inside the 256 MB DDR3 window. Each game also needs the 2 MB BIOS.
 
 ### Scope decision
 
@@ -293,6 +319,10 @@ criterion 4 plus the Phase 1 and 2 build reports.
 running the dumped ROM (user decision). No stand-in.
 
 **Does the BIOS run without a sound CPU?** Unknown. Closed by Phase 0 criterion 2.
+
+**Does the CPU close 93.75 MHz?** Standalone it misses by 2.613 ns (criterion 4). The N64 core
+ships at that rate, so try other seeds and the full-design placement before accepting a slower
+clock or touching the vendored pipeline.
 
 **What does 93.75 MHz cost?** Decided to run at 93.75 MHz. Game logic timed by the CPU runs up
 to 6% slow; a MAME run at 93.75 MHz shows whether any of it is visible. Overclocking is a later

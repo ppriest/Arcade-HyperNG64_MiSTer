@@ -69,7 +69,13 @@ def mame_cmd(exe, game, lua, mame_dir, extra=()):
     return [str(exe), game, "-nodebug", "-nowindow", "-video", "none", "-sound", "none",
             "-skip_gameinfo", "-nothrottle", "-autoboot_delay", "0",
             "-autoboot_script", str(LUA_DIR / lua),
-            "-rompath", f"{REPO / 'roms'};{mame_dir / 'roms'}", *extra]
+            "-rompath", rompath(mame_dir), *extra]
+
+
+def rompath(mame_dir):
+    """roms/ in the repo, MAME's own roms/, then MAME_ROMPATH (mister.env or environment)."""
+    extra = os.environ.get("MAME_ROMPATH", load_env().get("MAME_ROMPATH", ""))
+    return ";".join(p for p in [str(REPO / "roms"), str(mame_dir / "roms"), extra] if p)
 
 
 def main():

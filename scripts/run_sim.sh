@@ -58,6 +58,8 @@ fi
 
 rm -rf work
 "$MS/vlib.exe" work >/dev/null
+# The VR4300 instantiates entities as library `mem`; Quartus maps it to work, ModelSim needs telling.
+"$MS/vmap.exe" mem work >/dev/null
 
 # Vendored VHDL (a CPU core, say) is listed in sim/vhdl.files, one path per
 # line, packages FIRST: ModelSim resolves them at compile time, not elaboration.
@@ -111,7 +113,7 @@ echo "--- vlog: RTL + testbench ---"
 # -suppress 7061: some vendored cores (fx68k) drive parts of an array from more than one
 # always_ff. Quartus accepts it; ModelSim refuses by default.
 # shellcheck disable=SC2086
-"$MS/vlog.exe" -quiet -sv -work work -suppress 7061 \
+"$MS/vlog.exe" -quiet -sv -work work -suppress 7061 -timescale 1ns/1ps \
     +define+SIMULATION ${INITREG-+initreg=r+0 +initmem=r+0} ${VDEFS:-} \
     $VLOG $RTL $(ls sim/common/*.sv 2>/dev/null) "sim/$TB"/*.sv
 
@@ -122,5 +124,5 @@ TOP=$(grep -l -E '^\s*module\s+tb_' "sim/$TB"/*.sv | head -1 \
 [ -n "$TOP" ] || { echo "no 'module tb_*' found in sim/$TB"; exit 1; }
 
 echo "--- vsim $TOP $* ---"
-"$MS/vsim.exe" -c -quiet -work work "$TOP" "$@" -do "run -all; quit -f" 2>&1 \
+"$MS/vsim.exe" -c -quiet -L altera_mf -L altera_lnsim -work work "$TOP" "$@" -do "run -all; quit -f" 2>&1 \
   | grep -v '^# *$' | grep -v 'pref.tcl\|^# 10.5b\|Start time\|^# vsim -c'

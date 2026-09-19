@@ -1,50 +1,111 @@
 {
-  "_comment": "Core-specific. The main CPU's view of the machine, from the MAME driver's address map. Read by mame_capture.py and write_timing.py. Addresses are hex strings, inclusive.",
+  "_comment": "hng64 main CPU, physical addresses, from hng64.cpp:1182-1249 (main_map). Main RAM, gameprg and BIOS are MIPS fastram (hng64.cpp:2170-2172): taps never see them, so they are not tapped here; mame_insn_trace.py covers the CPU.",
   "cpu": ":maincpu",
   "space": "program",
-  "bus_bytes": 2,
+  "bus_bytes": 4,
   "big_endian": true,
   "read": {
-    "workram": [
-      "0x000000",
-      "0x00ffff"
+    "spriteram": [
+      "0x20000000",
+      "0x2000bfff"
+    ],
+    "spriteregs": [
+      "0x20010000",
+      "0x20010013"
+    ],
+    "videoram": [
+      "0x20100000",
+      "0x2017ffff"
+    ],
+    "videoregs": [
+      "0x20190000",
+      "0x20190037"
+    ],
+    "palette": [
+      "0x20200000",
+      "0x20203fff"
+    ],
+    "tcram": [
+      "0x20208000",
+      "0x2020805f"
+    ],
+    "sysregs": [
+      "0x1f700000",
+      "0x1f7010ff"
+    ],
+    "dualport": [
+      "0x1f808000",
+      "0x1f8087ff"
     ]
   },
   "wtap": {
-    "vregs": [
-      "0x000000",
-      "0x00001f"
+    "dl": [
+      "0x20300000",
+      "0x203001ff"
+    ],
+    "dlctrl": [
+      "0x20300200",
+      "0x2030021b"
+    ],
+    "fbctrl": [
+      "0x30000000",
+      "0x3000002f"
     ]
   },
   "sweep": [
-    "workram",
-    "vregs"
+    "spriteram",
+    "spriteregs",
+    "videoram",
+    "videoregs",
+    "palette",
+    "tcram",
+    "dl",
+    "dlctrl",
+    "fbctrl"
   ],
   "trace": {
-    "addr_hi": "0xffffff",
+    "addr_hi": "0xffffffff",
     "io": [
-      "0x000000",
-      "0x000000"
+      [
+        "0x1f700000",
+        "0x1f8087ff"
+      ],
+      [
+        "0x20000000",
+        "0x3025ffff"
+      ],
+      [
+        "0x60000000",
+        "0x6f000003"
+      ],
+      [
+        "0xc0000000",
+        "0xc0001007"
+      ]
     ],
     "vectors": [
-      "0x000000",
-      "0x000000"
+      "0x00000000",
+      "0x00000000"
     ],
     "ipl": {
       "reg": "SR",
       "shift": 8,
-      "mask": 7
+      "mask": 255
     },
     "rom": [
       [
-        "0x000000",
-        "0x0fffff"
+        "0x04000000",
+        "0x05ffffff"
+      ],
+      [
+        "0x1fc00000",
+        "0x1fc7ffff"
       ]
     ],
     "ram": [
       [
-        "0x100000",
-        "0x10ffff"
+        "0x00000000",
+        "0x00ffffff"
       ]
     ]
   },

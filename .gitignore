@@ -98,3 +98,11 @@ releases/*.rbf
 **/.DS_Store
 __pycache__/
 *.pyc
+
+# standalone synth-check scratch (rtl/synth_check/): a Quartus project of its own
+rtl/synth_check/db/
+rtl/synth_check/incremental_db/
+rtl/synth_check/output_files/
+rtl/synth_check/*.rpt
+rtl/synth_check/*.qws
+rtl/synth_check/*.log

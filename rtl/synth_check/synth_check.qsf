@@ -1,0 +1,22 @@
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
+set_global_assignment -name DEVICE 5CSEBA6U23I7
+set_global_assignment -name TOP_LEVEL_ENTITY synth_top
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
+# the N64 core's fitter settings (N64.qsf:28-52), so the figures are comparable
+set_global_assignment -name OPTIMIZATION_MODE "AGGRESSIVE PERFORMANCE"
+set_global_assignment -name FINAL_PLACEMENT_OPTIMIZATION ALWAYS
+set_global_assignment -name ROUTER_LCELL_INSERTION_AND_LOGIC_DUPLICATION ON
+set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION ON
+set_global_assignment -name ROUTER_CLOCKING_TOPOLOGY_ANALYSIS ON
+set_global_assignment -name OPTIMIZATION_TECHNIQUE SPEED
+set_global_assignment -name FITTER_EFFORT "STANDARD FIT"
+set_global_assignment -name SEED 0
+set_global_assignment -name QIP_FILE ../cpu/vr4300/vr4300.qip
+set_global_assignment -name VHDL_FILE ../cpu/hng64_cpu.vhd
+set_global_assignment -name SYSTEMVERILOG_FILE ../hng64_bus.sv
+set_global_assignment -name SYSTEMVERILOG_FILE synth_top.sv
+set_global_assignment -name SDC_FILE synth_check.sdc
+
+set_global_assignment -name LAST_QUARTUS_VERSION "17.0.2 Lite Edition"

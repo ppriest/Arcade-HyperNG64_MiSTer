@@ -30,10 +30,12 @@ from mame_capture import NO_WINDOW, lua_env, mame_cmd, mame_paths, regions  # no
 def trace_env(r):
     t = r.get("trace", {})
     ipl = t.get("ipl") or {}
-    io, vec = t.get("io", ["0x0", "0x0"]), t.get("vectors", ["0x0", "0x0"])
+    io, vec = t.get("io", []), t.get("vectors", ["0x0", "0x0"])
+    if io and isinstance(io[0], str):     # one [lo, hi] pair, or a list of them
+        io = [io]
     h = lambda v: f"{int(v, 16):x}"  # noqa: E731
     return {**lua_env(r), "CORE_ADDR_HI": h(t.get("addr_hi", "0xffffff")),
-            "CORE_IO_LO": h(io[0]), "CORE_IO_HI": h(io[1]),
+            "CORE_IO": ",".join(f"{h(lo)}:{h(hi)}" for lo, hi in io),
             "CORE_VEC_LO": h(vec[0]), "CORE_VEC_HI": h(vec[1]),
             "CORE_IPL_REG": ipl.get("reg", ""), "CORE_IPL_SHIFT": str(ipl.get("shift", 0)),
             "CORE_IPL_MASK": str(ipl.get("mask", 0))}

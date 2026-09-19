@@ -18,6 +18,8 @@ Source references are to `{{MAME_DRIVER_DIR}}/{{DRIVER_FILE}}` unless named. MAM
 
 {{MAME_MACHINE_FLAGS_ONE_LINE}}
 <!-- e.g. "Every set is MACHINE_IMPERFECT_GRAPHICS." -->
+| COP0 Config bits 23:16 | MAME sets Config to `0x6460` for the VR4300 (`mips3com.cpp:191-210`), leaving bits 23:16 at 0, though its own comment says the field is `0000010`. | Reads 0, as MAME does (`rtl/cpu/vr4300/cpu_cop0.vhd`, local change). | The VR4300 manual, or a read of Config on the board. Nothing in the BIOS uses the field. |
+| COP0 Config clock ratio (bits 30:28) | MAME reports 0. The board wires DivMode0/1 high (hng64.cpp:107), so a real VR4300 reports its own ratio; the N64 core hard-codes `111`. | Set from the reset state to MAME's 0. | A read of Config on the board. |
 
 ## {{SUBSYSTEM}}
 
