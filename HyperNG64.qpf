@@ -1,0 +1,4 @@
+QUARTUS_VERSION = "17.0"
+# HyperNG64_stp is the instrumented revision (ISSP probes, OSD debug page); HyperNG64 the release.
+PROJECT_REVISION = "HyperNG64_stp"
+PROJECT_REVISION = "HyperNG64"
