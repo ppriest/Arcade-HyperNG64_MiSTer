@@ -146,6 +146,48 @@ using 40 leaves the other 472 holding one stale Y, all on the same sixteen lines
 engine must *walk*, not what the game meant to draw, and instrument the RTL (`dbg_worst_line`, four
 lines of Verilog, works on hardware too) rather than modelling the workload.
 
+
+### [Seta] Ask what a table of per-game constants has in common before encoding it
+
+Per-game sprite and tilemap offsets, and their flipped-screen counterparts, were carried as magic
+numbers. The question worth asking first is whether they are one mechanism -- signal propagation
+delay, a board-layout difference, a latch -- because a mechanism generalises to the sets nobody has
+measured and a table does not.
+
+### [Seta] Check every enable bit for inversion against the driver
+
+"Are we sure no enable bits for tilemaps are inverted from MAME?" is a cheap question with a whole
+class of wrong-looking frames behind it.
+
+### [Seta] Sanity-check a reported clock against the board
+
+A core reported as clocking at 96 MHz on a board whose CPU runs at 16 MHz is a wrong number, not a
+fast core. Compare every derived clock with the driver's crystal before believing a timing report.
+
+### [HyperNG64] Channel values that are exact multiples of the right ones: a concatenation too wide
+
+A mixer's alpha blend returned `{(d+s)>>1, (d+s)>>1, (d+s)>>1}` where each term was 9 bits wide,
+so the concatenation was 27 bits into a 24-bit result: the top three bits were dropped and every
+field shifted. The symptom was red exactly 4x and green exactly 2x the expected value with blue
+right. Exact small powers of two across adjacent fields are a field-alignment fault, not an
+arithmetic one; check the width of each term in a concatenation before checking the maths. A
+helper function with a declared return width removes the whole class.
+
+### [HyperNG64] A uniform tile passes any pixel order
+
+The first tilemap layer to match the model was a background of one repeated tile whose pixels are
+all the same value, so the nibble order, the row offset and the flip logic were all still wrong
+and the bench was green. The layers with text and detail failed immediately afterwards. Pick the
+first comparison target for variety, not for simplicity, and treat a pass on uniform data as no
+information.
+
+### [HyperNG64] An address built combinationally from the counter you are about to update
+
+The scroll fetch issued `base + scroll_i` while the same cycle assigned `scroll_i <= 0`, so the
+first read used the previous line's index and every scroll value landed one slot out. Three of
+four layers still passed because their scroll words are all zero. Build a sequenced address from
+a value the state machine has already committed, or name the index explicitly per state.
+
 ## ROM loading: .mra, byte order, deployment
 
 ### [Seta] A `<dip>`'s `bits` is a range, "first,last", not a list
@@ -282,6 +324,14 @@ on at least two sets of different sizes.
 `hng64` sets declare `textures0..3` as four 16 MB regions; in `sams64` all four load the same
 four ROMs (same CRCs). The board duplicates them for parallel access; the core needs one copy,
 48 MB less per set. Compare CRCs across regions in `-listxml` before deciding a set does not fit.
+
+### [HyperNG64] Size a ROM address bus from the largest set's region, not the first one tested
+
+The sprite and tile engines carried a 25-bit byte address, enough for `sams64`'s 32 MB regions;
+`fatfurwa` and `buriki` declare 64 MB and 48 MB, and their high tile codes silently addressed the
+wrong tile. Every `sams64` capture passed. Take the width from the biggest region any set in scope
+declares, and check the code field's own width against it: `hng64` sprite codes are 19 bits, which
+at 128 bytes a tile is 26 bits of address.
 
 ## MiSTer integration: reset, ioctl download, CONF_STR
 
@@ -451,6 +501,16 @@ Every region was indexed by low address bits, right only when the base's low bit
 palette at `0x?00400` put entry 0 at index 0x200: black sprites, right art wrong colours, on every
 board with that base and in no simulation (benches wrote the palette RAM directly).
 
+### [HyperNG64] A toggle-request controller samples its inputs AFTER the toggle
+
+The vendored `sdram.sv` starts a transaction on the cycle it notices `ack != req`, which is
+at least one cycle after the client flips `req`, and it latches the address, the write data
+and the write strobes then. A client that drives them combinationally and moves on as soon
+as it has flipped `req` hands the controller whatever it happens to be showing a cycle
+later: the download silently became a read, and tile reads returned another engine's
+address. Both were found by running the real controller against the chip model rather than
+an abstraction of it. Hold every input until `ack` catches up.
+
 ## Sprite lists, line buffers and snapshots
 
 ### A swap is not a copy
@@ -525,6 +585,38 @@ With `HFIX=1` the buffer read counter re-synchronises to `hdump` only while `hs`
 with `hs` before the wrap drew every sprite and displayed none: the counter ran on into the half of
 the buffer nothing writes. "Thousands of buffer writes, zero pixels out" says read side; a counter
 of non-blank values read back found it in one run.
+
+
+### [Seta] Latch the sprite list and the video registers at the same point unless evidence separates them
+
+One core latched sprite RAM in vblank and the tilemap registers at frame start, for no recorded
+reason; the difference was noticed as a question ("why not the same?") rather than as a bug. Pick
+one snapshot point from the write sweep, apply it to every array the frame needs, and record why if
+any array differs.
+
+### [Seta] A glitch that appears only while the game runs, never when paused, is a buffering fault
+
+Wrong sprite tiles and orientations in motion, correct in a frozen frame, means the list or its
+registers are read while being written, not that the decode is wrong. Look at the snapshot point
+and the double-buffer ownership before touching the graphics path.
+
+### [Fuuki] Buffer the sprite list and render per line; do not add a frame buffer
+
+A whole-frame buffer was retired: the shape that works is the sibling cores' one, sprite RAM
+buffered once a frame, a per-frame candidate list, a per-scanline engine, a double-buffered line
+buffer.
+
+### [Fuuki] For raster effects, fire the line interrupt every line and buffer attributes into the line renderer
+
+Waiting a couple of scanlines to buffer, or servicing the interrupt late, shows up as one row of a
+cloud scrolling independently of the rest. NeoGeo_MiSTer and jotego's jtcps are the reference
+implementations for the per-line interrupt plus attribute buffering pattern.
+
+### [Fuuki] A one-line vertical offset between layers is the interrupt's line numbering, not its timing
+
+Sprites a scanline low (and credit text clipped at the bottom) was a 0- versus 1-based raster row,
+not an interrupt fired too late; moving the interrupt a line earlier would not have fixed the text.
+Establish which row the handler believes it is servicing before shifting anything.
 
 ## When simulation passes and hardware fails
 
@@ -606,6 +698,21 @@ mirror passes a fill-then-verify test if a write tap shows nothing else writes t
 
 ## Testbench discipline
 
+- **[HyperNG64] A per-module bench can silently choose its own memory latency, and the
+  composed block is where the bill arrives.** Three benches each served a RAM in a slightly
+  different place in the C++ tick, giving the same port zero, one or two cycles of latency; each
+  module passed against the model, and the block that wired them together was a pixel out. In
+  Verilator the latency is decided by *where* in `tick()` the data is assigned relative to
+  `eval()` and the clock edges, which is easy to write without noticing. State each port's
+  latency in the module header, serve it the same way in every bench, and treat the composed
+  bench as the one that decides. Passing a module bench proves the module is consistent with
+  that bench, not that it is consistent with its neighbours.
+- **[HyperNG64] One game's captured frames exercise one game's modes.** The tilemap engine matched
+  the model on all six `sams64` captures while carrying a 4-bit row offset that overflowed to 0 for
+  rows 8-15 of a 16-tall tile, no clipping for non-wrapping layers, no x mosaic, and none of the
+  rotating scroll layout. `sams64` uses none of those. `buriki` and `fatfurwa` captures found all
+  four. Sweep every set in scope over every enabled layer (`scripts/video_regress.sh`) before
+  calling a video block done.
 - **Use `do @(posedge clk); while (signal);`, never `while (signal) @(posedge clk);`.** The latter
   races an `always_ff` updating the signal on the same edge and either deadlocks or returns before
   the transaction started. Recurred in three benches before being recognised as systemic.
@@ -994,6 +1101,27 @@ ack address that is also an input port must acknowledge on writes only.
 
 ## Driving MAME as a reference generator (Lua)
 
+- **[HyperNG64] Sample the registers every frame to find a frame that uses a feature; do not
+  guess from the driver's comments.** `scripts/scan_video.py` reads every video register each
+  frame into a CSV and reports which frames set which bit. It found that split-screen scroll and
+  the alt map dimensions are set in *no* frame of 1,500 in any of five sets, though MAME's
+  comments name games for both, and that the only usable frame for additive blending is in
+  `xrally`, a set outside the core's first scope. Guessing from comments would have produced
+  captures that prove nothing.
+- **[HyperNG64] A frame that uses a feature is not a frame that tests it.** The first capture
+  found with additive tilemap blending drew that layer over black, where add and copy give the
+  same pixel: forcing the blend off changed nothing. Test a reference feature by breaking it
+  deliberately and checking the comparison fails. If it still passes, the capture does not
+  exercise the path and the green result is worth nothing.
+- **[HyperNG64] Transcribing MAME means transcribing its integer types.** `tilemap_draw_roz_core_line`
+  holds the scroll values in `s32` and the running coordinates in `u32`, and its `/ 512` truncates
+  toward zero. A Python model using arbitrary-precision ints and `//` turned a wrapped subtraction
+  into a step of -16,744,452 instead of 29,528, and the out-of-range test into a per-pixel one that
+  let a line re-enter the map. The RTL matched that model, so both were wrong. Write down the
+  reference's widths, signedness and division, and transcribe the loop structure rather than
+  summarising it: MAME's unrotated path skips to the first in-range pixel and stops at the first
+  one past the map.
+
 - **[Fuuki] [GX] Keep every Lua subscription in a GLOBAL.** `add_machine_frame_notifier` and
   `install_write_tap` return subscription objects; dropped, the GC reclaims them and the callback
   silently stops firing, exit 0. A `local subs = {}` at chunk scope is not enough: chunk-locals
@@ -1071,6 +1199,15 @@ ack address that is also an input port must acknowledge on writes only.
   -ssh -pw <pw> user@host "cmd"`.
 - **MSYS/Git-Bash silently mangles POSIX-looking arguments** (`/media/fat/...`) into Windows paths
   for non-MSYS programs. `MSYS_NO_PATHCONV=1`.
+
+
+- **[MS32] MAME is not the oracle for sound timing.** A sample's difference in when a voice starts
+  is within the model's own error; deploy and judge by ear before chasing it in RTL.
+- **[Fuuki] A reference frame that looks wrong may be the wrong frame.** Before treating a
+  screenshot mismatch as a fault, check when the grab was taken on each side; the same scene one
+  frame apart is not a difference in the hardware.
+- **[Seta] Drive the plain `mame.exe`, not a fork build.** A fork (`arcade64.exe` and the like) is
+  not the driver reference the notes cite and its Lua surface can differ.
 
 ## Tooling and workflow (Quartus, ModelSim, Verilator, and the shell around them)
 

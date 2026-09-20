@@ -1,0 +1,9 @@
+rtl/video/hng64_tilemap.sv
+rtl/video/hng64_sprite.sv
+rtl/video/hng64_mixer.sv
+rtl/video/hng64_video.sv
+rtl/memory/hng64_ddram.sv
+rtl/memory/sdram/sdram.sv
+rtl/memory/hng64_sdram.sv
+sim/common/sdram_chip_model_wide.sv
+sim/video_tb/tb_video.sv

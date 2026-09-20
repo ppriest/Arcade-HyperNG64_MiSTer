@@ -1,0 +1,8 @@
+rtl/memory/sdram/sdram.sv
+rtl/memory/hng64_sdram.sv
+rtl/memory/hng64_ddram.sv
+rtl/memory/hng64_mainmem.sv
+rtl/memory/hng64_romcfg.sv
+rtl/memory/hng64_romload.sv
+sim/common/sdram_chip_model_wide.sv
+sim/romload_tb/tb_romload.sv

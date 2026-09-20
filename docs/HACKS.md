@@ -23,6 +23,7 @@ Rules:
 |---|---|---|---|---|---|
 | CPU at 93.75 MHz, board runs it at 100 MHz | CPU clock (planned, Phase 0) | the N64 core's rate is used (user decision); code timed by the CPU runs up to 6% slow | an overclock to 100 MHz if Phase 0 Fmax allows | unverified whether any game shows it | latent |
 | Sound CPU stand-in on the mailbox | beside the bus bridge (planned, Phase 0) | no V53A: status reads `0x0080` (ready) and the data latch echoes the last command; sound RAM kept so the BIOS read-back passes | a V53A + L7A1045 implementation (Phase 4) | MAME trace to frame 900, `docs/HARDWARE_NOTES.md` "Sound mailbox"; game play not traced | visible (no sound) |
+| Video renders a line ahead | `rtl/video/hng64_video.sv`, `bank`/`primed` | the engines fill line N while the mixer emits line N-1, so a mid-screen write to tile VRAM, the palette or the video registers takes effect one line later than MAME shows it | a measurement of when the board latches a line's state; real hardware fills a line buffer during the previous scanline too, so this may already be right | `scripts/write_timing.py` shows both games writing mid-screen; the one-line offset itself is unverified against hardware | latent |
 
 <!-- Examples of the shape, from sibling cores:
 | Sound mailbox is a stub that answers the power-on test | `rtl/gx_snd_stub.sv` | No sound CPU yet; the stub returns the reply the test expects and a heartbeat | Phase 3: the real sound board | The game's RAM check passes with it; nothing else is exercised | visible |

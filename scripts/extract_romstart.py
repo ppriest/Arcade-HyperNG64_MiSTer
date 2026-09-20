@@ -22,6 +22,15 @@ What this understands (add a driver's own load macros to KINDS):
     ROM_LOAD24_BYTE       one byte every THREE, from dest
     ROM_LOAD24_WORD_SWAP  two byte-swapped bytes every three, from dest
     ROM_CONTINUE          the rest of the PREVIOUS file, at another offset
+    ROMX_LOAD             the general form, as `group:<groupsize>:<skip>:<rev>`,
+                          which is what read_rom_data() in MAME's romload.cpp
+                          actually implements; the macros above are special
+                          cases of it. ROM_BIOS(n) records are kept only for
+                          the selected system BIOS.
+
+An object-like macro named in EXPAND_MACROS is substituted into each ROM_START
+body before parsing, because a driver that keeps its BIOS in one is otherwise
+invisible to a ROM_START scan.
 
 It deliberately does NOT try to be a general MAME ROM loader. Anything it does
 not recognise is reported rather than skipped, so a set is never emitted with a
@@ -50,23 +59,115 @@ KINDS = {
     "ROM_LOAD16_WORD": "load",         # bytes as they are in the file
     "ROM_LOAD32_BYTE": "load32_byte",
     "ROM_LOAD32_WORD": "load32_word",
+    "ROM_LOAD32_WORD_SWAP": "load32_wswap",
     # ROM_COPY("src", srcofs, dstofs, len) takes bytes from ANOTHER region
     # rather than from a file, so it carries no CRC.
     "ROM_COPY": "copy",
 }
+# Object-like macros holding ROM records, expanded into each ROM_START body.
+EXPAND_MACROS = ["HNG64_BIOS"]
+# Driver-local function-like ROM macros, rewritten to the MAME form they wrap.
+# hng64.cpp:2681 defines ROM_LOAD_HNG64_BIOS(bios,name,offset,length,hash) as
+# ROMX_LOAD(name, offset, length, hash, ROM_BIOS(bios)).
+PRE_REWRITE = [
+    (r'ROM_LOAD_HNG64_BIOS\s*\(\s*(\d+)\s*,\s*(.*)\)\s*$',
+     r'ROMX_LOAD( \g<2>, ROM_BIOS(\g<1>) )'),
+]
 # The sets in scope: the default when none are named.
-IN_SCOPE = []
+IN_SCOPE = ["sams64", "sams64_2", "fatfurwa", "buriki"]
 # ---------------------------------------------------------------------------
 
 
+def expand_object_macros(text, names=None):
+    r"""Substitute an object-like `#define NAME \` ... macro into the body text.
+
+    A driver that keeps its BIOS records in a macro (hng64.cpp's HNG64_BIOS)
+    has them nowhere a ROM_START scan can see. Expanding is still extraction:
+    the records come from the driver, not from a transcription.
+    """
+    for name in (names if names is not None else EXPAND_MACROS):
+        lines = text.split("\n")
+        start = None
+        for i, line in enumerate(lines):
+            if re.match(r'^#define[ \t]+' + re.escape(name) + r'[ \t]*\\$', line):
+                start = i
+                break
+        if start is None:
+            continue
+        end = start
+        while lines[end].endswith("\\"):
+            end += 1
+        body = [l[:-1].rstrip() if l.endswith("\\") else l
+                for l in lines[start + 1:end + 1]]
+        out = []
+        for i, line in enumerate(lines):
+            if start <= i <= end:
+                continue
+            if line.strip() == name:
+                out.extend(body)
+            else:
+                out.append(line)
+        text = "\n".join(out)
+    return text
+
+
+def pre_rewrite(line):
+    for pat, repl in PRE_REWRITE:
+        line = re.sub(pat, repl, line)
+    return line
+
+
+def romx_geometry(flags):
+    """ROMX_LOAD's flags as read_rom_data() (MAME romload.cpp:812) uses them:
+    groupsize bytes are copied, reversed if ROM_REVERSE, and the destination
+    then advances by groupsize + skip. Every ROM_LOADnn_* macro is a case."""
+    group = 4 if "ROM_GROUPDWORD" in flags else 2 if "ROM_GROUPWORD" in flags else 1
+    m = re.search(r'ROM_SKIP\(\s*(\d+)\s*\)', flags)
+    rev = 1 if "ROM_REVERSE" in flags else 0
+    return group, (int(m.group(1)) if m else 0), rev
+
+
+def bios_choice(body, want=None):
+    """(selected tag, {index: tag}) from ROM_SYSTEM_BIOS / ROM_DEFAULT_BIOS."""
+    tags = {int(i): t for i, t in
+            re.findall(r'ROM_SYSTEM_BIOS\(\s*(\d+)\s*,\s*"([^"]+)"', body)}
+    m = re.search(r'ROM_DEFAULT_BIOS\(\s*"([^"]+)"', body)
+    return (want or (m.group(1) if m else None)), tags
+
+
 def blocks(text):
+    text = expand_object_macros(text)
     out = {}
     for m in re.finditer(r"ROM_START\(\s*(\w+)\s*\)(.*?)ROM_END", text, re.S):
         out[m.group(1)] = m.group(2)
     return out
 
 
-def region_records(body, want="maincpu"):
+def region_decl(body, want="maincpu"):
+    """(declared size, fill byte) of one ROM_REGION, or None.
+
+    The declared size is the region, not the extent of the loads: a set can
+    leave a hole (buriki's scrtile has 8 MB unfilled at 0x1800000) or stop
+    short, and MAME still presents the whole declared region. Anything not
+    loaded is the erase value, which defaults to 0 (romload.cpp:1429).
+    """
+    for raw in body.split("\n"):
+        line = pre_rewrite(raw.split("//")[0].strip())
+        m = re.match(r'ROM_REGION\w*\(\s*(0x[0-9a-fA-F]+)\s*,\s*"([^"]+)"\s*,(.*)', line)
+        if m and m.group(2) == want:
+            flags = m.group(3)
+            mf = re.search(r'ROMREGION_ERASEVAL\(\s*(0x[0-9a-fA-F]+|\d+)\s*\)', flags)
+            if mf:
+                fill = int(mf.group(1), 0)
+            elif "ROMREGION_ERASEFF" in flags:
+                fill = 0xFF
+            else:
+                fill = 0x00
+            return int(m.group(1), 16), fill
+    return None
+
+
+def region_records(body, want="maincpu", bios=None):
     """Records for ONE named region, plus anything in it that did not parse.
 
     The region argument exists because the sprite and tile images need the same
@@ -76,8 +177,9 @@ def region_records(body, want="maincpu"):
     """
     records, unknown = [], []
     region = None
+    want_bios, bios_tags = bios_choice(body, bios)
     for raw in body.split("\n"):
-        line = raw.split("//")[0].strip()
+        line = pre_rewrite(raw.split("//")[0].strip())
         if not line:
             continue
         m = re.match(r'ROM_REGION\w*\(\s*(0x[0-9a-fA-F]+)\s*,\s*"([^"]+)"', line)
@@ -108,6 +210,21 @@ def region_records(body, want="maincpu"):
             crc = re.search(r'CRC\((\w+)\)', m.group(5))
             records.append((KINDS[m.group(1)], m.group(2),
                             int(m.group(3), 16), int(m.group(4), 16),
+                            int(crc.group(1), 16) if crc else None))
+            continue
+        # The general form. ROM_BIOS(n) records belong to one system BIOS;
+        # only the selected one is kept, so an image is never a mixture.
+        m = re.match(r'ROMX_LOAD\s*\(\s*"([^"]+)"\s*,\s*(0x[0-9a-fA-F]+)\s*,'
+                     r'\s*(0x[0-9a-fA-F]+)(.*)', line)
+        if m:
+            flags = m.group(4)
+            mb = re.search(r'ROM_BIOS\(\s*(\d+)\s*\)', flags)
+            if mb and bios_tags.get(int(mb.group(1))) != want_bios:
+                continue
+            g, skip, rev = romx_geometry(flags)
+            crc = re.search(r'CRC\((\w+)\)', flags)
+            records.append((f"group:{g}:{skip}:{rev}", m.group(1),
+                            int(m.group(2), 16), int(m.group(3), 16),
                             int(crc.group(1), 16) if crc else None))
             continue
         m = re.match(r'ROM_CONTINUE\s*\(\s*(0x[0-9a-fA-F]+)\s*,'

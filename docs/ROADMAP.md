@@ -42,9 +42,12 @@ Phase 0 so far:
 - Three reset-state differences had to be corrected, all because the N64 core boots as an N64
   after its IPL: Status (soft-reset bit), Config clock ratio and Config bits 23:16. See
   `rtl/cpu/vr4300/PROVENANCE.md` and `docs/MAME_KLUDGES.md`.
-- **Criterion 3, first figure:** CPI x1000 = 10091 over 20,000 instructions, 59% of cycles
-  waiting on memory, with the bench's placeholder memory latency (6 clk2x cycles, `LAT` in
-  `sim/boot_tb/tb_boot.sv`). Not a hardware figure until the memory design exists.
+- **Criterion 3, measured on the real memory:** the boot bench now runs on the vendored SDRAM
+  controller with a chip model (main RAM and BIOS) and the DDR3 transport, and **199,998 of
+  199,998 instructions still agree with MAME in PC and all 31 registers**. CPI x1000 = 14516
+  over 20,000 instructions and 7559 over 200,000, with 72-74% of cycles waiting on memory;
+  against the old placeholder latency the same runs gave 10091 at 20,000. Contention with the
+  video is not in these figures: the bench runs the CPU alone.
 - **Criterion 5 met:** every set's four texture regions are identical copies; largest set after
   de-duplication and without the sound ROM is `sams64_2`, 187 MB.
 - **Criterion 4 measured** (`rtl/synth_check/`, HARDWARE_NOTES): CPU + bridge = 9,227 ALMs (22%),
@@ -53,6 +56,40 @@ Phase 0 so far:
   vendored CPU. Open: compile the N64 core itself on this toolchain to see whether it closes;
   then Quartus edition, full-design placement, or pipelining that path.
 - Phase 0 criteria 1, 2, 3 and 5 met; criterion 4 measured with the clock question open.
+- **Phase 1 started.** `scripts/render_model.py` reproduces MAME's 2D video pixel-exactly on
+  2D-only frames (sams64 400/800/1200, buriki 200); frames with 3D differ only where MAME's
+  polygon buffer covers the 2D layers. `scripts/rom_regions.py` builds tile and sprite ROM
+  images from the driver's ROM_START. See `docs/phase1_video.md`.
+- **The three 2D engines match the model on every capture.** `hng64_tilemap.sv`,
+  `hng64_sprite.sv` and `hng64_mixer.sv` against `scripts/video_regress.sh`: 105 of 105
+  checks at 0 of 229,376 pixels differing, over 21 captures of sams64, fatfurwa, buriki and
+  xrally. Faults only the non-sams64 captures could show are in `docs/LESSONS_LEARNED.md`;
+  two were model faults the RTL had been matching.
+- **The model now transcribes MAME's mixing, not a simplification of it**: sprite groups
+  interleaved with tilemap priorities, additive tilemap blending, additive and half-alpha
+  sprite blending. `scripts/scan_video.py` samples every video register every frame to find
+  frames that use a feature; additive blending is verified against MAME on xrally frame 540,
+  and what could not be verified is in `docs/MAME_KLUDGES.md` with what would settle it.
+- **The whole 2D video block runs end to end.** `rtl/video/hng64_video.sv` (four tilemap
+  engines, the sprite engine, five line buffers, the mixer and a sequencer) rendering from
+  nothing but a capture: 127 of 127 checks at 0 of 229,376 pixels differing, 21 captures.
+  Two faults were in the seams, not the engines: the benches disagreed about read latency,
+  and the block reported idle during the sprite engine's frame-start pre-pass.
+- **Phase 1 is done except for throughput**, which is measured and deferred to Phase 2 with
+  the DDR3 transport (user decision). The block as sequenced takes 8,900-11,200 cycles a
+  line against a 2,880-clock budget.
+- **Phase 2 started. Throughput closed, and the memory stack is real.** The engines were
+  restructured to issue reads without waiting; tile VRAM and main RAM sit in SDRAM behind the
+  vendored controller and a chip model, the tile ROM in DDR3 behind a transport that keeps
+  reads in flight. 1,171-2,363 cycles a line against 2,880, pixel-exact at 100-cycle ROM
+  latency with half of DDR3's cycles refused. The CPU still boots identically on it
+  (199,998 of 199,998). See `docs/MEMORY.md`.
+- **ROM loading is done to the point of a .mra.** `scripts/build_mra.py` emits one file per
+  in-scope set whose index-0 stream is the DDR3 window itself, and verifies each region
+  byte-for-byte by reading its own output back; `hng64_romcfg` latches the per-set layout from
+  index 1 and `hng64_romload` copies the BIOS into SDRAM. Two region-image faults came out of
+  it: the image was sized by the extent of the loads rather than the declared region (buriki's
+  `scrtile` reorder split 4 MB out), and filled with 0xff where MAME uses 0.
 Hardware notes and feasibility from MAME (`E:/mame` 5ae594bafe9) and the N64 core
 (`MiSTer-devel/N64_MiSTer` adbf9b5). No RTL yet.
 
@@ -208,6 +245,11 @@ Phase 3, and are not hacks.
 **The N64 CPU is used as is, behind a bridge.** Its N64-specific ports (`rdram_granted2x`,
 `ddr3_DOUT*`, `ram_*`) are driven by the bridge; its savestate and debug ports are tied off.
 Edits to its files are listed in its `PROVENANCE.md`.
+
+**Sprite list snapshotted at vblank start; everything else read live per line.** From
+`scripts/write_timing.py` (docs/phase1_video.md): the games write the sprite list in the first two
+lines after vblank start, and write tile VRAM and palette mid-screen while playing. So the sprite
+list is double-buffered and the rest is raster.
 
 **Store one copy of the graphics ROM** (user decision): there is no memory for the board's
 duplicates. The four texture copies are for the board's parallel access; one copy saves 48 MB

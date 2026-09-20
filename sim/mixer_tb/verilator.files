@@ -1,0 +1,2 @@
+rtl/video/hng64_mixer.sv
+sim/mixer_tb/tb_mixer.sv

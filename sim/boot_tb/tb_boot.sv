@@ -66,44 +66,77 @@ module tb_boot;
         .io_ack(io_ack), .io_rdata(io_rdata),
         .err_unmapped64(bus_err));
 
-    // ------------------------------------------------ backing store: BIOS, 16 MB RAM, no game
-    logic [63:0] bios [0:65535];
-    logic [63:0] ram  [0:2097151];
-    initial begin
-        $readmemh("sim/boot_tb/bios.hex", bios);
-        for (int i = 0; i < 2097152; i++) ram[i] = 64'd0;
-    end
+    // ---------------------------------------- backing store: the real memory stack
+    // Main RAM and the BIOS in SDRAM through the vendored controller and a chip model;
+    // `gameprg` would be in DDR3, but this bench runs the BIOS with no game, so that window
+    // answers all-ones, which is what an absent ROM reads as (ERASEFF).
+    wire  [15:0] SDRAM_DQ;
+    wire  [12:0] SDRAM_A;
+    wire   [1:0] SDRAM_BA;
+    wire         SDRAM_DQML, SDRAM_DQMH, SDRAM_nCS, SDRAM_nWE, SDRAM_nRAS, SDRAM_nCAS;
+    wire         SDRAM_CLK, SDRAM_CKE;
 
-    function automatic logic [63:0] rd(input logic [31:0] a);
-        if (a < 32'h0100_0000)                          return ram[a[23:3]];
-        if (a >= 32'h1FC0_0000 && a < 32'h1FC8_0000)    return bios[a[18:3]];
-        return {64{1'b1}};                              // program ROM: absent (ERASEFF)
-    endfunction
+    logic [25:0] s_addr;
+    logic        s_rd, s_we_m, s_ready, s_valid;
+    logic [63:0] s_wdata, s_data;
+    logic  [7:0] s_be;
+    logic [27:0] m_addr;
+    logic        m_rd, m_ready, m_valid;
+    logic [63:0] m_data;
 
-    // Fixed latency, then one beat a clk2x cycle. LAT is a placeholder until the SDRAM/DDR3
-    // design exists: it sets the CPI the bench reports, so quote it with any CPI figure.
-    localparam int LAT = 6;
-    logic [31:0] s_addr;
-    int          s_left, s_wait;
-    logic        s_busy, s_we;
+    hng64_mainmem u_mem (
+        .clk(clk2x), .reset(reset),
+        .st_req(st_req), .st_we(st_we), .st_addr(st_addr), .st_beats(st_beats),
+        .st_wdata(st_wdata), .st_be(st_be),
+        .st_rvalid(st_rvalid), .st_rdata(st_rdata), .st_wdone(st_wdone),
+        .s_addr(s_addr), .s_rd(s_rd), .s_we(s_we_m), .s_wdata(s_wdata), .s_be(s_be),
+        .s_ready(s_ready), .s_data(s_data), .s_valid(s_valid),
+        .d_addr(m_addr), .d_rd(m_rd), .d_ready(m_ready), .d_data(m_data), .d_valid(m_valid));
+
+    hng64_sdram u_sdram (
+        .clk(clk2x), .init(reset), .reset(reset),
+        .SDRAM_A(SDRAM_A), .SDRAM_DQ(SDRAM_DQ), .SDRAM_DQML(SDRAM_DQML), .SDRAM_DQMH(SDRAM_DQMH),
+        .SDRAM_BA(SDRAM_BA), .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE),
+        .SDRAM_nRAS(SDRAM_nRAS), .SDRAM_nCAS(SDRAM_nCAS), .SDRAM_CLK(SDRAM_CLK),
+        .SDRAM_CKE(SDRAM_CKE),
+        .v_addr(17'd0), .v_rd(1'b0), .v_ready(), .v_data(), .v_valid(),
+        .c_addr(s_addr), .c_rd(s_rd), .c_we(s_we_m), .c_wdata(s_wdata), .c_be(s_be),
+        .c_ready(s_ready), .c_data(s_data), .c_valid(s_valid),
+        .d_addr(25'd0), .d_din(16'd0), .d_we(1'b0), .d_ready());
+
+    sdram_chip_model_wide #(.MB(32)) u_chip (
+        .clk(clk2x), .SDRAM_DQ(SDRAM_DQ), .SDRAM_A(SDRAM_A), .SDRAM_BA(SDRAM_BA),
+        .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE), .SDRAM_nRAS(SDRAM_nRAS),
+        .SDRAM_nCAS(SDRAM_nCAS));
+
+    // the absent program ROM, with the latency a DDR3 read would have
+    localparam int DDR_LAT = 20;
+    int m_wait = 0;
+    assign m_ready = 1'b1;
     always_ff @(posedge clk2x) begin
-        st_rvalid <= 0;
-        st_wdone  <= 0;
-        if (st_req) begin
-            s_busy <= 1; s_we <= st_we; s_addr <= st_addr; s_left <= st_beats; s_wait <= LAT;
-            if (st_we && st_addr < 32'h0100_0000)
-                for (int b = 0; b < 8; b++)
-                    if (st_be[b]) ram[st_addr[23:3]][b*8 +: 8] <= st_wdata[b*8 +: 8];
-        end else if (s_busy) begin
-            if (s_wait > 0) s_wait <= s_wait - 1;
-            else if (s_we) begin
-                st_wdone <= 1; s_busy <= 0;
-            end else begin
-                st_rvalid <= 1; st_rdata <= rd(s_addr);
-                s_addr <= s_addr + 8; s_left <= s_left - 1;
-                if (s_left == 1) s_busy <= 0;
+        m_valid <= 1'b0;
+        if (reset) m_wait <= 0;
+        else begin
+            if (m_rd) m_wait <= DDR_LAT;
+            else if (m_wait > 1) m_wait <= m_wait - 1;
+            else if (m_wait == 1) begin
+                m_wait  <= 0;
+                m_data  <= {64{1'b1}};
+                m_valid <= 1'b1;
             end
         end
+    end
+
+    // The BIOS, and cleared main RAM, put straight into the chip model. The download port is
+    // how the core will fill it; poking the array here keeps the bench to its point, which is
+    // whether the CPU still boots identically with this memory behind it.
+    logic [63:0] bios [0:65535];
+    initial begin
+        $readmemh("sim/boot_tb/bios.hex", bios);
+        for (int i = 0; i < 8 * 1024 * 1024; i++) u_chip.mem[i] = 16'd0;
+        for (int g = 0; g < 65536; g++)
+            for (int w = 0; w < 4; w++)
+                u_chip.mem[(26'h140_0000 >> 1) + g * 4 + w] = bios[g][w * 16 +: 16];
     end
 
     // ------------------------------------------------ I/O: replay MAME's reads, log writes

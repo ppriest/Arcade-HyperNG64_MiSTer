@@ -56,11 +56,13 @@ TEXT_OK = {'part', 'name', 'setname', 'year', 'manufacturer', 'category',
 
 def driver_rotations():
     """setname -> rotation tag from the driver's GAME()/GAMEL() lines."""
-    src = setting("MAME_SRC")
-    if not src or not Path(src).exists():
+    # MAME_SRC may be the checkout root or the .cpp; rom_regions resolves both.
+    try:
+        from rom_regions import driver_text
+        text = driver_text()
+    except SystemExit:
         return None
     out = {}
-    text = Path(src).read_text(encoding="utf8", errors="replace")
     for m in re.finditer(r'^GAMEL?\(\s*\d+,\s*(\w+),.*?,\s*(ROT\d+)\b', text, re.M):
         out[m.group(1)] = ROT_TAG.get(m.group(2))
     return out
