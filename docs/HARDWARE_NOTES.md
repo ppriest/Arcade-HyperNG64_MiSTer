@@ -137,8 +137,8 @@ Not shown to be feasible. Blocking unknowns, in order:
 |---|---|
 | 0 | system, DMA and IRQ-controller registers written |
 | 30-35 | video set up: palette, sprite RAM, tilemap VRAM, display list, both 3D frame buffers cleared |
-| 39 | `0x6f000000` <- `AA55` (sound CPU held); 4 MB written to sound RAM `0x60200000` |
-| 46-55 | the 4 MB read back (verified) |
+| 39 | `0x6f000000` <- `AA55` (sound CPU held); 2 MB written to sound RAM `0x60200000`, each dword as two 16-bit halves |
+| 46-55 | the 2 MB read back the same way (verified) |
 | 56 | `0x6f000000` <- `55AA` (sound CPU released); mailbox `0x68000008`, `0x6800000c` cleared |
 | 57 | first reads of the IRQ controller and the IO-MCU dual-port RAM |
 | 499, 561 | mailbox commands, each preceded by reads of `0x68000004` |
@@ -152,7 +152,7 @@ with bit 0 set raises the V53A's IRQ 5. Before each command the BIOS reads statu
 `FFFF` at 561 after the `FFFF` command). Without a sound CPU both latches read 0.
 
 Consequence for the no-sound build: a mailbox stand-in that returns status `0x0080` and echoes
-the last command into the data latch, and accepts the sound-RAM upload and read-back (4 MB,
+the last command into the data latch, and accepts the sound-RAM upload and read-back (2 MB,
 which must read back what was written). Whether any game waits on other replies is unknown;
 extend the trace into game play before relying on it.
 

@@ -34,7 +34,7 @@ Phase 0 so far:
 - MAME references: `scripts/mame_insn_trace.py` (per-instruction, all GPRs) and a multi-range
   `mame_sys_trace.py`; boot sequence to frame 900, BIOS TLB windows and the sound-mailbox
   handshake recorded in HARDWARE_NOTES. Criterion 2 answered for the BIOS: a mailbox stand-in
-  (ready + echo) and a readable 4 MB sound RAM; game play not yet traced.
+  (ready + echo) and a readable 2 MB sound RAM; game play not yet traced.
 - **Criterion 1 met.** `rtl/hng64_bus.sv` (CPU port to a 64-bit backing store and a 32-bit
   big-endian I/O port) and `rtl/cpu/hng64_cpu.vhd` (wrapper) run the hng64 BIOS in
   `sim/boot_tb`: 199,998 instructions agree with MAME in PC and all 31 registers
@@ -53,9 +53,11 @@ Phase 0 so far:
 - **Criterion 4 measured** (`rtl/synth_check/`, HARDWARE_NOTES): CPU + bridge = 9,227 ALMs (22%),
   26 M10K (5%), 9 DSP (8%). 62.5 and 125 MHz close; the 93.75 MHz CPU clock misses by 2.613 ns
   (~75 MHz as placed, ~79 MHz on the best of four seeds), and every worst path is inside the
-  vendored CPU. Open: compile the N64 core itself on this toolchain to see whether it closes;
-  then Quartus edition, full-design placement, or pipelining that path.
-- Phase 0 criteria 1, 2, 3 and 5 met; criterion 4 measured with the clock question open.
+  vendored CPU. Closed by user decision: if 93.75 MHz does not close in the full design, the
+  CPU clock is lowered and the game runs slow. No experiment compiling the N64 core, and no work
+  on the vendored pipeline, for this.
+- Phase 0 criteria 1, 2, 3 and 5 met; criterion 4 measured, and its clock question closed by that
+  decision.
 - **Phase 1 started.** `scripts/render_model.py` reproduces MAME's 2D video pixel-exactly on
   2D-only frames (sams64 400/800/1200, buriki 200); frames with 3D differ only where MAME's
   polygon buffer covers the 2D layers. `scripts/rom_regions.py` builds tile and sprite ROM
@@ -362,9 +364,10 @@ running the dumped ROM (user decision). No stand-in.
 
 **Does the BIOS run without a sound CPU?** Unknown. Closed by Phase 0 criterion 2.
 
-**Does the CPU close 93.75 MHz?** Standalone it misses by 2.613 ns (criterion 4). The N64 core
-ships at that rate, so try other seeds and the full-design placement before accepting a slower
-clock or touching the vendored pipeline.
+**Does the CPU close 93.75 MHz?** Standalone it misses by 2.613 ns (criterion 4). Closed (user
+decision): the full design is compiled at 93.75 MHz, and if it does not close the CPU clock comes
+down to what does, with the game running correspondingly slow. The vendored pipeline is not
+touched for this.
 
 **What does 93.75 MHz cost?** Decided to run at 93.75 MHz. Game logic timed by the CPU runs up
 to 6% slow; a MAME run at 93.75 MHz shows whether any of it is visible. Overclocking is a later

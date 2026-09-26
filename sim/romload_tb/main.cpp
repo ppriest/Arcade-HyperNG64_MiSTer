@@ -26,9 +26,17 @@
 
 namespace {
 
+// A multiply alone leaves the low byte blind to large power-of-two address differences - the
+// original form here gave identical bytes 128 MB apart, which hid a gameprg address bug - so the
+// product is folded back on itself until every address bit reaches the byte.
 uint8_t pattern(uint32_t byte_addr) {
     uint32_t v = byte_addr * 2654435761u;
-    return uint8_t((v >> 13) ^ (byte_addr & 0xff));
+    v ^= v >> 16;
+    v *= 0x85ebca6bu;
+    v ^= v >> 13;
+    v *= 0xc2b2ae35u;
+    v ^= v >> 16;
+    return uint8_t(v);
 }
 
 std::string arg(const char *key, const char *def) {

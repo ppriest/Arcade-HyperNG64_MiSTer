@@ -10,6 +10,8 @@
 # ROM images must exist (scripts/rom_regions.py <set> scrtile, and sprtile). They are the regions
 # as the ROMs load them; the scrtile reorder is undone by address, in the RTL and in the benches.
 set -u
+# without this each line's status is tail's, and a failing bench leaves the script exiting 0
+set -o pipefail
 
 sets=${*:-"sams64 fatfurwa buriki xrally"}
 fail=0
@@ -41,5 +43,10 @@ printf '%-9s %-8s mem  ' cpu backing
 scripts/run_verilator.sh mainmem_tb 2>&1 | tail -1 || fail=1
 printf '%-9s %-8s load ' rom loading
 scripts/run_verilator.sh romload_tb 2>&1 | tail -1 || fail=1
+printf '%-9s %-8s mcu  ' io tlcs870
+# the whole trace: the first interrupt is past 2.2M instructions
+scripts/run_verilator.sh iomcu_tb +n=3000000 2>&1 | tail -1 || fail=1
+printf '%-9s %-8s io   ' main board
+scripts/run_verilator.sh io_tb 2>&1 | tail -1 || fail=1
 
 exit $fail

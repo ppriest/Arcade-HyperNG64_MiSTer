@@ -17,7 +17,7 @@ From `main_map` (hng64.cpp:1182) and the ROM regions, for the largest in-scope s
 | main RAM | 16 MB | CPU read/write, cached | `0x00000000` |
 | `gameprg` | 16 MB | CPU read, cached | `0x04000000` |
 | `bios` | 512 KB | CPU read, cached | `0x1fc00000` |
-| sound RAM | 4 MB | CPU write, and read back | the BIOS uploads 4 MB and verifies it (Phase 0) |
+| sound RAM | 2 MB | CPU write, and read back | `0x60200000`; the BIOS uploads 2 MB and verifies it (Phase 0) |
 | `scrtile` | 64 MB | **video, per line** | four tilemap layers |
 | `sprtile` | 64 MB | **video, per line** | sprites |
 | `textures0` | 16 MB | 3D, per pixel | Phase 3 |
@@ -113,7 +113,7 @@ does not.**
 
 That keeps the CPU's writes and its cache fills off the port the video depends on, and it means
 the DDR3 side can be a read-only burst engine with no write path and no read-after-write hazard.
-It needs 20.5 MB, so the common 32 MB module is enough and no user is excluded.
+It needs 22.3 MB, so the common 32 MB module is enough and no user is excluded.
 
 The N64 core runs a VR4300 with its main RAM in DDR3, so the CPU path would tolerate DDR3; this
 is a contention decision, not a correctness one.
@@ -123,14 +123,21 @@ is a contention decision, not a correctness one.
 | Offset | Size | Region | Access |
 |---|---|---|---|
 | `0x000000` | 16 MB | main RAM | CPU read/write, cached |
-| `0x1000000` | 4 MB | sound RAM | CPU writes it and reads it back; no sound CPU yet (`HACKS.md`) |
+| `0x1000000` | 2 MB, in a 4 MB slot | sound RAM | CPU writes it and reads it back; no sound CPU yet (`HACKS.md`) |
 | `0x1400000` | 1 MB | `bios` | CPU read, cached; copied here from DDR3 at start-up |
 | `0x1500000` | 512 KB | tile VRAM | CPU write, video read per line; too big for M10K |
-| | | end `0x1580000`, 21.5 MB of 32 MB | |
+| `0x1580000` | 384 KB | 3D buffer A | CPU read/write (`0x30100000`); the 3D pipeline's, Phase 3 |
+| `0x15e0000` | 384 KB | 3D buffer B | CPU read/write (`0x30200000`) |
+| | | end `0x1640000`, 22.3 MB of 32 MB | |
 
-The BIOS slot is the 1 MB MAME declares, not the 512 KB the ROM fills: the CPU's decode sends
-everything that is not main RAM or `gameprg` here, so a read past the ROM has to land in zeros
-rather than in tile VRAM.
+The bridge sends only MAME's 512 KB BIOS window here, so the BIOS slot's second half is never
+read; it is sized to MAME's declared region, which is what the `.mra` carries.
+
+Everything in this table is plain memory in MAME as well, so all of it goes through the bridge's
+backing-store path (`hng64_bus.sv`, `is_store`) and `hng64_mainmem`, rather than through the I/O
+port: the I/O port is on the CPU's `clk1x` and SDRAM on `clk2x`, and the bridge already crosses
+between them. `sim/mainmem_tb` fills each region at its SDRAM offset and reads it through the CPU
+path, so a wrong base fails there.
 
 ### DDR3, the core window at `0x30000000`
 

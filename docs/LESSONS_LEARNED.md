@@ -188,6 +188,17 @@ first read used the previous line's index and every scroll value landed one slot
 four layers still passed because their scroll words are all zero. Build a sequenced address from
 a value the state machine has already committed, or name the index explicitly per state.
 
+### [HyperNG64] A hashed address pattern must reach every address bit, or it hides a whole class of address bug
+
+`sim/mainmem_tb` filled memory with `uint8((a * 2654435761) >> 13 ^ (a & 0xff))` and passed for
+as long as it existed while `gameprg` reads went to `0xC000000 + offset` instead of `offset`: for
+an address difference of 2^27 that byte is identical at every address checked (0 of 65,536 differ).
+The bench's own DDR3 model also keyed its bytes by the wrong address, and under that pattern the two
+errors cancelled. It surfaced only when `sim/io_tb` copied real ROM through the same path and got
+zeros. Fold the product back on itself (a hash finalizer) so every address bit changes the byte,
+and add one negative control that moves a region's base: a bench that still passes then is not
+testing the mapping.
+
 ## ROM loading: .mra, byte order, deployment
 
 ### [Seta] A `<dip>`'s `bits` is a range, "first,last", not a list

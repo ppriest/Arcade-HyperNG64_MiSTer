@@ -38,7 +38,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("game")
     ap.add_argument("n", type=int, help="instructions to keep")
-    ap.add_argument("--regs", default="", help="'all', or ABI register names, e.g. sp,ra")
+    ap.add_argument("--regs", default="", help="'all', or register names, e.g. sp,ra")
+    ap.add_argument("--width", type=int, default=16, help="hex digits per traced register")
     ap.add_argument("--cpu", default="maincpu")
     ap.add_argument("--timeout", type=int, default=1800, help="seconds before giving up")
     a = ap.parse_args()
@@ -54,12 +55,16 @@ def main():
     action = ""
     if a.regs:
         regs = ABI if a.regs == "all" else [r.strip() for r in a.regs.split(",") if r.strip()]
-        fmt = " ".join("%016X" for _ in regs)
+        fmt = " ".join("%%0%dX" % a.width for _ in regs)
         action = ',{tracelog "' + fmt + ' ",' + ",".join(regs) + "}"
     lua = out / "arm.lua"
     lua.write_text(
         "local dbg = manager.machine.debugger\n"
         "if not dbg then print('INSN_NO_DEBUGGER') return end\n"
+        # A tracelog action is a debugger command, so its register names resolve against
+        # the VISIBLE cpu, not the traced one. Tracing anything but the main CPU needs
+        # both set, or the names silently do not resolve and the prefix is dropped.
+        f"dbg.visible_cpu = manager.machine.devices[':{a.cpu}']\n"
         f"dbg:command('trace {raw.as_posix()},{a.cpu},noloop{action}')\n"
         "dbg:command('go')\n"
         "print('INSN_ARMED')\n", encoding="utf-8")

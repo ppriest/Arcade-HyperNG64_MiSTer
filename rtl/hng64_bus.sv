@@ -59,10 +59,16 @@ module hng64_bus (
     output logic        err_unmapped64   // a 64-bit access to I/O: not handled
 );
 
+    // Plain memory in MAME's map, kept in SDRAM or DDR3 by hng64_mainmem, which has the same
+    // table. Everything else is a device and goes to the I/O port.
     function automatic logic is_store(input logic [31:0] a);
         return (a < 32'h0100_0000)                              // work RAM, 16 MB
             || (a >= 32'h0400_0000 && a < 32'h0600_0000)        // program ROM
-            || (a >= 32'h1FC0_0000 && a < 32'h1FC8_0000);       // BIOS
+            || (a >= 32'h1FC0_0000 && a < 32'h1FC8_0000)        // BIOS
+            || (a >= 32'h2010_0000 && a < 32'h2018_0000)        // tile VRAM
+            || (a >= 32'h3010_0000 && a < 32'h3016_0000)        // 3D buffer A
+            || (a >= 32'h3020_0000 && a < 32'h3026_0000)        // 3D buffer B
+            || (a >= 32'h6020_0000 && a < 32'h6040_0000);       // sound RAM
     endfunction
 
     function automatic logic [31:0] bswap32(input logic [31:0] v);

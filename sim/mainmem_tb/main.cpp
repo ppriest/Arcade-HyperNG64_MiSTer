@@ -23,9 +23,17 @@
 namespace {
 
 // a byte that depends on its own address, so a misdirected read cannot look right
+// A multiply alone leaves the low byte blind to large power-of-two address differences - the
+// original form here gave identical bytes 128 MB apart, which hid a gameprg address bug - so the
+// product is folded back on itself until every address bit reaches the byte.
 uint8_t pattern(uint32_t byte_addr) {
     uint32_t v = byte_addr * 2654435761u;
-    return uint8_t((v >> 13) ^ (byte_addr & 0xff));
+    v ^= v >> 16;
+    v *= 0x85ebca6bu;
+    v ^= v >> 13;
+    v *= 0xc2b2ae35u;
+    v ^= v >> 16;
+    return uint8_t(v);
 }
 
 std::string arg(const char *key, const char *def) {
@@ -42,6 +50,16 @@ constexpr uint32_t BIOS_CPU    = 0x1fc00000;
 constexpr uint32_t BIOS_SDRAM  = 0x1400000;
 constexpr uint32_t PRG_CPU     = 0x04000000;
 constexpr uint32_t PRG_BYTES   = 0x8000;
+
+// the plain-memory regions outside RAM, at the SDRAM offsets docs/MEMORY.md gives them
+struct Region { const char *name; uint32_t cpu, sdram; };
+constexpr Region PLAIN[] = {
+    {"sound RAM", 0x60200000, 0x1000000},
+    {"tile VRAM", 0x20100000, 0x1500000},
+    {"3D buffer A", 0x30100000, 0x1580000},
+    {"3D buffer B", 0x30200000, 0x15e0000},
+};
+constexpr uint32_t PLAIN_BYTES = 0x400;
 
 }  // namespace
 
@@ -71,7 +89,8 @@ int main(int argc, char **argv) {
         if (dut->DDRAM_RD && !dut->DDRAM_BUSY) {
             uint64_t byte = uint64_t(dut->DDRAM_ADDR & 0x1ffffff) << 3;
             uint64_t d = 0;
-            for (int i = 7; i >= 0; i--) d = (d << 8) | pattern(uint32_t(byte) + i);
+            // gameprg sits at DDR3 offset 0 (prg_base), so DDR3 byte b is CPU byte 0x04000000 + b
+            for (int i = 7; i >= 0; i--) d = (d << 8) | pattern(PRG_CPU + uint32_t(byte) + i);
             ddr_q.emplace_back(cyc + ROM_LAT, d);
         }
         dut->DDRAM_DOUT_READY = 0;
@@ -102,6 +121,14 @@ int main(int argc, char **argv) {
     };
     load(0, 0, RAM_BYTES);
     load(BIOS_SDRAM, BIOS_CPU, 0x2000);
+    // Each region is filled at its SDRAM offset with the pattern of its CPU address, so a read
+    // through the CPU path only comes back right if the address translation is right. The
+    // regions' ends are filled too, which catches a base that is off by the region's size.
+    for (const auto &r : PLAIN) {
+        load(r.sdram, r.cpu, PLAIN_BYTES);
+    }
+    load(0x1000000 + 0x1ffc00, 0x60200000 + 0x1ffc00, 0x400);   // sound RAM's last 1 KB
+    load(0x15e0000 + 0x5fc00, 0x30200000 + 0x5fc00, 0x400);     // 3D buffer B's last 1 KB
 
     // the reference: byte k of a beat sits at bits [8k+7:8k]
     auto want = [&](uint32_t a) {
@@ -167,6 +194,10 @@ int main(int argc, char **argv) {
         for (uint32_t a = 0; a < 0x400; a += 8 * beats)      check("bios", BIOS_CPU + a, beats);
         for (uint32_t a = 0; a < 0x400; a += 8 * beats)      check("gameprg", PRG_CPU + a, beats);
     }
+    for (const auto &r : PLAIN)
+        for (uint32_t a = 0; a < PLAIN_BYTES; a += 32) check(r.name, r.cpu + a, 4);
+    check("sound RAM end", 0x60200000 + 0x1ffc00 + 0x3e0, 4);
+    check("3D buffer B end", 0x30200000 + 0x5fc00 + 0x3e0, 4);
     // further in, so a base that is merely plausible still fails
     check("ram high", 0x7000, 4);
     check("bios high", BIOS_CPU + 0x1800, 4);
@@ -187,6 +218,16 @@ int main(int argc, char **argv) {
             if (w.be & (1 << k)) written[w.a + k] = uint8_t(w.d >> (8 * k));
     }
     for (auto &w : writes) check("readback", w.a, 1);
+
+    // every plain region is writable, and a write lands where a read finds it
+    for (const auto &r : PLAIN) {
+        const uint64_t d = 0x0f1e2d3c4b5a6978ULL ^ r.cpu;
+        request(r.cpu + 0x40, 1, true, d, 0xff);
+        for (int k = 0; k < 8; k++) written[r.cpu + 0x40 + k] = uint8_t(d >> (8 * k));
+        check(r.name, r.cpu + 0x40, 1);
+    }
+    // and main RAM at the same low offsets is untouched by those writes
+    check("ram under the regions", 0x40, 1);
 
     // a write outside main RAM is dropped, not applied
     request(BIOS_CPU + 0x40, 1, true, 0xffffffffffffffffULL, 0xff);
