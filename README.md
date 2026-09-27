@@ -101,10 +101,16 @@ with a `mister.env` (see `scripts/deploy.py`).
 
 ## Controls
 
-{{CONTROLS}}
-<!-- The J1 line's button names in order, what Start/Coin/Pause/Service map to, and per-game
-     exceptions. Must agree with the .mra <buttons> positions. Light gun / trackball / mouse
-     options if any. -->
+Two players, an 8-way stick and four buttons each, as MAME's `hng64_fight` ports:
+
+| OSD name | default pad button | board input |
+|---|---|---|
+| Button 1-4 | A, B, X, Y | the four attack buttons |
+| Start | Start | Start 1 / Start 2 |
+| Coin | Select | Coin 1 / Coin 2, one 16.8 ms pulse per press |
+| Pause | L | suspends the main CPU; press again to resume |
+| Service | - | Service 1 (either pad) |
+| Test | - | the test switch (either pad) |
 
 ## Status
 
@@ -120,21 +126,21 @@ progress; `docs/LESSONS_LEARNED.md` is what it cost.
 
 <!-- Keep every line; mark each done / not yet / n-a so the gaps are visible. -->
 
-* DIP switches from the `.mra` (`DIP;` in the OSD): {{DIPS_STATUS}}
-* Inputs: {{INPUTS_STATUS}}
-* CRT Adjust (H-Position, V-Shift, H-Size, V-Size): {{CRT_ADJUST_STATUS}}
-* HDMI scaling (integer scale, crop, crop offset): {{SCALING_STATUS}}
-* HDMI rotation (orientation): {{ROTATION_STATUS}}
-* Flip screen, HDMI and analog, from the OSD or the DIP (fake DIP where the game has none): {{FLIP_STATUS}}
-* HDMI-only options hidden under direct video: {{DIRECT_VIDEO_STATUS}}
-* Peripheral menus shown only for games that use them: {{PERIPHERAL_MENUS_STATUS}}
-* Rotary joysticks (Ikari Warriors controls, GRS keystroke mode), where used: {{ROTARY_STATUS}}
-* Light guns: mouse, analog stick and synthetic crosshair, where used: {{GUN_STATUS}}
+* DIP switches from the `.mra` (`DIP;` in the OSD): n/a, MAME lists none for the fight sets
+* Inputs: wired (`HyperNG64.sv`), not tried on hardware
+* CRT Adjust (H-Position, V-Shift, H-Size, V-Size): H-Position, V-Shift and H-Size, checked in `sim/crt_tb`; no V-Size; not tried on hardware
+* HDMI scaling (integer scale, crop, crop offset): wired (`video_freak`), crop to 432 or 360 of the 448 lines; not tried on hardware
+* HDMI rotation (orientation): CW and CCW through `screen_rotate_two`; checked in `sim/sys_tb`, DDR3 cost on hardware unmeasured (`docs/HACKS.md`)
+* Flip screen, HDMI and analog, from the OSD or the DIP (fake DIP where the game has none): done in simulation, from the OSD or the `.mra`'s fake DIP (setting both cancels); checked in `sim/sys_tb` against the unflipped frame turned 180 degrees
+* HDMI-only options hidden under direct video: done
+* Peripheral menus shown only for games that use them: n/a for the fight sets (no guns, wheels or rotary sticks)
+* Rotary joysticks (Ikari Warriors controls, GRS keystroke mode), where used: n/a
+* Light guns: mouse, analog stick and synthetic crosshair, where used: n/a
 * Audio mix (Mono, None, 25%, 50%): {{AUDIO_MIX_STATUS}}
-* Hiscore saving (`hiscore.v`, with autosave): {{HISCORE_STATUS}}
-* NVRAM / EEPROM saved to the `.nvm` file: {{NVRAM_STATUS}}
-* Fast ROM loading via DDR: {{DDR_LOAD_STATUS}}
-* Pause (with CPU suspended): {{PAUSE_STATUS}}
+* Hiscore saving (`hiscore.v`, with autosave): n/a, MAME's `hiscore.dat` has no HNG64 set
+* NVRAM / EEPROM saved to the `.nvm` file: wired, saved when the OSD opens after the game wrote it; `sim/sys_tb` checks both directions, not tried on hardware
+* Fast ROM loading via DDR: done, the HPS writes the set into DDR3 (`docs/MEMORY.md`)
+* Pause (with CPU suspended): wired, not tried on hardware
 * Sound: {{SOUND_STATUS}}
 * Savestates (optional): {{SAVESTATE_STATUS}}
 * Cheats (optional): {{CHEATS_STATUS}}

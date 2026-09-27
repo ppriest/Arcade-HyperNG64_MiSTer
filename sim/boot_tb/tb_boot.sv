@@ -45,7 +45,7 @@ module tb_boot;
 
     hng64_cpu u_cpu (
         .clk1x(clk1x), .clk93(clk93), .clk2x(clk2x),
-        .reset_1x(reset), .reset_93(reset), .ss_reset(ss_reset), .irq(1'b0),
+        .reset_1x(reset), .reset_93(reset), .ss_reset(ss_reset), .irq(1'b0), .pause(1'b0),
         .mem_request(mem_request), .mem_rnw(mem_rnw), .mem_address(mem_address),
         .mem_req64(mem_req64), .mem_size(mem_size), .mem_writeMask(mem_writeMask),
         .mem_dataWrite(mem_dataWrite), .mem_dataRead(mem_dataRead), .mem_done(mem_done),

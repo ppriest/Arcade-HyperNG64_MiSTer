@@ -94,6 +94,7 @@ module tb_mainmem (
         .SDRAM_nCAS(SDRAM_nCAS));
 
     hng64_ddram #(.N(1)) u_ddr (
+        .w_addr(29'd0), .w_din(64'd0), .w_be(8'd0), .w_valid(1'b0), .w_urgent(1'b0), .w_ready(),
         .clk(clk), .reset(reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),

@@ -57,7 +57,8 @@ uint32_t be32(const std::vector<uint8_t> &v, size_t byte) {
 
 uint64_t be64(const std::vector<uint8_t> &v, size_t byte) {
     uint64_t d = 0;
-    for (int i = 0; i < 8; i++) d = (d << 8) | (byte + i < v.size() ? v[byte + i] : 0);
+    // byte k of the granule in bits 8k+7:8k, as MiSTer's DDRAM port delivers it
+    for (int i = 7; i >= 0; i--) d = (d << 8) | (byte + i < v.size() ? v[byte + i] : 0);
     return d;
 }
 

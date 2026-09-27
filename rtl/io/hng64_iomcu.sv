@@ -52,7 +52,8 @@ module hng64_iomcu (
     output logic  [7:0] lamp_data,
     output logic        mips_irq,       // one clock: the MCU asks the MIPS for attention
 
-    // the MIPS side of the dual-port RAM (IDT71321, 2K x 8)
+    // the MIPS side of the dual-port RAM (IDT71321, 2K x 8), on the MIPS's I/O clock
+    input  logic        dp_clk,
     input  logic [10:0] dp_addr,
     input  logic        dp_we,
     input  logic  [7:0] dp_wdata,
@@ -133,9 +134,10 @@ module hng64_iomcu (
     logic [7:0] dp_left_q;
 
     hng64_tdpram #(.AW(11), .DW(8)) u_dpram (
-        .clk(clk),
+        .a_clk(clk),
         .a_addr({dp_upper, dp_ctr}), .a_we(we && a == 16'h0000), .a_wdata(wd),
         .a_rdata(dp_left_q),
+        .b_clk(dp_clk),
         .b_addr(dp_addr), .b_we(dp_we), .b_wdata(dp_wdata), .b_rdata(dp_rdata));
 
     // ---- SFRs ---------------------------------------------------------------------------------------

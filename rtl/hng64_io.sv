@@ -64,6 +64,15 @@ module hng64_io #(
     // hps_io's RTC: BCD seconds, minutes, hours, date, month, year, and weekday 1-7
     input  logic [55:0] rtc,
 
+    // the host's port on the NVRAM (the .nvm file, ioctl index 4), in bytes in MAME's file order:
+    // its share is a u32 array saved little-endian, so byte j is bits 8(j%4)+7:8(j%4) of dword
+    // j/4 as the CPU sees it. Read data the clock after the address.
+    input  logic [13:0] nv_addr,
+    input  logic        nv_we,
+    input  logic  [7:0] nv_wdata,
+    output logic  [7:0] nv_rdata,
+    output logic        nv_written,     // one clock per CPU write
+
     // the DMA engine, on clk2x (hng64_dma.sv). go and done are toggles.
     output logic [31:0] dma_src,
     output logic [31:0] dma_dst,
@@ -81,6 +90,7 @@ module hng64_io #(
     input  logic        v_ack,
     input  logic [31:0] v_rdata,
 
+    output logic  [7:0] fbcontrol0,     // m_fbcontrol[0], which picks the video's background
     output logic        dbg_mcu_en_0c   // m_mcu_en == 0x0c, for the bench
 );
 
@@ -142,13 +152,11 @@ module hng64_io #(
 
     // ---- system registers, NVRAM, network RAM: dword RAMs with byte enables ---------------------------
     logic [31:0] sys_mem [0:1087];
-    logic [31:0] nv_mem  [0:4095];
     logic [31:0] com_mem [0:1025];
     logic [31:0] sys_q, nv_q, com_q;
 
     initial begin
         for (int i = 0; i < 1088; i++) sys_mem[i] = 32'd0;
-        for (int i = 0; i < 4096; i++) nv_mem[i] = 32'd0;      // nvram_device::DEFAULT_ALL_0
         for (int i = 0; i < 1026; i++) com_mem[i] = 32'd0;
     end
 
@@ -163,11 +171,22 @@ module hng64_io #(
         sys_q <= sys_mem[sys_i];
     end
 
-    always_ff @(posedge clk) begin
-        if (mem_we && dev == D_NVRAM)
-            for (int k = 0; k < 4; k++) if (be[k]) nv_mem[nv_i][8*k +: 8] <= wd[8*k +: 8];
-        nv_q <= nv_mem[nv_i];
+    // one byte-lane RAM each, so the host's byte port is a plain second port (all 0 at power-up:
+    // nvram_device::DEFAULT_ALL_0)
+    logic [7:0] nv_lane_q [4];
+    for (genvar k = 0; k < 4; k++) begin : g_nv
+        hng64_tdpram #(.AW(12), .DW(8)) u_lane (
+            .a_clk(clk), .a_addr(nv_i), .a_we(mem_we && dev == D_NVRAM && be[k]),
+            .a_wdata(wd[8*k +: 8]), .a_rdata(nv_q[8*k +: 8]),
+            .b_clk(clk), .b_addr(nv_addr[13:2]), .b_we(nv_we && nv_addr[1:0] == 2'(k)),
+            .b_wdata(nv_wdata), .b_rdata(nv_lane_q[k]));
     end
+    logic [1:0] nv_lane;
+    always_ff @(posedge clk) begin
+        nv_lane    <= nv_addr[1:0];
+        nv_written <= mem_we && dev == D_NVRAM;
+    end
+    assign nv_rdata = nv_lane_q[nv_lane];
 
     always_ff @(posedge clk) begin
         if (mem_we && dev == D_COM)
@@ -270,6 +289,7 @@ module hng64_io #(
     logic  [7:0] texwrap [0:31];
 
     assign mcu_int0       = (int0_cnt != 11'd0);
+    assign fbcontrol0     = fbcontrol[0];
     assign dbg_mcu_en_0c  = (mcu_en == 8'h0c);
 
     // The sprite clears (sprite_clear_even_w / _odd_w, hng64.cpp:1075): each write clears four

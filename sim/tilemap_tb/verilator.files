@@ -1,2 +1,3 @@
+rtl/video/hng64_mosaic.sv
 rtl/video/hng64_tilemap.sv
 sim/tilemap_tb/tb_tilemap.sv

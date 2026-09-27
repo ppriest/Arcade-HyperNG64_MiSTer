@@ -56,6 +56,8 @@ from extract_romstart import IN_SCOPE, blocks, region_decl, region_records  # no
 
 RBF = "HyperNG64"
 PARENT = "hng64"
+MCU_ROM, MCU_CRC = "tmp87ph40an.bin", "b70df21f"
+NVRAM_SIZE = 0x4000
 MAMEVERSION = "0285"
 
 # The regions the core reads at run time, in DDR3 order. `textures0` and `verts`
@@ -218,6 +220,14 @@ def build(game, bl, meta, out_dir):
            f"  <manufacturer>{esc(maker)}</manufacturer>",
            f"  <rbf>{RBF}</rbf>",
            "  <rotation>horizontal</rotation>",
+           # the J1 line of HyperNG64.sv's CONF_STR, in its order
+           '  <buttons names="Button 1,Button 2,Button 3,Button 4,Start,Coin,Pause,Service,Test"'
+           ' default="A,B,X,Y,Start,Select,L"/>',
+           # MAME lists no DIPs for the fight sets: this one is the core's own Flip Screen,
+           # read by HyperNG64.sv and never by the game
+           '  <switches default="00" base="0">',
+           '    <dip name="Flip Screen" bits="0" ids="Off,On"/>',
+           '  </switches>',
            f"  <mameversion>{MAMEVERSION}</mameversion>"]
 
     blob = config_blob(lay)
@@ -225,6 +235,10 @@ def build(game, bl, meta, out_dir):
     # the layout before anything reads DDR3.
     xml.append('  <rom index="1"><part>' +
                " ".join(f"{b:02X}" for b in blob) + "</part></rom>")
+    # the IO MCU's ROM: MAME's "iomcu" region loads the 32 KB file at 0x8000 and the MCU
+    # decodes ROM at 0xc000-0xffff, the file's top 16 KB (rtl/io/hng64_iomcu.sv)
+    xml.append(f'  <rom index="2" zip="{PARENT}.zip" md5="none">'
+               f'<part name="{MCU_ROM}" crc="{MCU_CRC}" offset="0x4000" length="0x4000"/></rom>')
     for region, base, size in lay:
         xml.append(f"  <!-- {region}: {size:#x} bytes at {base:#x} -->")
     xml.append(f'  <rom index="0" zip="{game}.zip|{PARENT}.zip" md5="none"'
@@ -246,6 +260,20 @@ def build(game, bl, meta, out_dir):
             xml.append(f'      <part repeat="{pad:#x}">{fill:02X}</part>')
         pos = base + produced + pad
     xml.append("  </rom>")
+    # NVRAM: 16 KB at 0x1f800000. Where MAME's set has an "nvram" region (fatfurwa's per-region
+    # defaults, the export one by ROM_DEFAULT_BIOS) it is the first-run contents; the saved .nvm,
+    # when there is one, is loaded after it.
+    nv_recs, unknown = region_records(bl[game], "nvram")
+    if unknown:
+        sys.exit(f"{game} nvram: unparsed records: {unknown[:2]}")
+    if nv_recs:
+        body, produced = region_xml(nv_recs, 0)
+        if produced != NVRAM_SIZE:
+            sys.exit(f"{game} nvram: parts produce {produced:#x} bytes, want {NVRAM_SIZE:#x}")
+        xml.append(f'  <rom index="4" zip="{game}.zip|{PARENT}.zip" md5="none">')
+        xml += body
+        xml.append("  </rom>")
+    xml.append(f'  <nvram index="4" size="{NVRAM_SIZE}"/>')
     xml.append("</misterromdescription>")
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -271,6 +299,23 @@ def verify(path, game, lay):
             first = next(i for i in range(size) if got[i] != want[i])
             print(f"  {region}: differs at {first:#x} (got {got[first]:#04x}, "
                   f"want {want[first]:#04x})")
+            bad += 1
+    # index 2 against the top 16 KB of MAME's iomcu region
+    import zipfile
+    import xml.etree.ElementTree as ET
+    part = ET.parse(path).getroot().find("rom[@index='2']/part")
+    with zipfile.ZipFile(find_zip(PARENT)) as z:
+        mcu = mra._part_data(z, part)
+    if mcu != rom_regions.region(game, "iomcu")[0xc000:]:
+        print("  iomcu: index 2 differs from the region's 0xc000-0xffff")
+        bad += 1
+    # index 4, where there is one, against MAME's nvram region
+    parts = ET.parse(path).getroot().findall("rom[@index='4']/part")
+    if parts:
+        with zipfile.ZipFile(find_zip(game)) as z:
+            nv = b"".join(mra._part_data(z, el) for el in parts)
+        if nv != rom_regions.region(game, "nvram"):
+            print("  nvram: index 4 differs from the region")
             bad += 1
     return bad, len(image)
 

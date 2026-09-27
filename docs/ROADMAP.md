@@ -92,6 +92,21 @@ Phase 0 so far:
   index 1 and `hng64_romload` copies the BIOS into SDRAM. Two region-image faults came out of
   it: the image was sized by the extent of the loads rather than the declared region (buriki's
   `scrtile` reorder split 4 MB out), and filled with 0xff where MAME uses 0.
+- **The board less its CPU replays MAME's boot exactly.** `rtl/hng64_core.sv`: the IO MCU (the
+  full TLCS-870 instruction set, running its dumped ROM), the main board's I/O, DMA, the memory
+  stack and the video. `sim/sys_tb` drives MAME's bus trace of sams64 into the CPU's port: 0 of
+  1,048,576 sound RAM reads and 0 of the I/O reads differ except the dual-port RAM's
+  timing-dependent ones, and frames 400 and 800 are 0 of 229,376 pixels different. `sim/iomcu_tb`
+  runs the MCU 3M instructions with no trace.
+- **The MiSTer top level is written, not built.** `HyperNG64.sv`: the PLL (93.75 / 62.5 / 125 MHz),
+  `hps_io`, the VR4300, inputs as MAME's `hng64_fight` ports, Pause, direct video out. Linted in
+  Verilator with the CPU and PLL stubbed; no Quartus run yet (user decision).
+- **The standard feature set is in, in simulation.** NVRAM to the `.nvm` (`sim/sys_tb`, both
+  directions), CRT Adjust (`sim/crt_tb`), HDMI scaling and crop, Flip Screen from the OSD or a fake
+  DIP (`sys_tb +flip=1`: frames exact against the model turned 180 degrees), HDMI rotation
+  (`sys_tb +rot=1`: the rotated buffers exact, the frames exact under the writes), the hidden
+  Debug page (layer switches) and ISSP instance F in the stp revision. Hiscore is n/a (no
+  `hiscore.dat` entry). None of it has been built or run on hardware.
 Hardware notes and feasibility from MAME (`E:/mame` 5ae594bafe9) and the N64 core
 (`MiSTer-devel/N64_MiSTer` adbf9b5). No RTL yet.
 

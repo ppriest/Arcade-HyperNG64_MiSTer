@@ -199,6 +199,25 @@ zeros. Fold the product back on itself (a hash finalizer) so every address bit c
 and add one negative control that moves a region's base: a bench that still passes then is not
 testing the mapping.
 
+### [HyperNG64] Module benches can agree with each other on a byte order the platform does not have
+
+The tile and sprite engines passed pixel-exact on every capture in `tilemap_tb`, `sprite_tb` and
+`video_tb`, and every one of those benches built a DDR3 granule with the byte at the lowest address
+in bits 63:56. MiSTer's DDRAM port delivers it in bits 7:0 - which the memory benches, the CPU path
+and the loaders all used. On hardware every tile and sprite would have come out with pixel pairs
+swapped and rows shuffled. It surfaced only in `sim/sys_tb`, the first bench where the video read
+from the same DDR3 model as everything else. A convention that lives at a boundary is checked only
+by a bench that crosses the boundary with the platform's side of it: give each such convention one
+definition in the bench code, shared, rather than one per bench.
+
+### [HyperNG64] A trace's frame marker and a capture's frame number can be a frame apart
+
+Replaying MAME's bus trace and stopping at `# frame 800` gave 12,321 pixels different from MAME's
+frame 800; stopping at `# frame 801` gave none. The trace marks a frame as it starts, before its
+writes; a capture of frame N is the state after N. Frame 400 hid it because nothing changed around
+it. Check the alignment on a frame where something moves, and try the neighbours before debugging
+the render.
+
 ## ROM loading: .mra, byte order, deployment
 
 ### [Seta] A `<dip>`'s `bits` is a range, "first,last", not a list

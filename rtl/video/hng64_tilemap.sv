@@ -73,12 +73,14 @@ module hng64_tilemap (
     wire       alt      = big && (videoreg0[25:24] != 2'b00);
     wire       wrap     = tileregs[8];
 
-    // mosaic: every (mosaic+1)th line is the source line for the group
-    logic [8:0] src_line;
-    always_comb begin
-        src_line = line;
-        if (mosaic != 0) src_line = line - (line % (mosaic + 1));
-    end
+    // mosaic: every (mosaic+1)th line is the source line for the group, found by hng64_mosaic
+    // while the line waits in A_MOS
+    logic       mos_start;
+    wire        mos_done;
+    wire  [8:0] mos_base;
+    hng64_mosaic #(.W(9)) u_mos (
+        .clk(clk), .start(mos_start), .x(line), .m(mosaic), .done(mos_done), .base(mos_base));
+    wire  [8:0] src_line = (mosaic != 4'd0) ? mos_base : line;
 
     // ---- the layer's scroll words, and the four steps they give -------------------------------
     // Three layouts (hng64_v.cpp:143-318): plain, per line, and the rotating "alt" one buriki's
@@ -144,7 +146,7 @@ module hng64_tilemap (
     wire [1:0] words_m1 = big ? (eightbpp ? 2'd3 : 2'd1) : (eightbpp ? 2'd1 : 2'd0);
 
     // ================= stage A: walk the line, issue tile-word reads ============================
-    typedef enum logic [2:0] { A_IDLE, A_SCROLL, A_MUL, A_FIRST, A_WALK, A_DONE } astate_t;
+    typedef enum logic [2:0] { A_IDLE, A_MOS, A_SCROLL, A_MUL, A_FIRST, A_WALK, A_DONE } astate_t;
     astate_t ast;
 
     logic signed [31:0] fcx, fcy;
@@ -287,6 +289,7 @@ module hng64_tilemap (
 
     // ---- stage A ------------------------------------------------------------------------------
     always_ff @(posedge clk) begin
+        mos_start <= 1'b0;
         if (reset) begin
             vram_rd <= 1'b0;
             ast     <= A_IDLE;
@@ -298,6 +301,20 @@ module hng64_tilemap (
             vram_rd <= 1'b0;
             case (ast)
                 A_IDLE: if (start && enable) begin
+                    if (mosaic != 4'd0) begin
+                        mos_start  <= 1'b1;
+                        ast        <= A_MOS;
+                    end else begin
+                        scroll_i   <= 4'd1;
+                        scroll_got <= 4'd0;
+                        vram_addr  <= base_addr;
+                        vram_rd    <= 1'b1;
+                        qa_w       <= 5'd0;
+                        ast        <= A_SCROLL;
+                    end
+                end
+
+                A_MOS: if (mos_done) begin
                     scroll_i   <= 4'd1;
                     scroll_got <= 4'd0;
                     vram_addr  <= base_addr;

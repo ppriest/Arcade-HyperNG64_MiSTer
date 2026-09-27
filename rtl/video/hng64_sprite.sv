@@ -64,7 +64,7 @@ module hng64_sprite #(
 
     typedef enum logic [4:0] {
         P_IDLE, P_W0, P_W1, P_W2, P_W4, P_HEIGHT, P_STORE,
-        L_CLEAR, L_PICK, L_W0, L_W1, L_W2, L_W4, L_MULY, L_MULO,
+        L_CLEAR, L_PICK, L_W0, L_W1, L_W2, L_W4, L_MOS, L_MULY, L_MULO,
         F_TILE, F_TILE_W, F_PAL, F_ISSUE, L_POP, L_WIDTH, L_MULX, L_EMIT
     } state_t;
     state_t st;
@@ -210,7 +210,15 @@ module hng64_sprite #(
     wire       drop    = checkerbd && ((dstx[0] && !line[0]) || (!dstx[0] && line[0]));
     wire [7:0] out_pix = drop ? 8'd0 : mos_pix;
 
+    // the first line of a mosaic group, for a sprite that has mosaic (L_MOS)
+    logic        mos_start;
+    wire         mos_done;
+    wire  [10:0] mos_base;
+    hng64_mosaic #(.W(11)) u_mos (
+        .clk(clk), .start(mos_start), .x(rely), .m(mosaic), .done(mos_done), .base(mos_base));
+
     always_ff @(posedge clk) begin
+        mos_start <= 1'b0;
         if (reset) begin
             px_we  <= 1'b0;
             ram_rd <= 1'b0;
@@ -316,10 +324,19 @@ module hng64_sprite #(
                     mul_acc <= 32'd0;
                     mul_add <= {16'd0, zoomy} << zoom_shift;
                     mul_i   <= 5'd0;
-                    // mosaic keeps the first line of each group (hng64_sprite.ipp:349)
-                    mrely   <= (ram_data[31:28] == 4'd0) ? rely
-                                                         : (rely - (rely % ({7'd0, ram_data[31:28]} + 11'd1)));
-                    st      <= L_MULY;
+                    // mosaic keeps the first line of each group (hng64_sprite.ipp:349): found by
+                    // hng64_mosaic in L_MOS, only when the sprite has mosaic
+                    mrely   <= rely;
+                    if (ram_data[31:28] == 4'd0) st <= L_MULY;
+                    else begin
+                        mos_start <= 1'b1;
+                        st        <= L_MOS;
+                    end
+                end
+
+                L_MOS: if (mos_done) begin
+                    mrely <= mos_base;
+                    st    <= L_MULY;
                 end
 
                 // srcy = mrely * dy

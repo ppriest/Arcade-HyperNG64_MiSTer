@@ -83,13 +83,13 @@ The 5CSEBA6 has 553 M10K blocks, 5,662,720 bits. Counted in blocks:
 |---|---|---|---|
 | tile VRAM | 4,194,304 | **410** | 512 KB |
 | sprite list | 393,216 | 39 | 48 KB, doubled for the vblank snapshot: 78 |
-| palette | 131,072 | 13 | three copies for the mixer's five read ports: 39 |
+| palette | 131,072 | 13 | six copies: five for the mixer's read ports, each needing its other port for the CPU's writes, and one for the CPU's reads: 78 |
 | NVRAM | 131,072 | 13 | 16 KB |
 | CPU caches and TLBs | 207,872 | 26 | measured, Phase 0 |
-| line buffers | 40,960 | 4 | 5 x 512 x 16, doubled for line-ahead: 8 |
+| line buffers | 40,960 | 4 | 5 x 512 x 16, doubled for line-ahead: 8; plus the 2 x 512 x 24 output buffer: 3 |
 | z-buffer, dual-port RAM | ~11,000 | 2 | |
 
-Everything except tile VRAM comes to about 180 blocks, a third of the device, before the 3D
+Everything except tile VRAM comes to about 220 blocks, 40% of the device, before the 3D
 pipeline of Phase 3 asks for anything. **Tile VRAM alone would be 74%**, which does not leave
 room for a rasteriser, and the 3D framebuffers (2 x 384 KB) could never have been on-chip either.
 
@@ -177,11 +177,15 @@ Index 1's blob is `"HNG1"` then a 32-bit base and a 32-bit size, big-endian, for
 `.mra` does not carry that region.
 
 The HDMI rotator is a separate window outside this one, as in the MS32 core
-(`0x24000000`), and is the only DDR3 writer at run time.
+(`0x24000000`, three 8 MB buffers), and is the only DDR3 writer at run time. Its one-clock pixel
+writes are queued in `rtl/memory/hng64_wfifo.sv` (256 entries) and issued by `hng64_ddram` when
+no read is, or before reads once the queue is half full. It writes only when Orientation is CW or
+CCW: 229,376 single-beat writes a frame, 14 M a second, scattered a column apart.
 
 Collision check: every module driving `DDRAM_ADDR` is listed here with its window, and the
-windows are shown disjoint. Wired so far: `rtl/memory/hng64_ddram.sv` for `scrtile`, `sprtile`,
-`gameprg` and the BIOS copy.
+windows are shown disjoint. `DDRAM_ADDR` has one driver, `rtl/memory/hng64_ddram.sv`: reads at
+`0x30000000` + the layout above (`scrtile`, `sprtile`, `gameprg`, the BIOS copy), writes from the
+rotator at `0x24000000`-`0x257fffff`. `sim/sys_tb` stops on a write outside that window.
 
 ## Loading
 

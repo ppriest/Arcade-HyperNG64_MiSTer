@@ -1,2 +1,3 @@
+rtl/video/hng64_mosaic.sv
 rtl/video/hng64_sprite.sv
 sim/sprite_tb/tb_sprite.sv

@@ -47,7 +47,7 @@ module tb_iomcu (
         .rom_we(rom_we), .rom_addr(rom_addr), .rom_data(rom_data),
         .inputs(inputs), .analog(analog), .int0(int0),
         .lamp_we(lamp_we), .lamp_addr(), .lamp_data(), .mips_irq(mips_irq),
-        .dp_addr(11'd0), .dp_we(1'b0), .dp_wdata(8'd0), .dp_rdata(),
+        .dp_clk(clk), .dp_addr(11'd0), .dp_we(1'b0), .dp_wdata(8'd0), .dp_rdata(),
         .dbg_fetch(dbg_fetch), .dbg_pc(dbg_pc), .dbg_op(dbg_op), .dbg_op1(dbg_op1),
         .dbg_unimpl(dbg_unimpl), .dbg_overrun(dbg_overrun),
         .dbg_sp(dbg_sp), .dbg_rbs(dbg_rbs), .dbg_f(dbg_f),

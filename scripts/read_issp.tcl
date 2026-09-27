@@ -17,9 +17,30 @@
 # (signed 16), hex or bit. Bit numbers index the probe bus as the RTL
 # concatenates it. Add an entry to the `switch` further down for each table.
 # By convention source bit 0 pulsed is the counter clear.
+# HyperNG64.sv, instance F: keep in step with the bus built there.
 set fields_F {
     {frames           0  15 dec}
-    {pll_locked     127 127 bit}
+    {cpu_requests    16  31 dec}
+    {cpu_last_addr   32  63 hex}
+    {load_state      64  71 hex}
+    {game_reset      64  64 bit}
+    {mem_reset       65  65 bit}
+    {rom_loaded      66  66 bit}
+    {ldr_active      67  67 bit}
+    {ldr_done        68  68 bit}
+    {ldr_pending     69  69 bit}
+    {cfg_valid       70  70 bit}
+    {dl0_seen        71  71 bit}
+    {faults          72  77 hex}
+    {cpu_error       78  78 bit}
+    {rot_overflow    79  79 bit}
+    {pll_locked      80  80 bit}
+    {cpu_reset       81  81 bit}
+    {pause           82  82 bit}
+    {mcu_pc          83  98 hex}
+    {mcu_insns       99 114 dec}
+    {cpu_irq        115 115 bit}
+    {cpu_irq_rises  116 127 dec}
 }
 # ---------------------------------------------------------------------------
 

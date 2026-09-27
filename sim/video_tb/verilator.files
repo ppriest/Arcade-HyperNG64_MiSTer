@@ -1,3 +1,4 @@
+rtl/video/hng64_mosaic.sv
 rtl/video/hng64_tilemap.sv
 rtl/video/hng64_sprite.sv
 rtl/video/hng64_mixer.sv

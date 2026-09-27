@@ -47,6 +47,14 @@ Three generators, mixed:
   `hng64_3d.ipp`, 1541 lines.
 - Palette `0x20200000` (16 KB); transition control `0x20208000` (fades/blends).
 
+Flip screen: the board has none that MAME knows of (no flip bit in `hng64_v.cpp`, no DIPs for
+the fight sets), so the core's Flip Screen is its own, from the OSD or a fake DIP in the `.mra`
+(bit 0 of switch byte 0, read by `HyperNG64.sv`). It turns the whole picture 180 degrees in
+`rtl/video/hng64_vtiming.sv`: display line d is rendered from source line 447 - d and the output
+line buffer is read from x = 511 down, so no layer changes, and no per-game offsets arise. The 3D
+frame buffers, when they are drawn, are to be read the same way. Verified in `sim/sys_tb +flip=1`:
+frames 400 and 800 are 0 of 229,376 pixels different from the model's turned 180 degrees.
+
 ## Main CPU map (`main_map`, hng64.cpp:1182)
 
 | Range | What |

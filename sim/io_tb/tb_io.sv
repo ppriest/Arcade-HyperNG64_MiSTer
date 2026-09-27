@@ -70,11 +70,12 @@ module tb_io (
         .dp_addr(dp_addr), .dp_we(dp_we), .dp_wdata(dp_wdata), .dp_rdata(dp_rdata),
         .mcu_irq(1'b0),
         .rtc(rtc),
+        .nv_addr(14'd0), .nv_we(1'b0), .nv_wdata(8'd0), .nv_rdata(), .nv_written(),
         .dma_src(dma_src), .dma_dst(dma_dst), .dma_count(dma_count),
         .dma_go(dma_go), .dma_done(dma_done),
         .v_req(v_req), .v_we(v_we), .v_sel(v_sel), .v_addr(v_addr), .v_be(v_be),
         .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata),
-        .dbg_mcu_en_0c());
+        .fbcontrol0(), .dbg_mcu_en_0c());
 
     logic        st_rvalid, st_wdone;
     logic [63:0] st_rdata;
@@ -141,6 +142,7 @@ module tb_io (
         .SDRAM_nCAS(SDRAM_nCAS));
 
     hng64_ddram #(.N(1)) u_ddr (
+        .w_addr(29'd0), .w_din(64'd0), .w_be(8'd0), .w_valid(1'b0), .w_urgent(1'b0), .w_ready(),
         .clk(clk2x), .reset(reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),

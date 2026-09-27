@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// True dual-port RAM, one clock, read data the clock after the address. Written in the form
-// Quartus infers as an M10K with two read/write ports.
+// True dual-port RAM, a clock per port, read data the clock after the address on that port's
+// clock. Written in the form Quartus infers as an M10K with two read/write ports; the two
+// clocks may be the same net.
 //
 // Both ports write the same array from their own process, which is what that inference needs
 // and what a linter reports as a second driver; the warning is switched off for this array only.
@@ -12,8 +13,7 @@ module hng64_tdpram #(
     parameter int AW = 11,
     parameter int DW = 8
 ) (
-    input  logic          clk,
-
+    input  logic          a_clk,
     input  logic [AW-1:0] a_addr,
     input  logic          a_we,
     input  logic [DW-1:0] a_wdata,
@@ -21,6 +21,7 @@ module hng64_tdpram #(
 
     input  logic [AW-1:0] b_addr,
     input  logic          b_we,
+    input  logic          b_clk,
     input  logic [DW-1:0] b_wdata,
     output logic [DW-1:0] b_rdata
 );
@@ -33,12 +34,12 @@ module hng64_tdpram #(
         for (int i = 0; i < (1 << AW); i++) mem[i] = '0;
     end
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge a_clk) begin
         if (a_we) mem[a_addr] <= a_wdata;
         a_rdata <= mem[a_addr];
     end
 
-    always_ff @(posedge clk) begin
+    always_ff @(posedge b_clk) begin
         if (b_we) mem[b_addr] <= b_wdata;
         b_rdata <= mem[b_addr];
     end

@@ -1,0 +1,201 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// The video's side of the CPU: what hng64_io.sv's v_* port writes and reads, held where
+// hng64_video.sv reads it.
+//
+//   v_sel 0  sprite RAM, 0x20000000, 12,288 dwords
+//         1  sprite registers, 0x20010000, 5 dwords
+//         2  video registers, 0x20190000, 14 dwords
+//         3  palette, 0x20200000, 4,096 dwords
+//         4  tcram, 0x20208000, 24 dwords (hng64_io answers the vblank read at 0x48 itself)
+//
+// The CPU side runs on clk1x and the video side on clk2x, twice clk1x from the same PLL: the
+// registers cross as they are, as everywhere else in the core, and the RAMs have a clock per
+// port.
+//
+// SPRITE RAM IS TWO COPIES. MAME draws sprites at vblank from the list as it stands then
+// (screen_update, hng64_v.cpp:745), and the CPU rewrites the list during the frame. The CPU
+// writes its own copy; at vblank `snapshot` copies all of it into the one the sprite engine
+// reads, 12,288 clocks, and `snapshot_done` then starts the engine's frame.
+//
+// THE PALETTE IS SIX COPIES: the mixer reads five entries a clock (hng64_mixer.sv), a copy's
+// second port is needed for the CPU's writes, and one more copy answers the CPU's reads.
+// docs/MEMORY.md budgets it.
+//
+// The background colour is palette entry 0 when bit 0 of the 3D buffer control's first byte is
+// set, else black, as tb_video has it from MAME (hng64_v.cpp, screen_update).
+
+module hng64_vbus (
+    input  logic        clk1x,
+    input  logic        clk2x,
+    input  logic        reset,
+
+    // from hng64_io, clk1x: a request a clock, acknowledged the next
+    input  logic        v_req,
+    input  logic        v_we,
+    input  logic  [2:0] v_sel,
+    input  logic [13:0] v_addr,
+    input  logic  [3:0] v_be,
+    input  logic [31:0] v_wdata,
+    output logic        v_ack,
+    output logic [31:0] v_rdata,
+    input  logic  [7:0] fbcontrol0,     // m_fbcontrol[0]
+
+    // to hng64_video, clk2x
+    output logic [31:0] videoregs [0:13],
+    output logic [31:0] tcram [0:23],
+    output logic [31:0] spriteregs0,
+    output logic [31:0] spriteregs1,
+    output logic [23:0] bg_rgb,
+
+    input  logic        snapshot,       // one clock at vblank start
+    output logic        snapshot_done,  // one clock when the engine's copy is complete
+
+    input  logic [13:0] sram_addr,      // the engine's copy, data the clock after
+    output logic [31:0] sram_data,
+    input  logic [11:0] pal_a [0:4],    // data the clock after
+    output logic [31:0] pal_d [0:4]
+);
+
+    localparam logic [2:0] V_SPR = 3'd0, V_SPRREG = 3'd1, V_VREG = 3'd2, V_PAL = 3'd3,
+                           V_TCRAM = 3'd4;
+
+    function automatic logic [31:0] merge(input logic [31:0] old, input logic [31:0] d,
+                                          input logic [3:0] be);
+        for (int k = 0; k < 4; k++) merge[8*k +: 8] = be[k] ? d[8*k +: 8] : old[8*k +: 8];
+    endfunction
+
+    // ---- registers ----------------------------------------------------------------------------------
+    logic [31:0] sprregs [0:4];
+    logic [31:0] pal0;                  // palette entry 0, for the background
+
+    assign spriteregs0 = sprregs[0];
+    assign spriteregs1 = sprregs[1];
+    assign bg_rgb = fbcontrol0[0] ? pal0[23:0] : 24'd0;
+
+    wire wr_spr = v_req && v_we && v_sel == V_SPR;
+    wire wr_pal = v_req && v_we && v_sel == V_PAL;
+
+    // ---- sprite RAM: the CPU's copy, and the engine's --------------------------------------------------
+    logic [31:0] spr_cpu_q, spr_copy_q;
+    logic [13:0] copy_rd;
+    logic [13:0] copy_wr;
+    logic        copy_run, copy_wr_en;
+
+    // Byte lanes are written with a per-byte enable, the form Quartus infers as an M10K's byte
+    // enables; a read-modify-write would need an asynchronous read and could not be block RAM.
+    logic [31:0] spr_cpu [0:12287];
+    logic [31:0] spr_eng [0:12287];
+
+    initial begin
+        for (int i = 0; i < 12288; i++) begin
+            spr_cpu[i] = 32'd0;
+            spr_eng[i] = 32'd0;
+        end
+    end
+
+    always_ff @(posedge clk1x) begin
+        if (wr_spr)
+            for (int k = 0; k < 4; k++) if (v_be[k]) spr_cpu[v_addr][8*k +: 8] <= v_wdata[8*k +: 8];
+        spr_cpu_q <= spr_cpu[v_addr];
+    end
+
+    always_ff @(posedge clk2x) begin
+        spr_copy_q <= spr_cpu[copy_rd];
+    end
+
+    always_ff @(posedge clk2x) begin
+        if (copy_wr_en) spr_eng[copy_wr] <= spr_copy_q;
+        sram_data <= spr_eng[sram_addr];
+    end
+
+    // the vblank copy: read a clock ahead of the write
+    always_ff @(posedge clk2x) begin
+        snapshot_done <= 1'b0;
+        copy_wr_en <= 1'b0;
+        if (reset) begin
+            copy_run <= 1'b0;
+        end else if (snapshot && !copy_run) begin
+            copy_run <= 1'b1;
+            copy_rd <= 14'd0;
+        end else if (copy_run) begin
+            copy_wr    <= copy_rd;
+            copy_wr_en <= 1'b1;
+            if (copy_rd == 14'd12287) copy_run <= 1'b0;
+            else copy_rd <= copy_rd + 14'd1;
+        end
+        // the last write lands the clock after the last read
+        if (copy_wr_en && copy_wr == 14'd12287) snapshot_done <= 1'b1;
+    end
+
+    // ---- palette: five copies for the mixer, one for the CPU's reads ---------------------------------
+    logic [31:0] pal_cpu [0:4095];
+    logic [31:0] pal_cpu_q;
+
+    initial begin
+        for (int i = 0; i < 4096; i++) pal_cpu[i] = 32'd0;
+    end
+
+    // every copy takes the same byte-enabled write on the same clock, so all six always agree
+    always_ff @(posedge clk1x) begin
+        if (wr_pal)
+            for (int k = 0; k < 4; k++) if (v_be[k]) pal_cpu[v_addr[11:0]][8*k +: 8] <= v_wdata[8*k +: 8];
+        pal_cpu_q <= pal_cpu[v_addr[11:0]];
+    end
+
+    // one array per copy, so each is its own block RAM
+    for (genvar c = 0; c < 5; c++) begin : g_pal
+        logic [31:0] mem [0:4095];
+        initial for (int i = 0; i < 4096; i++) mem[i] = 32'd0;
+        always_ff @(posedge clk1x) begin
+            if (wr_pal)
+                for (int k = 0; k < 4; k++) if (v_be[k]) mem[v_addr[11:0]][8*k +: 8] <= v_wdata[8*k +: 8];
+        end
+        always_ff @(posedge clk2x) begin
+            pal_d[c] <= mem[pal_a[c]];
+        end
+    end
+
+    // ---- the CPU port -------------------------------------------------------------------------------
+    logic       ack_pending;
+    logic [2:0] rd_sel;
+    logic [4:0] rd_reg;
+
+    always_ff @(posedge clk1x) begin
+        v_ack <= 1'b0;
+        if (reset) begin
+            ack_pending <= 1'b0;
+            pal0 <= 32'd0;
+            for (int i = 0; i < 5; i++) sprregs[i] <= 32'd0;
+            for (int i = 0; i < 14; i++) videoregs[i] <= 32'd0;
+            for (int i = 0; i < 24; i++) tcram[i] <= 32'd0;
+        end else begin
+            if (v_req) begin
+                ack_pending <= 1'b1;
+                rd_sel <= v_sel;
+                rd_reg <= v_addr[4:0];
+                if (v_we) begin
+                    case (v_sel)
+                        V_SPRREG: if (v_addr < 14'd5)  sprregs[v_addr[2:0]]   <= merge(sprregs[v_addr[2:0]], v_wdata, v_be);
+                        V_VREG:   if (v_addr < 14'd14) videoregs[v_addr[3:0]] <= merge(videoregs[v_addr[3:0]], v_wdata, v_be);
+                        V_TCRAM:  if (v_addr < 14'd24) tcram[v_addr[4:0]]     <= merge(tcram[v_addr[4:0]], v_wdata, v_be);
+                        V_PAL:    if (v_addr[11:0] == 12'd0) pal0 <= merge(pal0, v_wdata, v_be);
+                        default: ;
+                    endcase
+                end
+            end
+            if (ack_pending) begin
+                ack_pending <= 1'b0;
+                v_ack <= 1'b1;
+                case (rd_sel)
+                    V_SPR:    v_rdata <= spr_cpu_q;
+                    V_SPRREG: v_rdata <= (rd_reg < 5'd5)  ? sprregs[rd_reg[2:0]]   : 32'd0;
+                    V_VREG:   v_rdata <= (rd_reg < 5'd14) ? videoregs[rd_reg[3:0]] : 32'd0;
+                    V_PAL:    v_rdata <= pal_cpu_q;
+                    default:  v_rdata <= (rd_reg < 5'd24) ? tcram[rd_reg]          : 32'd0;
+                endcase
+            end
+        end
+    end
+
+endmodule

@@ -30,6 +30,7 @@ module hng64_video (
 
     input  logic        frame_start,        // vblank start: the sprite list is snapshotted here
     input  logic        line_start,
+    input  logic  [4:0] dbg_layer_off,      // the OSD's debug page: tilemaps 0-3, sprites; 0 = on
     input  logic  [8:0] line,
     output logic        busy,
 
@@ -96,6 +97,19 @@ module hng64_video (
     logic  [3:0] vgrant, rgrant;            // one-hot: whose request the port took this cycle
     logic  [3:0] vdeliver, rdeliver;        // one-hot: whose reply is on the bus this cycle
 
+    // DDR3 hands over a granule with the byte at its lowest address in bits 7:0, as MiSTer's DDRAM
+    // port does everywhere (the skill's ddr_rom_loading.md; hng64_mainmem and the BIOS copy use it
+    // that way). The engines decode MAME's layouts from the other end, the lowest address in bits
+    // 63:56, so the granule is reversed here, once, for both tile ROMs - as the Psikyo core's
+    // gfxrom_byte_reorder.sv does for the same reason. sim/sys_tb found this: the engines' own
+    // benches, and video_tb, each served granules the engines' way round.
+    function automatic logic [63:0] reverse_bytes(input logic [63:0] v);
+        for (int k = 0; k < 8; k++) reverse_bytes[8*k +: 8] = v[8*(7 - k) +: 8];
+    endfunction
+
+    wire [63:0] srom_msb = reverse_bytes(srom_data);
+    wire [63:0] prom_msb = reverse_bytes(prom_data);
+
     generate
         for (genvar tm = 0; tm < 4; tm++) begin : g_tm
             hng64_tilemap u_tm (
@@ -107,7 +121,7 @@ module hng64_video (
                 .vram_addr(tm_vaddr[tm]), .vram_rd(tm_vrd[tm]), .vram_ready(vgrant[tm]),
                 .vram_data(vram_data), .vram_valid(vdeliver[tm]),
                 .rom_addr(tm_raddr[tm]), .rom_rd(tm_rrd[tm]), .rom_ready(rgrant[tm]),
-                .rom_data(srom_data), .rom_valid(rdeliver[tm]),
+                .rom_data(srom_msb), .rom_valid(rdeliver[tm]),
                 .px_we(tm_we[tm]), .px_x(tm_x[tm]), .px_pix(tm_pix[tm]));
         end
     endgenerate
@@ -196,7 +210,7 @@ module hng64_video (
         .spriteregs0(spriteregs0), .spriteregs1(spriteregs1),
         .ram_addr(sram_addr), .ram_rd(sram_rd), .ram_data(sram_data),
         .rom_addr(prom_addr), .rom_rd(prom_rd), .rom_ready(prom_ready),
-        .rom_data(prom_data), .rom_valid(prom_valid),
+        .rom_data(prom_msb), .rom_valid(prom_valid),
         .px_we(spr_we), .px_x(spr_x), .px_pix(spr_px),
         .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw());
 
@@ -211,10 +225,10 @@ module hng64_video (
 
     always_ff @(posedge clk) begin
         for (int tm = 0; tm < 4; tm++) begin
-            if (tm_we[tm]) lb_tm[bank][tm][tm_x[tm]] <= tm_pix[tm];
+            if (tm_we[tm]) lb_tm[bank][tm][tm_x[tm]] <= dbg_layer_off[tm] ? 16'd0 : tm_pix[tm];
             mix_tm[tm] <= lb_tm[~bank][tm][mix_x];
         end
-        if (spr_we) lb_spr[bank][spr_x] <= spr_px;
+        if (spr_we) lb_spr[bank][spr_x] <= dbg_layer_off[4] ? 16'd0 : spr_px;
         // clear one cycle behind the mixer's read: this bank is the engines' next one
         if (mixing_q) lb_spr[~bank][mix_x_q] <= 16'd0;
         mix_spr  <= lb_spr[~bank][mix_x];

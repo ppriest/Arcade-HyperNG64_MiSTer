@@ -48,5 +48,15 @@ printf '%-9s %-8s mcu  ' io tlcs870
 scripts/run_verilator.sh iomcu_tb +n=3000000 2>&1 | tail -1 || fail=1
 printf '%-9s %-8s io   ' main board
 scripts/run_verilator.sh io_tb 2>&1 | tail -1 || fail=1
+# the whole board less its CPU, replaying MAME's boot, with frames 400 and 800 compared
+printf '%-9s %-8s sys  ' whole board
+scripts/run_verilator.sh sys_tb +frames=400,800 2>&1 | tail -1 || fail=1
+printf '%-9s %-8s sys  ' whole flipped
+scripts/run_verilator.sh sys_tb +frames=400,800 +flip=1 2>&1 | tail -1 || fail=1
+printf '%-9s %-8s sys  ' whole rotated
+scripts/run_verilator.sh sys_tb +frames=400,800 +rot=1 2>&1 | tail -1 || fail=1
+# CRT Adjust on the output raster
+printf '%-9s %-8s crt  ' output crt
+scripts/run_verilator.sh crt_tb 2>&1 | grep "^crt:" | tee /dev/stderr | grep -q "PASS" || fail=1
 
 exit $fail

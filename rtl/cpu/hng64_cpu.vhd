@@ -29,6 +29,9 @@ entity hng64_cpu is
       reset_93         : in  std_logic;
       ss_reset         : in  std_logic;
       irq              : in  std_logic;   -- CPU interrupt line (Cause IP2)
+      -- Holds the CPU at its next memory access: ce_1x gates only the request issue in cpu.vhd's
+      -- memory process, so an access in flight completes. cpuPaused stops the stall-error counter.
+      pause            : in  std_logic;
 
       mem_request      : out std_logic;
       mem_rnw          : out std_logic;
@@ -75,7 +78,7 @@ begin
       clk1x                => clk1x,
       clk93                => clk93,
       clk2x                => clk2x,
-      ce_1x                => '1',
+      ce_1x                => not pause,
       ce_93                => '1',
       reset_1x             => reset_1x,
       reset_93             => reset_93,
@@ -92,7 +95,7 @@ begin
 
       irqRequest           => irq,
       irqCartRequest       => '0',
-      cpuPaused            => '0',
+      cpuPaused            => pause,
 
       error_instr          => e_instr,
       error_stall          => e_stall,
