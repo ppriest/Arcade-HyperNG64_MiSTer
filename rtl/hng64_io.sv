@@ -151,36 +151,32 @@ module hng64_io #(
     wire   [2:0] tw_i      = 3'(a[5:2] - 4'd4);        // 0x30000010 is word 0
 
     // ---- system registers, NVRAM, network RAM: dword RAMs with byte enables ---------------------------
-    logic [31:0] sys_mem [0:1087];
-    logic [31:0] com_mem [0:1025];
+    // hng64_bram: written as arrays of 1,088 and 1,026 words these were built from 68,000 registers
     logic [31:0] sys_q, nv_q, com_q;
-
-    initial begin
-        for (int i = 0; i < 1088; i++) sys_mem[i] = 32'd0;
-        for (int i = 0; i < 1026; i++) com_mem[i] = 32'd0;
-    end
 
     wire [10:0] sys_i = 11'((a - 32'h1f70_0000) >> 2);
     wire [11:0] nv_i  = a[13:2];
     wire [10:0] com_i = 11'((a - 32'hc000_0000) >> 2);
     logic       mem_we;                 // one clock, from the state machine
 
-    always_ff @(posedge clk) begin
-        if (mem_we && dev == D_SYS)
-            for (int k = 0; k < 4; k++) if (be[k]) sys_mem[sys_i][8*k +: 8] <= wd[8*k +: 8];
-        sys_q <= sys_mem[sys_i];
-    end
+    hng64_bram #(.AW(11), .DW(32), .WORDS(1088)) u_sys (
+        .a_clk(clk), .a_addr(sys_i), .a_be((mem_we && dev == D_SYS) ? be : 4'd0), .a_wdata(wd),
+        .a_rdata(sys_q),
+        .b_clk(clk), .b_addr(11'd0), .b_rdata());
 
     // one byte-lane RAM each, so the host's byte port is a plain second port (all 0 at power-up:
     // nvram_device::DEFAULT_ALL_0)
     logic [7:0] nv_lane_q [4];
-    for (genvar k = 0; k < 4; k++) begin : g_nv
+    genvar gk;
+    generate
+    for (gk = 0; gk < 4; gk++) begin : g_nv
         hng64_tdpram #(.AW(12), .DW(8)) u_lane (
-            .a_clk(clk), .a_addr(nv_i), .a_we(mem_we && dev == D_NVRAM && be[k]),
-            .a_wdata(wd[8*k +: 8]), .a_rdata(nv_q[8*k +: 8]),
-            .b_clk(clk), .b_addr(nv_addr[13:2]), .b_we(nv_we && nv_addr[1:0] == 2'(k)),
-            .b_wdata(nv_wdata), .b_rdata(nv_lane_q[k]));
+            .a_clk(clk), .a_addr(nv_i), .a_we(mem_we && dev == D_NVRAM && be[gk]),
+            .a_wdata(wd[8*gk +: 8]), .a_rdata(nv_q[8*gk +: 8]),
+            .b_clk(clk), .b_addr(nv_addr[13:2]), .b_we(nv_we && nv_addr[1:0] == 2'(gk)),
+            .b_wdata(nv_wdata), .b_rdata(nv_lane_q[gk]));
     end
+    endgenerate
     logic [1:0] nv_lane;
     always_ff @(posedge clk) begin
         nv_lane    <= nv_addr[1:0];
@@ -188,11 +184,10 @@ module hng64_io #(
     end
     assign nv_rdata = nv_lane_q[nv_lane];
 
-    always_ff @(posedge clk) begin
-        if (mem_we && dev == D_COM)
-            for (int k = 0; k < 4; k++) if (be[k]) com_mem[com_i][8*k +: 8] <= wd[8*k +: 8];
-        com_q <= com_mem[com_i];
-    end
+    hng64_bram #(.AW(11), .DW(32), .WORDS(1026)) u_com (
+        .a_clk(clk), .a_addr(com_i), .a_be((mem_we && dev == D_COM) ? be : 4'd0), .a_wdata(wd),
+        .a_rdata(com_q),
+        .b_clk(clk), .b_addr(11'd0), .b_rdata());
 
     // ---- interrupt controller (set_irq, hng64.cpp:1871) -------------------------------------------------
     logic [31:0] irq_pending;

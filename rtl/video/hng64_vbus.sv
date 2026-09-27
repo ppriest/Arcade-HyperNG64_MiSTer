@@ -48,6 +48,15 @@ module hng64_vbus (
     output logic [31:0] spriteregs1,
     output logic [23:0] bg_rgb,
 
+    // The game's visible window and screen disable, as tcram_w keeps them (hng64_v.cpp:1389): taken
+    // on each write to tcram 0x08 from 0x04 (x0, y0) and 0x08 (width, height); a zero width or
+    // height disables the screen and leaves the window. 512 x 448 at 0, 0 until a game sets one.
+    output logic  [9:0] vis_x0,
+    output logic  [9:0] vis_y0,
+    output logic  [9:0] vis_w,
+    output logic  [9:0] vis_h,
+    output logic        screen_dis,
+
     input  logic        snapshot,       // one clock at vblank start
     output logic        snapshot_done,  // one clock when the engine's copy is complete
 
@@ -82,32 +91,17 @@ module hng64_vbus (
     logic [13:0] copy_wr;
     logic        copy_run, copy_wr_en;
 
-    // Byte lanes are written with a per-byte enable, the form Quartus infers as an M10K's byte
-    // enables; a read-modify-write would need an asynchronous read and could not be block RAM.
-    logic [31:0] spr_cpu [0:12287];
-    logic [31:0] spr_eng [0:12287];
+    // Each is a hng64_bram, an explicit altsyncram in synthesis: the CPU's copy is written and read
+    // by the CPU on clk1x and read by the vblank copy on clk2x.
+    hng64_bram #(.AW(14), .DW(32), .WORDS(12288)) u_spr_cpu (
+        .a_clk(clk1x), .a_addr(v_addr), .a_be(wr_spr ? v_be : 4'd0), .a_wdata(v_wdata),
+        .a_rdata(spr_cpu_q),
+        .b_clk(clk2x), .b_addr(copy_rd), .b_rdata(spr_copy_q));
 
-    initial begin
-        for (int i = 0; i < 12288; i++) begin
-            spr_cpu[i] = 32'd0;
-            spr_eng[i] = 32'd0;
-        end
-    end
-
-    always_ff @(posedge clk1x) begin
-        if (wr_spr)
-            for (int k = 0; k < 4; k++) if (v_be[k]) spr_cpu[v_addr][8*k +: 8] <= v_wdata[8*k +: 8];
-        spr_cpu_q <= spr_cpu[v_addr];
-    end
-
-    always_ff @(posedge clk2x) begin
-        spr_copy_q <= spr_cpu[copy_rd];
-    end
-
-    always_ff @(posedge clk2x) begin
-        if (copy_wr_en) spr_eng[copy_wr] <= spr_copy_q;
-        sram_data <= spr_eng[sram_addr];
-    end
+    hng64_bram #(.AW(14), .DW(32), .WORDS(12288)) u_spr_eng (
+        .a_clk(clk2x), .a_addr(copy_wr), .a_be({4{copy_wr_en}}), .a_wdata(spr_copy_q),
+        .a_rdata(),
+        .b_clk(clk2x), .b_addr(sram_addr), .b_rdata(sram_data));
 
     // the vblank copy: read a clock ahead of the write
     always_ff @(posedge clk2x) begin
@@ -129,37 +123,31 @@ module hng64_vbus (
     end
 
     // ---- palette: five copies for the mixer, one for the CPU's reads ---------------------------------
-    logic [31:0] pal_cpu [0:4095];
     logic [31:0] pal_cpu_q;
 
-    initial begin
-        for (int i = 0; i < 4096; i++) pal_cpu[i] = 32'd0;
-    end
-
-    // every copy takes the same byte-enabled write on the same clock, so all six always agree
-    always_ff @(posedge clk1x) begin
-        if (wr_pal)
-            for (int k = 0; k < 4; k++) if (v_be[k]) pal_cpu[v_addr[11:0]][8*k +: 8] <= v_wdata[8*k +: 8];
-        pal_cpu_q <= pal_cpu[v_addr[11:0]];
-    end
+    // every copy takes the same byte-enabled write on the same clock, so all six always agree; the
+    // CPU reads its own copy on port A
+    hng64_bram #(.AW(12), .DW(32)) u_pal_cpu (
+        .a_clk(clk1x), .a_addr(v_addr[11:0]), .a_be(wr_pal ? v_be : 4'd0), .a_wdata(v_wdata),
+        .a_rdata(pal_cpu_q),
+        .b_clk(clk1x), .b_addr(12'd0), .b_rdata());
 
     // one array per copy, so each is its own block RAM
-    for (genvar c = 0; c < 5; c++) begin : g_pal
-        logic [31:0] mem [0:4095];
-        initial for (int i = 0; i < 4096; i++) mem[i] = 32'd0;
-        always_ff @(posedge clk1x) begin
-            if (wr_pal)
-                for (int k = 0; k < 4; k++) if (v_be[k]) mem[v_addr[11:0]][8*k +: 8] <= v_wdata[8*k +: 8];
-        end
-        always_ff @(posedge clk2x) begin
-            pal_d[c] <= mem[pal_a[c]];
-        end
+    genvar gc;
+    generate
+    for (gc = 0; gc < 5; gc++) begin : g_pal
+        hng64_bram #(.AW(12), .DW(32)) u_pal (
+            .a_clk(clk1x), .a_addr(v_addr[11:0]), .a_be(wr_pal ? v_be : 4'd0), .a_wdata(v_wdata),
+            .a_rdata(),
+            .b_clk(clk2x), .b_addr(pal_a[gc]), .b_rdata(pal_d[gc]));
     end
+    endgenerate
 
     // ---- the CPU port -------------------------------------------------------------------------------
     logic       ack_pending;
     logic [2:0] rd_sel;
     logic [4:0] rd_reg;
+    wire [31:0] tc2_new = merge(tcram[2], v_wdata, v_be);   // Quartus 17 takes no part-select of a call
 
     always_ff @(posedge clk1x) begin
         v_ack <= 1'b0;
@@ -169,7 +157,23 @@ module hng64_vbus (
             for (int i = 0; i < 5; i++) sprregs[i] <= 32'd0;
             for (int i = 0; i < 14; i++) videoregs[i] <= 32'd0;
             for (int i = 0; i < 24; i++) tcram[i] <= 32'd0;
+            vis_x0 <= 10'd0;
+            vis_y0 <= 10'd0;
+            vis_w <= 10'd512;
+            vis_h <= 10'd448;
+            screen_dis <= 1'b0;
         end else begin
+            if (v_req && v_we && v_sel == V_TCRAM && v_addr == 14'd2) begin
+                if (tc2_new[31:16] == 16'd0 || tc2_new[15:0] == 16'd0) begin
+                    screen_dis <= 1'b1;
+                end else begin
+                    screen_dis <= 1'b0;
+                    vis_x0 <= tcram[1][25:16];
+                    vis_y0 <= tcram[1][9:0];
+                    vis_w <= tc2_new[25:16];
+                    vis_h <= tc2_new[9:0];
+                end
+            end
             if (v_req) begin
                 ack_pending <= 1'b1;
                 rd_sel <= v_sel;

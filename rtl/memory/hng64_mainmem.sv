@@ -76,7 +76,7 @@ module hng64_mainmem #(
     typedef struct packed { logic prg; logic ro; logic [25:0] sd; } map_t;
 
     function automatic map_t map_of(input logic [31:0] a);
-        map_of = '{prg: 1'b0, ro: 1'b0, sd: 26'd0};
+        map_of = '0;
         if (a < 32'h0100_0000)
             map_of.sd = a[25:0];
         else if (a >= 32'h0400_0000 && a < 32'h0600_0000) begin
@@ -99,7 +99,8 @@ module hng64_mainmem #(
             map_of.ro = 1'b1;
     endfunction
 
-    wire map_t req_map = map_of(st_addr);   // decides the state on a new request
+    map_t req_map;                          // decides the state on a new request
+    assign req_map = map_of(st_addr);
 
     typedef enum logic [1:0] { M_IDLE, M_SDRAM, M_DDR, M_WRITE } state_t;
     state_t st;
@@ -113,7 +114,8 @@ module hng64_mainmem #(
 
     // from the LATCHED address, which advances a beat at a time; the request's own address may
     // have moved on
-    wire map_t cur_map = map_of(addr);
+    map_t cur_map;
+    assign cur_map = map_of(addr);
 
     assign s_addr  = cur_map.sd;
     assign s_wdata = st_wdata;

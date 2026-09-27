@@ -157,6 +157,7 @@ module tb_video (
         .frame_start(frame_start), .line_start(line_start), .line(line), .busy(busy),
         .videoregs(videoregs), .tcram(tcram),
         .spriteregs0(spriteregs0), .spriteregs1(spriteregs1), .bg_rgb(bg_rgb),
+        .screen_dis(tcram[2][31:16] == 16'd0 || tcram[2][15:0] == 16'd0),
         .scr_half(scr_half),
         .vram_addr(vram_addr), .vram_rd(vram_rd), .vram_ready(vram_ready), .vram_data(vram_data),
         .vram_valid(vram_valid),

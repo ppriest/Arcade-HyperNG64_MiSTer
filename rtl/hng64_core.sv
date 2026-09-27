@@ -373,6 +373,8 @@ module hng64_core #(
     logic [31:0] tcram [0:23];
     logic [31:0] spriteregs0, spriteregs1;
     logic [23:0] bg_rgb;
+    logic  [9:0] vis_x0, vis_y0, vis_w, vis_h;
+    logic        screen_dis;
     logic        snapshot, snapshot_done;
     logic [13:0] sram_addr;
     logic        sram_rd;
@@ -389,6 +391,8 @@ module hng64_core #(
         .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata), .fbcontrol0(fbcontrol0),
         .videoregs(videoregs), .tcram(tcram), .spriteregs0(spriteregs0),
         .spriteregs1(spriteregs1), .bg_rgb(bg_rgb),
+        .vis_x0(vis_x0), .vis_y0(vis_y0), .vis_w(vis_w), .vis_h(vis_h),
+        .screen_dis(screen_dis),
         .snapshot(snapshot), .snapshot_done(snapshot_done),
         .sram_addr(sram_addr), .sram_data(sram_data), .pal_a(pal_a), .pal_d(pal_d));
 
@@ -398,6 +402,7 @@ module hng64_core #(
         .dbg_layer_off(dbg_layer_off),
         .videoregs(videoregs), .tcram(tcram),
         .spriteregs0(spriteregs0), .spriteregs1(spriteregs1), .bg_rgb(bg_rgb),
+        .screen_dis(screen_dis),
         .scr_half(cfg_size[2][26:1]),
         .vram_addr(vram_addr), .vram_rd(vram_rd), .vram_ready(vram_ready), .vram_data(vram_data),
         .vram_valid(vram_valid),
@@ -412,6 +417,7 @@ module hng64_core #(
 
     hng64_vtiming u_timing (
         .clk(clk2x), .reset(game_reset), .flip(flip),
+        .vis_x0(vis_x0), .vis_y0(vis_y0), .vis_w(vis_w), .vis_h(vis_h),
         .ce_pix(ce_pix), .hsync(hsync), .vsync(vsync), .hblank(hblank), .vblank(vblank),
         .r(r), .g(g), .b(b),
         .line_start(line_start), .line(line), .frame_start(frame_start), .busy(vbusy),

@@ -107,6 +107,17 @@ Phase 0 so far:
   (`sys_tb +rot=1`: the rotated buffers exact, the frames exact under the writes), the hidden
   Debug page (layer switches) and ISSP instance F in the stp revision. Hiscore is n/a (no
   `hiscore.dat` entry). None of it has been built or run on hardware.
+- **The first full build fits and misses timing** (stp revision, `94df023`): 35,048 of 41,910 ALMs
+  (84%), 345 of 553 M10K, 43 of 112 DSP. Setup slack: clk2x -34.823 ns (TNS -172,534), clk93
+  -4.533, the SDRAM pins -0.082; clk1x and the framework meet. The first attempt needed 663,477 ALMs
+  (memories built from registers; `docs/LESSONS_LEARNED.md`). The clk2x paths are not yet looked at:
+  Quartus is on hold (user decision). The sprite engine's z-buffer has since moved to MLABs,
+  unsynthesised.
+- **Phase 3 started (user approval).** `scripts/render_3d.py` transcribes `hng64_3d.ipp` and
+  `poly.h`'s rasteriser and clipper in float32 and replays the display-list writes of a trace
+  (the bus trace, or a capture's own write log, `mame_capture.py --wlog`). Exact against MAME: the
+  BIOS logo (frames 500-652, six frames) and in-game frame 2500, 0 of 229,376 pixels each. What
+  in MAME's 3D reads as a slip rather than a guess is in `docs/MAME_KLUDGES.md`, 3D.
 Hardware notes and feasibility from MAME (`E:/mame` 5ae594bafe9) and the N64 core
 (`MiSTer-devel/N64_MiSTer` adbf9b5). No RTL yet.
 
@@ -390,6 +401,19 @@ option, measured by Phase 0 criterion 4's Fmax.
 
 **DDR3 bandwidth** for CPU fills, tile ROM, textures and vertices together. Closed by Phase 1
 measurement.
+
+**3D: language and reuse (Phase 3, not yet approved).** Direction from discussion: the 3D
+datapath in SpinalHDL as its own module with stream interfaces, the glue (display-list port,
+frame-buffer read-out into the mixer, flip) in SystemVerilog, reusing SpinalVoodoo's triangle
+setup, rasteriser, texture cache and DDR3 back end where they fit. SpinalVoodoo has no licence;
+one has been asked of its author and is assumed granted for planning (user decision). If the
+answer is no, reuse is off and the plan is redone.
+
+**3D: fixed point, not MAME's floats.** Every 3D input is 16-bit fixed point: MAME's `uToF`
+(`hng64_3d.ipp:1288`) is `s16 / 32768` on the matrices, vertices, texture coordinates and
+normals; the floats are MAME's. The word widths come from a fixed-point mode of the Python model
+swept against MAME's frames; the RTL is then bit-exact to that model, and the model is within a
+measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
 
 ## Next steps
 

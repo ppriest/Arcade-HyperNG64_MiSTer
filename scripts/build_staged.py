@@ -62,15 +62,24 @@ QUARTUS_BIN = None
 # cannot catch that; presence is asserted separately. Add each name in the
 # commit that adds the module it names, so the gate grows with the design.
 REQUIRED_INSTANCES = (
-    "hps_io",        # the framework's HPS interface; present from the template on
-    # "fx68k", "sdram", "arcade_video", "Hq2x", "screen_rotate_two", ...
+    "hps_io",                          # the framework's HPS interface
+    "hng64_cpu:u_cpu",                 # the VR4300 wrapper
+    "cpu:icpu",                        # the VR4300 itself
+    "hng64_core:u_core",               # the board less its CPU
+    "hng64_iomcu:",                    # the IO MCU
+    "hng64_video:u_video",             # the 2D video block
+    "u_sdram|sdram:u_sdram",           # the SDRAM controller, inside hng64_sdram
+    "hng64_ddram:u_ddr",               # the DDR3 transport
+    "hng64_crt:u_crt",                 # CRT Adjust
+    "screen_rotate_two:screen_rotate", # HDMI rotation
+    "video_freak:video_freak",         # HDMI scaling and crop
 )
 
 # Macros the design needs defined in the .qsf, and what breaks without each.
 # Presence is not connection: a module can stay in the netlist with its ports
 # bound to implicitly declared wires because a VERILOG_MACRO went missing.
 REQUIRED_MACROS = {
-    # "MISTER_FB": "HDMI rotation and 180 flip need the FB_* ports",
+    "MISTER_FB": "HDMI rotation needs the FB_* ports",
 }
 # ---------------------------------------------------------------------------
 

@@ -78,6 +78,7 @@ module tb_mixer (
         .clk(clk), .reset(reset), .start(start), .busy(busy),
         .lb_x(lb_x), .tm_pix(tm_pix), .spr_pix(spr_pix),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb),
+        .screen_dis(tcram[2][31:16] == 16'd0 || tcram[2][15:0] == 16'd0),
         .pal_a(pal_a), .pal_d(pal_d),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb));
 

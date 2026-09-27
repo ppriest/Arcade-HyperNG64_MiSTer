@@ -76,5 +76,9 @@ set_global_assignment -name VERILOG_MACRO "MISTER_FB=1"
 
 source sys/sys.tcl
 source sys/sys_analog.tcl
+# the vendored VR4300 is VHDL-2008 (sized literals such as 9x"1FF"), as in the N64 core
+set_global_assignment -name VHDL_INPUT_VERSION VHDL_2008
+# the sprite list copies (rtl/video/hng64_vbus.sv) are zero-filled over 12,288 words; the default limit is 5,000
+set_global_assignment -name VERILOG_CONSTANT_LOOP_LIMIT 20000
 source files.qip
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top

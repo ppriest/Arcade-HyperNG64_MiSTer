@@ -110,16 +110,13 @@ module hng64_sprite #(
     logic [3:0]  mos_x;
     logic [7:0]  held;
 
-    logic [10:0] zbuf [0:511];
     logic  [9:0] zclr;
 
     // the chain's rows, and one colour a tile, filled by the fetch loop and drained by the draw
     // loop. A chain is at most 16 tiles of 2 rows, so both are sized for the worst case and
     // neither can overrun.
-    logic [63:0] qrow [0:31];
     logic  [5:0] qrow_w, qrow_r;
     wire   [5:0] qrow_n = qrow_w - qrow_r;
-    logic [15:0] qcol [0:15];
     logic  [4:0] qcol_w, qcol_r;
     wire   [4:0] qcol_n = qcol_w - qcol_r;
     wire   [5:0] rows_per_tile = four_bpp ? 6'd1 : 6'd2;
@@ -153,17 +150,39 @@ module hng64_sprite #(
 
     wire signed [11:0] dstx = xpos + $signed({2'b0, curx});
     wire [8:0] zx = dstx[8:0];
-    wire ztest = zsort ? (zval >= zbuf[zx]) : (zval < zbuf[zx]);
+
+    // The z-buffer and the two queues are read in the clock they are addressed, so each is an
+    // MLAB (hng64_mlab): in registers they were 8,000 of the engine's 11,700. The z-buffer's two
+    // writes, the line's clear and a drawn pixel, happen in different states and share its port.
+    wire  [10:0] zq;
+    logic        z_we;
+    logic  [8:0] z_waddr;
+    logic [10:0] z_wdata;
+    wire  [63:0] qrow_a, qrow_b;
+    wire  [15:0] qcol_q;
+    logic        qcol_we;
+    logic [15:0] qcol_wd;
+
+    hng64_mlab #(.AW(9), .DW(11)) u_zbuf (
+        .clk(clk), .we(z_we), .waddr(z_waddr), .wdata(z_wdata), .raddr(zx), .rdata(zq));
+    hng64_mlab #(.AW(5), .DW(64)) u_qrow_a (
+        .clk(clk), .we(rom_valid), .waddr(qrow_w[4:0]), .wdata(rom_data),
+        .raddr(qrow_r[4:0]), .rdata(qrow_a));
+    hng64_mlab #(.AW(5), .DW(64)) u_qrow_b (          // the same rows, for the second read
+        .clk(clk), .we(rom_valid), .waddr(qrow_w[4:0]), .wdata(rom_data),
+        .raddr(5'(qrow_r + 6'd1)), .rdata(qrow_b));
+    hng64_mlab #(.AW(4), .DW(16)) u_qcol (
+        .clk(clk), .we(qcol_we), .waddr(qcol_w[3:0]), .wdata(qcol_wd),
+        .raddr(qcol_r[3:0]), .rdata(qcol_q));
+
+    wire ztest = zsort ? (zval >= zq) : (zval < zq);
 
     // Row beats land in the queue as they come back, in order. Neither pointer is reset per
     // sprite: a sprite issues exactly as many reads as it draws rows, so the two stay in step,
     // and a sprite cannot start drawing until the rows it asked for have arrived.
     always_ff @(posedge clk) begin
         if (reset) qrow_w <= 6'd0;
-        else if (rom_valid) begin
-            qrow[qrow_w[4:0]] <= rom_data;
-            qrow_w <= qrow_w + 6'd1;
-        end
+        else if (rom_valid) qrow_w <= qrow_w + 6'd1;
     end
 
     // Pixel from the fetched row. 4bpp: one 64-bit beat is the whole 16-pixel row, nibbles in
@@ -216,6 +235,27 @@ module hng64_sprite #(
     wire  [10:0] mos_base;
     hng64_mosaic #(.W(11)) u_mos (
         .clk(clk), .start(mos_start), .x(rely), .m(mosaic), .done(mos_done), .base(mos_base));
+
+    // the writes the state machine below makes, for the MLABs' registered write ports
+    wire stall = rom_rd && !rom_ready;
+    always_comb begin
+        z_we    = 1'b0;
+        z_waddr = zx;
+        z_wdata = zval;
+        qcol_we = 1'b0;
+        qcol_wd = four_bpp ? {4'd0, ram_data[23:16], 4'd0} : {4'd0, ram_data[19:16], 8'd0};
+        if (!reset && !stall) begin
+            if (st == L_CLEAR) begin
+                z_we    = 1'b1;
+                z_waddr = zclr[8:0];
+                z_wdata = zsort ? 11'd0 : 11'h7ff;
+            end else if (st == L_EMIT && !tile_done && dstx >= 12'sd0 && dstx < 12'sd512 &&
+                         out_pix != 8'd0 && ztest) begin
+                z_we    = 1'b1;
+            end
+            if (st == F_PAL) qcol_we = 1'b1;
+        end
+    end
 
     always_ff @(posedge clk) begin
         mos_start <= 1'b0;
@@ -290,7 +330,6 @@ module hng64_sprite #(
 
                 // ------------------------------------------------------ per line
                 L_CLEAR: begin
-                    zbuf[zclr[8:0]] <= zsort ? 11'd0 : 11'h7ff;
                     if (zclr == 10'd511) begin
                         ci <= 9'd0;
                         st <= L_PICK;
@@ -393,8 +432,6 @@ module hng64_sprite #(
                     st       <= F_PAL;
                 end
                 F_PAL: begin
-                    qcol[qcol_w[3:0]] <= four_bpp ? {4'd0, ram_data[23:16], 4'd0}
-                                                  : {4'd0, ram_data[19:16], 8'd0};
                     qcol_w <= qcol_w + 5'd1;
                     wi     <= 1'b0;
                     st     <= F_ISSUE;
@@ -417,9 +454,9 @@ module hng64_sprite #(
 
                 // ---- draw loop: take one tile's colour and rows off the queues --------------
                 L_POP: if (qcol_n != 5'd0 && qrow_n >= rows_per_tile) begin
-                    colour   <= qcol[qcol_r[3:0]];
-                    row0     <= qrow[qrow_r[4:0]];
-                    row1     <= qrow[(qrow_r + 6'd1) & 6'd31];
+                    colour   <= qcol_q;
+                    row0     <= qrow_a;
+                    row1     <= qrow_b;
                     qcol_r   <= qcol_r + 5'd1;
                     qrow_r   <= qrow_r + rows_per_tile;
                     dstwidth <= 10'd0;
@@ -492,7 +529,6 @@ module hng64_sprite #(
                             px_we    <= 1'b1;
                             px_x     <= zx;
                             px_pix   <= colour | {blend, group, 4'd0, out_pix};
-                            zbuf[zx] <= zval;
                         end
                     end
                 end

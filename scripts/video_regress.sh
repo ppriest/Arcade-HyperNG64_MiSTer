@@ -55,6 +55,9 @@ printf '%-9s %-8s sys  ' whole flipped
 scripts/run_verilator.sh sys_tb +frames=400,800 +flip=1 2>&1 | tail -1 || fail=1
 printf '%-9s %-8s sys  ' whole rotated
 scripts/run_verilator.sh sys_tb +frames=400,800 +rot=1 2>&1 | tail -1 || fail=1
+# the 3D model against MAME's frames, from the bus trace (the BIOS logo)
+printf '%-9s %-8s 3d   ' sams64 logo
+python scripts/render_3d.py sams64 566 600 601 630 652 2>&1 | grep '^frame' | awk '{print} / [1-9][0-9]* of 229376/ {bad=1} END {exit bad}' | tail -1 || fail=1
 # CRT Adjust on the output raster
 printf '%-9s %-8s crt  ' output crt
 scripts/run_verilator.sh crt_tb 2>&1 | grep "^crt:" | tee /dev/stderr | grep -q "PASS" || fail=1

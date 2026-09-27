@@ -4,6 +4,7 @@ rtl/memory/hng64_ddram.sv
 rtl/memory/hng64_mainmem.sv
 rtl/memory/hng64_dma.sv
 rtl/common/hng64_tdpram.sv
+rtl/common/hng64_bram.sv
 rtl/hng64_io.sv
 sim/common/sdram_chip_model_wide.sv
 sim/io_tb/tb_io.sv

@@ -1076,6 +1076,28 @@ ack address that is also an input port must acknowledge on writes only.
 - **[GX] Quartus 17 rejects `for (genvar i = ...)`** (`Error (10170)`); declare `genvar i;` before
   the `generate`.
 - **`quartus_map` alone is a fast pre-check** for whether a change elaborates.
+- **[HyperNG64] Verilator-clean is not Quartus-17-clean, and each miss costs a build.** The first
+  full synthesis of a design that linted and simulated in Verilator stopped, one per build, on:
+  VHDL-2008 not set (the N64 VR4300 needs it); `for (genvar ...)` (above); a loop `generate`
+  without `generate`/`endgenerate` at module scope; a net of a typedef'd type (`wire map_t x =`);
+  a named struct pattern (`'{prg: 0, ro: 0, ...}`, "ro is not a constant"); an `initial` zero-fill
+  past the 5,000-iteration constant-loop limit (`VERILOG_CONSTANT_LOOP_LIMIT`). The syntax ones fail
+  in seconds, so run `quartus_map --analysis_and_elaboration` on the whole design before the first
+  full build of a Verilator-developed core.
+- **[HyperNG64] Synthesise the core alone, early, and read the per-entity table.** Phases 1 and 2
+  were built and checked in Verilator only; the first full fit came back at 663,477 ALMs, 1,583% of
+  the device, from 698,000 registers that were meant to be block RAM (byte-enabled writes read on a
+  second clock, depths of 1,088 and 1,026 words, 3-D line-buffer arrays), and most of them drew no
+  message. A `quartus_map` of `hng64_core` alone takes 38 seconds and its "Resource Utilization by
+  Entity" names each block; the full build took 98 minutes to say it did not fit. Use an explicit
+  `altsyncram` wrapper (`rtl/common/hng64_bram.sv`, after MS32's `dpram_dc`) for any memory with byte
+  enables or two clocks, from the first line.
+- **[HyperNG64] A two-clock true dual-port RAM infers only in the write-through form.** Two
+  `always_ff` blocks, one per clock, each `if (we) mem[a] <= d; q <= mem[a];` (old data on a
+  write) stopped synthesis 13 minutes in with `276001: Cannot synthesize dual-port RAM logic`.
+  `if (we) begin mem[a] <= d; q <= d; end else q <= mem[a];` infers a dual-clock M10K. The first
+  guess, the `initial` block, cost a full build; a one-module Quartus project answers it in a
+  minute. Check a RAM form in isolation before a full synthesis, not after.
 
 ## Debug instrumentation: how not to fool yourself
 

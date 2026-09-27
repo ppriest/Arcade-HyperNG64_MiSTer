@@ -30,6 +30,7 @@ module hng64_mixer (
     input  logic [15:0] tileregs [0:3],     // enable, priority, fade select
     input  logic [31:0] tcram [0:23],
     input  logic [23:0] bg_rgb,             // palette entry 0, or black: see fbcontrol bit 0
+    input  logic        screen_dis,         // tcram_w's m_screen_dis: the background only
 
     output logic [11:0] pal_a [0:4],        // four layers then the sprite; words back next cycle
     input  logic [31:0] pal_d [0:4],
@@ -207,7 +208,9 @@ module hng64_mixer (
             if (val1) begin
                 px_we  <= 1'b1;
                 px_x   <= x1;
-                px_rgb <= mixed;
+                // screen_update returns after the background fill when the screen is disabled or
+                // tcram 0x24 bit 17 is set ("disable all palette output", set in fades)
+                px_rgb <= (screen_dis || tcram[9][17]) ? bg_rgb : mixed;
             end
             val1 <= 1'b0;
 

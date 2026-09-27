@@ -14,8 +14,9 @@
 // ready before d + 1 is shown. The passes for lines 0 and 1 run in the last two blanked lines,
 // and a last pass at d = 446 re-renders 447 to flush it out, as sim/video_tb does.
 //
-// FLIP SCREEN turns the picture 180 degrees, all layers at once: the pass for display line d
-// renders source line 447 - d, and the output buffer is read from x = 511 down. The schedule is
+// FLIP SCREEN turns the picture 180 degrees within the game's window, all layers at once: the pass
+// for display line d renders the window's mirror line (447 - d for a 448-line window at 0), and the
+// output buffer is read mirrored in x. The schedule is
 // otherwise unchanged. `flip` is taken once a frame, in vblank, so no frame is drawn half each
 // way. MAME has no flip for this board; the check is the unflipped frame rotated (sim/sys_tb).
 //
@@ -32,6 +33,10 @@ module hng64_vtiming (
     input  logic        clk,            // clk2x
     input  logic        reset,
     input  logic        flip,
+    input  logic  [9:0] vis_x0,         // the game's window (hng64_vbus.sv), taken in vblank
+    input  logic  [9:0] vis_y0,
+    input  logic  [9:0] vis_w,
+    input  logic  [9:0] vis_h,
 
     output logic        ce_pix,
     output logic        hsync,
@@ -74,6 +79,9 @@ module hng64_vtiming (
     logic [9:0] h;
     logic [9:0] v;
 
+    // the window, taken once a frame in vblank as flip is
+    logic [9:0] wx0 = 10'd0, wy0 = 10'd0, ww = 10'd512, wh = 10'd448;
+
     // ---- the pixel clock and the counters ------------------------------------------------------------
     always_ff @(posedge clk) begin
         if (reset) begin
@@ -115,7 +123,22 @@ module hng64_vtiming (
     logic       frame_pend;                             // the engine's frame, waiting for idle
     logic       flip_f = 1'b0;                          // flip, for the frame being drawn
 
-    always_ff @(posedge clk) if (line_begin && v_next == 10'd450) flip_f <= flip;
+    always_ff @(posedge clk) if (line_begin && v_next == 10'd450) begin
+        flip_f <= flip;
+        wx0 <= vis_x0;
+        wy0 <= vis_y0;
+        ww <= vis_w;
+        wh <= vis_h;
+    end
+    // flip turns the game's window, not the raster: line y of it shows y0 + y1 - y (fatfurwa's
+    // lines 16-447 onto themselves); lines outside the window are not shown, so any line will do
+    function automatic logic [8:0] flip_line(input logic [8:0] l);
+        logic [9:0] m;
+        m = wy0 + wy0 + wh - 10'd1 - {1'b0, l};
+        flip_line = ({1'b0, l} >= wy0 && {1'b0, l} < wy0 + wh) ? m[8:0] : l;
+    endfunction
+    wire in_x = (h >= wx0) && (h < wx0 + ww) && (h < HVIS);
+    wire in_y = (v >= wy0) && (v < wy0 + wh) && (v < VVIS);
 
     always_ff @(posedge clk) begin
         line_start <= 1'b0;
@@ -139,7 +162,7 @@ module hng64_vtiming (
             end
             if (pend && !busy && !line_start && !frame_pend && !frame_start) begin
                 line_start <= 1'b1;
-                line <= flip_f ? 9'(VVIS - 1) - pend_line : pend_line;
+                line <= flip_f ? flip_line(pend_line) : pend_line;
                 pend <= 1'b0;
                 // the pixels this pass emits are the line before, except the flush's
                 out_valid <= pend_flush || (pend_line != 9'd0);
@@ -162,7 +185,7 @@ module hng64_vtiming (
 
     always_ff @(posedge clk) begin
         if (px_we && out_valid) obuf[{out_line[0], px_x}] <= px_rgb;     // px_x is 0-511
-        obuf_q <= obuf[{v[0], flip_f ? ~h[8:0] : h[8:0]}];
+        obuf_q <= obuf[{v[0], flip_f ? 9'(wx0 + wx0 + ww - 10'd1 - h) : h[8:0]}];
     end
 
     // The buffer is read on every clock, so obuf_q holds pixel h from the clock after the
@@ -171,11 +194,11 @@ module hng64_vtiming (
     always_ff @(posedge clk) begin
         ce_pix <= (div == 3'd1);
         if (div == 3'd1) begin
-            hblank    <= (h >= 10'(HVIS));
-            vblank    <= (v >= 10'(VVIS));
+            hblank    <= !in_x;
+            vblank    <= !in_y;
             hsync     <= (h >= 10'(HS_START)) && (h < 10'(HS_END));
             vsync     <= (v >= 10'(VS_START)) && (v < 10'(VS_END));
-            {r, g, b} <= (h < 10'(HVIS) && v < 10'(VVIS)) ? obuf_q : 24'd0;
+            {r, g, b} <= (in_x && in_y) ? obuf_q : 24'd0;
         end
     end
 
@@ -202,6 +225,7 @@ module hng64_vtiming (
     assign vblank_irq   = (vb_hold != 2'd0);
     assign raster_irq   = (ra_hold != 2'd0);
     assign net_irq      = (net_hold != 2'd0);
-    assign vblank_level = (v >= 10'(VVIS));
+    // the screen's vblank() as MAME reports it: outside the window's lines
+    assign vblank_level = !in_y;
 
 endmodule

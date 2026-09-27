@@ -54,8 +54,9 @@ def regions():
 
 def spec(table, names=None):
     """{"name": [lo, hi]} -> "name:lo:hi,..." for the Lua side."""
-    return ",".join(f"{n}:{int(lo, 16):x}:{int(hi, 16):x}"
-                    for n, (lo, hi) in table.items() if names is None or n in names)
+    return ",".join(f"{n}:{int(v[0], 16):x}:{int(v[1], 16):x}"
+                    for n, v in table.items()
+                    if not n.startswith("_") and (names is None or n in names))
 
 
 def lua_env(r):
@@ -86,6 +87,9 @@ def main():
     ap.add_argument("--seconds", type=int, default=None,
                     help="emulated seconds to run; default frame/60 + 10")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--wlog", action="store_true",
+                    help="also log every write to regions.json's `wlog` ranges from boot "
+                         "(wlog.trace, for scripts/render_3d.py)")
     ap.add_argument("--keep-going", action="store_true",
                     help="do not delete a previous capture of the same name")
     a = ap.parse_args()
@@ -100,7 +104,8 @@ def main():
 
     cmd = mame_cmd(exe, a.set, "capture.lua", mame_dir, ["-seconds_to_run", str(seconds)])
     env = dict(os.environ, **lua_env(r), CORE_OUT=out.as_posix(), CORE_FRAME=str(a.frame),
-               CORE_READ=spec(r.get("read", {})), CORE_WTAP=spec(r.get("wtap", {})))
+               CORE_READ=spec(r.get("read", {})), CORE_WTAP=spec(r.get("wtap", {})),
+               CORE_WLOG=spec(r.get("wlog", {})) if a.wlog else "")
     print(f"{a.set} frame {a.frame} -> {out}")
     p = subprocess.run(cmd, cwd=mame_dir, env=env, capture_output=True, text=True, **NO_WINDOW)
     blob = p.stdout + p.stderr

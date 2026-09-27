@@ -10,7 +10,7 @@
 The bitstream defaults to scripts/build_staged.py's output for the current
 revision (build/output_files/<rev>.rbf, build/q_staged.log); --rev, --rbf,
 --log and --sta point it elsewhere. The remote name is derived from the
-project (the .qpf stem): Arcade-<project>_NNNNNNNN.rbf.
+project (the .qpf stem): <project>_NNNNNNNN.rbf (numbered from 30000001).
 
 Connection settings come from ./mister.env (gitignored):
 
@@ -166,17 +166,22 @@ def check_build(rbf, log, sta, allow_timing_miss=False):
 
 
 # ---------------------------------------------------------------------------
-# Remote naming: Arcade-<project>_NNNNNNNN.rbf, the number incrementing per
-# deploy. MiSTer resolves the .mra's <rbf>Arcade-<project></rbf> to the
-# highest-sorting Arcade-<project>_*.rbf in the cores folder, so every deploy
-# leaves the previous builds in place as fallbacks: rename the newest to .held
-# (any name that no longer ends in .rbf) and the one before it is what the
-# .mra launches. The counter starts at 10000001 and is read back from the
-# device, .held files included, so a held build's number is never reused. A
-# plain Arcade-<project>.rbf from before this convention is moved aside.
+# Remote naming: <project>_NNNNNNNN.rbf, the number incrementing per deploy. The
+# .mra's <rbf> tag carries no "Arcade-" prefix (the contribution guidelines), so
+# neither does the file on the device; a release keeps it (Arcade-<project>_<date>.rbf).
+#
+# MiSTer resolves the .mra's <rbf><project></rbf> to the highest-sorting
+# <project>_*.rbf in the cores folder, so every deploy leaves the previous builds
+# in place as fallbacks: rename the newest to .held (any name that no longer ends
+# in .rbf) and the one before it is what the .mra launches. The counter starts at
+# 30000001, above any dated file (<project>_YYYYMMDD.rbf from a release or another
+# source, which sorts with the numbers and would otherwise win), and is read back
+# from the device, .held files included, so a held build's number is never reused;
+# numbers below the start (the old 10000001 series, dated files) are ignored. A
+# plain <project>.rbf from before this convention is moved aside to .held.
 # ---------------------------------------------------------------------------
-RBF_STEM = "Arcade-%s" % PROJECT
-RBF_FIRST = 10000001
+RBF_STEM = PROJECT
+RBF_FIRST = 30000001
 
 
 def next_rbf_name(m):
@@ -184,7 +189,8 @@ def next_rbf_name(m):
         return f"{RBF_STEM}_{RBF_FIRST}.rbf"   # a dry run never asks the device
     listing = m.run(f"ls -1 {REMOTE_CORES} 2>/dev/null; true")
     numbers = [int(n) for n in
-               re.findall(rf"^{RBF_STEM}_(\d+)\.rbf(?:\.held)?$", listing, re.M)]
+               re.findall(rf"^{RBF_STEM}_(\d+)\.rbf(?:\.held)?$", listing, re.M)
+               if int(n) >= RBF_FIRST]
     plain = f"{RBF_STEM}.rbf"
     if plain in listing.split():
         print(f"    {plain} -> {plain}.held  (pre-numbering build, moved aside)")
@@ -247,6 +253,9 @@ def main():
         m.run(f"mkdir -p {REMOTE_CORES}")
         name = a.name or next_rbf_name(m)
         m.put(rbf, f"{REMOTE_CORES}/{name}")
+        # machine-wide: which commit this numbered file is, for identity.py
+        from identity import record_deploy
+        record_deploy(name, REPO)
 
     # ---- .mra files ----
     if not a.rbf_only:

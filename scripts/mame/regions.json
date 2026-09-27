@@ -52,6 +52,25 @@
       "0x3000002f"
     ]
   },
+  "wlog": {
+    "_comment": "what scripts/render_3d.py replays: the display list, its upload and control, the 3D framebuffer registers and texture wrap table, and tcram 0x50 (bit 16 clears the 3D buffer at vblank); the video registers, whose mid-screen writes make MAME draw the frame in parts (vregs_w, update_partial)",
+    "dl": [
+      "0x20300000",
+      "0x2030021b"
+    ],
+    "fbregs": [
+      "0x30000000",
+      "0x3000002f"
+    ],
+    "tcram50": [
+      "0x20208050",
+      "0x20208053"
+    ],
+    "vregs": [
+      "0x20190000",
+      "0x20190037"
+    ]
+  },
   "sweep": [
     "spriteram",
     "spriteregs",

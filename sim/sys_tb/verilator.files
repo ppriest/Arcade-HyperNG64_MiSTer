@@ -14,9 +14,11 @@ rtl/hng64_bus.sv
 rtl/hng64_io.sv
 rtl/video/hng64_mosaic.sv
 rtl/video/hng64_tilemap.sv
+rtl/common/hng64_mlab.sv
 rtl/video/hng64_sprite.sv
 rtl/video/hng64_mixer.sv
 rtl/video/hng64_video.sv
+rtl/common/hng64_bram.sv
 rtl/video/hng64_vbus.sv
 rtl/video/hng64_vtiming.sv
 rtl/hng64_core.sv

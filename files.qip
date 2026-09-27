@@ -9,6 +9,8 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory/hng64_dma.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory/hng64_romcfg.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/memory/hng64_romload.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_tdpram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_bram.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_mlab.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_tlcs870_alu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_tlcs870.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_iomcu.sv

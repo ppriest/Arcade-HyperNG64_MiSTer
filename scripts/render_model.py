@@ -462,8 +462,10 @@ def _alpha(dst, src):
     return (((src.astype(np.int16) << 7) + (dst.astype(np.int16) << 7)) >> 8).astype(np.uint8)
 
 
-def render(cap, gfx, spr=None, height=448, width=512):
-    """screen_update (hng64_v.cpp:743-940), without the 3D blit between the two priority halves.
+def render(cap, gfx, spr=None, height=448, width=512, layer3d=None):
+    """screen_update (hng64_v.cpp:743-940). The 3D blit between the two priority halves is
+    scripts/render_3d.py's `blit`, given as layer3d = (buffer, state, 3D palette); without it the
+    frame is drawn as if the 3D buffer were empty.
 
     Sprites are mixed by group inside the priority walk, not over the finished tilemaps: a
     blended sprite or an additive layer sees whatever is under it at that point.
@@ -475,7 +477,7 @@ def render(cap, gfx, spr=None, height=448, width=512):
         img[:, :] = base[0]
     if (int(cap.tcram[0x24 // 4]) >> 17) & 1:      # "disable all palette output", set in fades
         return img
-    if int(cap.tcram[2]) & 0xFFFF0000 == 0 or int(cap.tcram[2]) & 0xFFFF == 0:
+    if (int(cap.tcram[2]) & 0xFFFF0000) == 0 or (int(cap.tcram[2]) & 0xFFFF) == 0:
         return img                                 # screen disabled (hng64_v.cpp:1398)
 
     pixmaps = {tm: tilemap_pixmap(cap, gfx, tm) for tm in range(4)
@@ -505,16 +507,22 @@ def render(cap, gfx, spr=None, height=448, width=512):
             if (i & 3) == 0 and sprites is not None:
                 sp = sprites[y]
                 sel = ((sp & 0x0FFF) != 0) & ((sp & 0x7000) == ((i >> 2) << 12))
-                if not sel.any():
-                    continue
-                src = base[sp[sel] & 0x0FFF]
-                bl = (sp[sel] & 0x8000) != 0
-                out = src.copy()
-                if bl.any():
-                    out[bl] = (_alpha(dst[sel][bl], src[bl]) if spr_alpha
-                               else _add(dst[sel][bl], src[bl]))
-                dst[sel] = out
+                if sel.any():
+                    src = base[sp[sel] & 0x0FFF]
+                    bl = (sp[sel] & 0x8000) != 0
+                    out = src.copy()
+                    if bl.any():
+                        out[bl] = (_alpha(dst[sel][bl], src[bl]) if spr_alpha
+                                   else _add(dst[sel][bl], src[bl]))
+                    dst[sel] = out
+            if i == 0x10 and layer3d is not None:
+                _blit_line(dst, y, height, layer3d)
     return img
+
+
+def _blit_line(dst, y, height, layer3d):
+    import render_3d
+    render_3d.blit_line(dst, y, height, *layer3d)
 
 
 def main():

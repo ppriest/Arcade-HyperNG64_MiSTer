@@ -9,6 +9,11 @@
 --   CORE_BIG     1 if the bus is big-endian
 --   CORE_READ    "name:hexlo:hexhi,..."  RAM readable through the CPU's view
 --   CORE_WTAP    "name:hexlo:hexhi,..."  write-only registers, rebuilt from writes
+--   CORE_WLOG    "name:hexlo:hexhi,..."  optional: every write to these, in order, to
+--                wlog.trace ("seq w addr mask data vpos": systrace.lua's columns, the
+--                last the beam's line when the write was made), with
+--                "# frame N" at each frame and "# capture" where the capture is taken.
+--                The 3D model replays it from boot (scripts/render_3d.py).
 --
 -- Readable RAM is read through the CPU's address space: that is what the CPU
 -- would read, handlers and umask included, which is what the RTL must match.
@@ -87,6 +92,29 @@ for _, r in ipairs(WTAP) do
         end))
 end
 
+-- The write log: a counter per frame notifier, as systrace.lua numbers its markers.
+local WLOG = ranges(os.getenv("CORE_WLOG"))
+local wlog, wseq, wframe = nil, 0, 0
+local wscr = m.screens[":screen"]
+-- The beam's line: MAME's Lua gives no vpos, only the time until line 0 comes round again.
+local function vpos()
+    local fp, sp = wscr.frame_period, wscr.scan_period
+    local total = math.floor(fp / sp + 0.5)
+    return math.floor((fp - wscr:time_until_pos(0)) / sp + 1e-6) % total
+end
+if #WLOG > 0 then
+    wlog = assert(io.open(OUT .. "/wlog.trace", "w"))
+    wlog:write("# writes to ", os.getenv("CORE_WLOG"), "\n")
+    for _, r in ipairs(WLOG) do
+        core_subs[#core_subs + 1] = sp:install_write_tap(r.lo, r.hi, "core_wlog_" .. r.name,
+            guard("wlog_" .. r.name, function(offset, data, mask)
+                wseq = wseq + 1
+                wlog:write(string.format("%d\tw\t%08X\t%08X\t%08X\t%d\n", wseq, offset,
+                                         mask & 0xffffffff, data & 0xffffffff, vpos()))
+            end))
+    end
+end
+
 local function read_block(lo, hi)
     local t = {}
     for a = lo, hi do t[#t + 1] = string.char(sp:read_u8(a)) end
@@ -103,8 +131,15 @@ local done = false
 core_subs[#core_subs + 1] = emu.add_machine_frame_notifier(guard("frame", function()
     if done then return end
     local scr = m.screens[":screen"]
-    if scr:frame_number() < FRAME then return end
+    local capture = scr:frame_number() >= FRAME
+    if wlog then
+        wframe = wframe + 1
+        if capture then wlog:write("# capture\n") end
+        wlog:write(string.format("# frame %d\n", wframe))
+    end
+    if not capture then return end
     done = true
+    if wlog then wlog:close() end
 
     for _, r in ipairs(ranges(os.getenv("CORE_READ"))) do
         wr(r.name .. ".bin", read_block(r.lo, r.hi))

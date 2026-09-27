@@ -24,7 +24,8 @@ Every `hng64` set is `MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND`.
 |---|---|---|---|
 | COP0 Config bits 23:16 | MAME sets Config to `0x6460` for the VR4300 (`mips3com.cpp:191-210`), leaving bits 23:16 at 0, though its own comment says the field is `0000010`. | Reads 0, as MAME does (`rtl/cpu/vr4300/cpu_cop0.vhd`, local change). | The VR4300 manual, or a read of Config on the board. Nothing in the BIOS uses the field. |
 | COP0 Config clock ratio (bits 30:28) | MAME reports 0. The board wires DivMode0/1 high (hng64.cpp:107), so a real VR4300 reports its own ratio; the N64 core hard-codes `111`. | Set from the reset state to MAME's 0. | A read of Config on the board. |
-| Whole-frame rendering | MAME renders at vblank from the state then (`screen_update`, hng64_v.cpp:745), so a write made mid-screen appears over the whole frame, and raster effects cannot show. Its own comment notes `fatfurwa` uses a raster interrupt to swap tilemap enables mid-screen. | The core renders per line from live tile VRAM, palette and video registers; only the sprite list is snapshotted (vblank start). | A PCB capture of a frame with mid-screen tile or palette writes. `scripts/write_timing.py` shows both games making them in play. |
+| Frame rate by window height | A write setting a 448-line window reconfigures the screen at 59.43 Hz ("appears to sync with hardware"), any other height at 61.65 Hz, both with the 768 x 528 totals (`tcram_w`, hng64_v.cpp:1408-1413). | Differs, by user decision: the core stays at 25 MHz, 768 x 528, 61.65 Hz, 3.7% faster than MAME's 448-line games, because MAME's rate is not taken as the board's. | A frame-rate measurement on a board. |
+| Whole-frame rendering, except at video register writes | MAME renders at vblank from the state then (`screen_update`, hng64_v.cpp:745), except that a write that changes a video register draws the lines above the beam first (`vregs_w`, `hng64.cpp:1119-1135`, `update_partial(vpos - 1)`): fatfurwa swaps its sky and floor tilemaps at line 244 this way every frame. Tile VRAM, palette, sprite and 3D-buffer writes mid-screen do not split the frame, so they show over the whole of it (the 3D buffer as it stood at each split). | The core renders per line from live tile VRAM, palette and video registers; only the sprite list is snapshotted (vblank start). The models draw the parts from the write log's beam positions (`scripts/render_3d.py`, `render_in_parts`). | A PCB capture of a frame with mid-screen tile or palette writes. `scripts/write_timing.py` shows both games making them in play. |
 
 ## Main board I/O
 
@@ -100,6 +101,32 @@ not the same claim.
 | Watchdog not implemented | `jaleco_ms32_sysctrl.cpp:104` | copies (ignored) | — |
 | Equal z-code tie-break | No silicon source found; MAME draws back to front and skips when the stored z is lower | copies: the line buffer writes when (z, priority) is strictly lower, in RAM order | A PCB capture of two overlapping equal-z sprites |
 -->
+
+## 3D
+
+`scripts/render_3d.py` transcribes MAME's 3D in float32 and copies every item below: it is exact
+against MAME's frames (sams64 BIOS logo, frames 500-652; in-game frame 2500), which is what makes
+it the reference for the fixed-point design. The RTL's column is open until that design is made;
+each row says what the RTL would have to do to copy MAME. References are to `hng64_3d.ipp` unless
+named. Items marked **error** make no sense as hardware and read as slips in MAME's code rather
+than guesses about the board.
+
+| Kludge | MAME | Model | Would settle it |
+|---|---|---|---|
+| **error:** model scale axes swapped | With packet bit `0x0040`, vertex x is scaled by `m_modelscalez`, y by `m_modelscaley`, z by `m_modelscalex` (`:383-385`). MAME's own comment says the scale is only seen on roadedge/xrally's Hyper 64 logo, at `0x100` (no scale). | Copies. | A logo frame from roadedge or xrally with a scale other than `0x100`; not in scope for the fight sets. |
+| **error:** a chunk with a non-zero top byte stalls the walk | `if (chunkOffset[0] & 0xff00) continue;` (`:582`) skips the `chunkOffset += chunkLength` at the loop's end (`:951`), so the same chunk is read again for every remaining count of the block and nothing after it in the block is drawn. | Copies. | A ROM chunk with that byte set; none is known. |
+| **error:** an unknown chunk type still draws | The `default` case (`:793-797`) logs and sets the length to 3, and the polygon is still marked visible and drawn, from whatever the reused polygon array held from an earlier packet. | Copies, including the reused array, except across the frames the model skips (those before the last clearing vblank). No capture has an unknown type: sams64 frames 500-5000 use 04, 05, 0e, 0f, 87, 96, 97, c7 and d7 only. | A ROM chunk of an unknown type. |
+| **error:** the rasteriser's clip rectangle is 513 x 513 | `visibleArea.set(0, 512, 0, 512)` (`:1465`) is inclusive, so spans reach x = 512, and the scanline functions write `x & 511` (`:1405`, `:1437`): the pixel right of the last column lands in column 0 of the same line. Line 512 is dropped by the `scanline > 511` test. | Copies (x = 512 is written after the span, as MAME's loop order has it). | The board's frame buffer width; the 3D buffer is 512 wide in MAME's own notes. |
+| Behind-camera cull tests one vertex | A triangle is dropped whole if its vertex 0 is behind the camera (`:877`), although the frustum clipper after it handles partly visible triangles; a triangle with vertex 0 in front and the others behind is clipped instead. | Copies. | A board frame with geometry crossing the camera plane. |
+| Flat colour not masked | A flat polygon writes `palOffset + colorIndex` unmasked (`:1437`), so a sum past `0x7ff` sets the blend and light bits of the buffer word; textured pixels are masked to 11 bits (`:1401`). | Copies. | Flat polygons with a large palette offset on a board. |
+| Perspective-correct texturing | Texture coordinates and light are divided by w per pixel (`:1347-1350`, `drawShaded`); MAME's comment says the board very likely does not do this. | Copies. | Texture swim on a board frame with a steep polygon. |
+| Light added, not multiplied, and 4-bit | The 3D palette adds `intensity << 2` to each channel (`hng64_v.cpp:1288-1302`, "unlikely"), and only the top 4 bits of the interpolated light are kept (`/ 16`, `:1399`). The light itself is `dot * strength * 128 * 128`, clamped to 255 (`:835-837`); the comment's "[0.0, 2.0]" does not describe that range. | Copies. | Lit polygons on a board. |
+| 3D fades with fade register 0 only | The 3D palette is built through `tcram 0x18` and its modes whatever the game wants (`hng64_v.cpp:1305-1307`, "very unlikely"). | Copies. | buriki's discipline intro, which MAME's comment says it gets wrong. |
+| sams64 camera ignored | `init_ss64` sets `m_samsho64_3d_hack`, and the camera matrix is left out of the model view (`:812`); sams64 does send camera packets. | Copies. | sams64 in-game frames on a board. |
+| 3D buffer stretched by 447 | The blit's vertical step is `(512 << 16) / (max_y - min_y)`, 447 for 448 lines (`hng64_v.cpp:877-881`), so the 512 buffer lines are sampled a fraction too far apart. | Copies. | A board frame; the board draws 264 lines a field, not 448. |
+| **error:** the blit adds `cliprect.min_x` twice | `src[((cliprect.min_x + x) + xscroll)]` with x already starting at `min_x` (`hng64_v.cpp:904`). No effect while the whole screen is drawn in one update, as it is now. | n/a: the model draws whole frames. | None needed. |
+| Float rounding decides quantised values on exact boundaries | The light kept is `(u8)(rCorrect / 16.0f)` and the texel `(int)textureS` (`:1376-1400`), both truncations of float32 results. Where the true value is a whole number - constant light at a multiple of 16, a texel coordinate on an edge - float rounding puts it either side: on sams64's logo (frame 600) 109,001 of 111,164 drawn pixels have light/16 within 0.001 of a whole number, and MAME's truncation lands below and above about equally (`docs/phase3_3d.md`). | Copies (it is MAME's float32). A fixed-point design gives one side consistently and differs from MAME there. | Nothing to settle: MAME's value there is noise. |
+| Comment slip in the clipper | `frustum_clip_all` labels its +Y clip "W <= +X" (`devices/video/poly.h:1470`); the code clips Y. | n/a | None needed. |
 
 ## Vendored modules that disagree with MAME
 

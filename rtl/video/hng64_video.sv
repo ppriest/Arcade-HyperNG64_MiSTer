@@ -39,6 +39,7 @@ module hng64_video (
     input  logic [31:0] spriteregs0,
     input  logic [31:0] spriteregs1,
     input  logic [23:0] bg_rgb,
+    input  logic        screen_dis,
     input  logic [25:0] scr_half,           // half the scrtile region; see the reorder below
 
     // Every port holds its request until `ready`: the memories below arbitrate too, and a
@@ -110,19 +111,20 @@ module hng64_video (
     wire [63:0] srom_msb = reverse_bytes(srom_data);
     wire [63:0] prom_msb = reverse_bytes(prom_data);
 
+    genvar gtm;
     generate
-        for (genvar tm = 0; tm < 4; tm++) begin : g_tm
+        for (gtm = 0; gtm < 4; gtm++) begin : g_tm
             hng64_tilemap u_tm (
                 .clk(clk), .reset(reset),
-                .start(tm_start[tm]), .line(line), .tm_index(tm[1:0]), .busy(tm_busy[tm]),
-                .tileregs(tileregs[tm]), .scrollbase(scrollbase[tm]),
+                .start(tm_start[gtm]), .line(line), .tm_index(2'(gtm)), .busy(tm_busy[gtm]),
+                .tileregs(tileregs[gtm]), .scrollbase(scrollbase[gtm]),
                 .videoreg0(videoregs[0]), .videoreg1(videoregs[1]),
                 .anim_mask(videoregs[11]), .anim_bits(videoregs[12]),
-                .vram_addr(tm_vaddr[tm]), .vram_rd(tm_vrd[tm]), .vram_ready(vgrant[tm]),
-                .vram_data(vram_data), .vram_valid(vdeliver[tm]),
-                .rom_addr(tm_raddr[tm]), .rom_rd(tm_rrd[tm]), .rom_ready(rgrant[tm]),
-                .rom_data(srom_msb), .rom_valid(rdeliver[tm]),
-                .px_we(tm_we[tm]), .px_x(tm_x[tm]), .px_pix(tm_pix[tm]));
+                .vram_addr(tm_vaddr[gtm]), .vram_rd(tm_vrd[gtm]), .vram_ready(vgrant[gtm]),
+                .vram_data(vram_data), .vram_valid(vdeliver[gtm]),
+                .rom_addr(tm_raddr[gtm]), .rom_rd(tm_rrd[gtm]), .rom_ready(rgrant[gtm]),
+                .rom_data(srom_msb), .rom_valid(rdeliver[gtm]),
+                .px_we(tm_we[gtm]), .px_x(tm_x[gtm]), .px_pix(tm_pix[gtm]));
         end
     endgenerate
 
@@ -215,25 +217,44 @@ module hng64_video (
         .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw());
 
     // ---- line buffers -----------------------------------------------------------------------------
-    logic [15:0] lb_tm [0:1][0:3][0:511];
-    logic [15:0] lb_spr [0:1][0:511];
+    // Each a hng64_bram: written as arrays these were built from 65,000 registers. A tilemap's two
+    // banks are one RAM, the bank the top address bit. The sprite buffer is one RAM per bank: the
+    // mixer clears what it has read, a clock behind, so its bank has two writers, and the bank the
+    // engine is not writing has its write port free for the clear.
     logic [15:0] mix_tm [0:3];
     logic [15:0] mix_spr;
     logic  [8:0] mix_x, mix_x_q;
     logic        mixing, mixing_q;
     logic        bank;                      // engines write this one, the mixer reads the other
+    logic        mix_bank;                  // the bank the mixer's last read went to
+
+    genvar glb;
+    generate
+        for (glb = 0; glb < 4; glb++) begin : g_lbtm
+            hng64_bram #(.AW(10), .DW(16)) u_lb (
+                .a_clk(clk), .a_addr({bank, tm_x[glb]}), .a_be({2{tm_we[glb]}}),
+                .a_wdata(dbg_layer_off[glb] ? 16'd0 : tm_pix[glb]), .a_rdata(),
+                .b_clk(clk), .b_addr({~bank, mix_x}), .b_rdata(mix_tm[glb]));
+        end
+    endgenerate
+
+    logic [15:0] spr_q [0:1];
+    generate
+        for (glb = 0; glb < 2; glb++) begin : g_lbspr
+            wire eng = (bank == 1'(glb));
+            hng64_bram #(.AW(9), .DW(16)) u_lb (
+                .a_clk(clk), .a_addr(eng ? spr_x : mix_x_q),
+                .a_be(eng ? {2{spr_we}} : {2{mixing_q}}),
+                .a_wdata(eng ? (dbg_layer_off[4] ? 16'd0 : spr_px) : 16'd0), .a_rdata(),
+                .b_clk(clk), .b_addr(mix_x), .b_rdata(spr_q[glb]));
+        end
+    endgenerate
+    assign mix_spr = spr_q[mix_bank];
 
     always_ff @(posedge clk) begin
-        for (int tm = 0; tm < 4; tm++) begin
-            if (tm_we[tm]) lb_tm[bank][tm][tm_x[tm]] <= dbg_layer_off[tm] ? 16'd0 : tm_pix[tm];
-            mix_tm[tm] <= lb_tm[~bank][tm][mix_x];
-        end
-        if (spr_we) lb_spr[bank][spr_x] <= dbg_layer_off[4] ? 16'd0 : spr_px;
-        // clear one cycle behind the mixer's read: this bank is the engines' next one
-        if (mixing_q) lb_spr[~bank][mix_x_q] <= 16'd0;
-        mix_spr  <= lb_spr[~bank][mix_x];
         mix_x_q  <= mix_x;
         mixing_q <= mixing;
+        mix_bank <= ~bank;
     end
 
     // ---- the mixer ---------------------------------------------------------------------------------
@@ -243,7 +264,7 @@ module hng64_video (
     hng64_mixer u_mix (
         .clk(clk), .reset(reset), .start(mix_start), .busy(mix_busy),
         .lb_x(mix_x), .tm_pix(mix_tm), .spr_pix(mix_spr),
-        .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb),
+        .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb), .screen_dis(screen_dis),
         .pal_a(pal_a), .pal_d(pal_d),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb));
 
