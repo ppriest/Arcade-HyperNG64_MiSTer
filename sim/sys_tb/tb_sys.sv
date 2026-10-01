@@ -11,6 +11,7 @@ module tb_sys (
 
     input  logic        mem_request,
     input  logic        mem_rnw,
+    input  logic        mem_req64,
     input  logic [31:0] mem_address,
     input  logic  [7:0] mem_writeMask,
     input  logic [63:0] mem_dataWrite,
@@ -68,7 +69,7 @@ module tb_sys (
     hng64_core dut (
         .clk1x(clk1x), .clk2x(clk2x), .reset(reset), .sdram_init(reset),
         .mem_request(mem_request), .mem_rnw(mem_rnw), .mem_address(mem_address),
-        .mem_req64(1'b0), .mem_size(3'b001), .mem_writeMask(mem_writeMask),
+        .mem_req64(mem_req64), .mem_size(3'b001), .mem_writeMask(mem_writeMask),
         .mem_dataWrite(mem_dataWrite), .mem_dataRead(mem_dataRead), .mem_done(mem_done),
         .rdram_granted2x(), .ddr3_DOUT(), .ddr3_DOUT_READY(),
         .cpu_irq(cpu_irq), .cpu_reset(cpu_reset),

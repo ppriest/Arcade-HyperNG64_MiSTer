@@ -223,6 +223,7 @@ wire  [2:0] mem_size;
 wire  [7:0] mem_writeMask;
 wire [63:0] mem_dataWrite, mem_dataRead, ddr3_DOUT;
 wire        cpu_irq, cpu_reset, cpu_error;
+wire [31:0] cpu_pc;
 
 // hng64_cpu wants the reset-state load (ss_reset) to fall while its reset is still held, then
 // rewrites COP0 Status and Config two and three clk93 cycles later. The core's cpu_reset (clk1x)
@@ -253,7 +254,7 @@ hng64_cpu u_cpu
 	.mem_req64(mem_req64), .mem_size(mem_size), .mem_writeMask(mem_writeMask),
 	.mem_dataWrite(mem_dataWrite), .mem_dataRead(mem_dataRead), .mem_done(mem_done),
 	.rdram_granted2x(rdram_granted2x), .ddr3_DOUT(ddr3_DOUT), .ddr3_DOUT_READY(ddr3_DOUT_READY),
-	.error_any(cpu_error)
+	.dbg_pc(cpu_pc), .error_any(cpu_error)
 );
 
 ///////////////////////   BOARD   /////////////////////////////////
@@ -269,6 +270,7 @@ wire  [4:0] dbg_irq_level;
 wire  [7:0] dbg_ddr_inflight;
 wire [12:0] dbg_3d;
 wire        dbg_3d_tri, dbg_3d_up, dbg_mcu_int0;
+wire [31:0] dbg_vid;
 
 hng64_core u_core
 (
@@ -299,7 +301,7 @@ hng64_core u_core
 	.dbg_load(dbg_load), .dbg_mcu_pc(dbg_mcu_pc), .dbg_mcu_fetch(dbg_mcu_fetch),
 	.dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
 	.dbg_ddr_inflight(dbg_ddr_inflight), .dbg_3d(dbg_3d), .dbg_3d_tri(dbg_3d_tri), .dbg_3d_up(dbg_3d_up),
-	.dbg_mcu_int0(dbg_mcu_int0)
+	.dbg_mcu_int0(dbg_mcu_int0), .dbg_vid(dbg_vid)
 );
 
 ///////////////////////   DEBUG PROBE   ///////////////////////////
@@ -454,6 +456,50 @@ issp_probe #(.INSTANCE_ID("T"), .PROBE_W(108), .SOURCE_W(17)) u_issp_t (
 	.clk(clk1x),
 	.probe({trace_n, trace_w, trace_q}),
 	.source(src_t)
+);
+
+// ISSP instance P: the CPU's fetch PC, sampled; reading it a few times shows where the CPU is.
+reg [31:0] pc_s;
+always @(posedge clk93) pc_s <= cpu_pc;
+issp_probe #(.INSTANCE_ID("P"), .PROBE_W(32), .SOURCE_W(1)) u_issp_p (
+	.clk(clk93),
+	.probe(pc_s),
+	.source()
+);
+
+// ISSP instance V (clk2x): the video's scheduling and the DDR3 arbiter's requests. Field table:
+// read_issp.tcl fields_V. Counters saturate and are cleared by F's source bit 0.
+//   [31:0]    dbg_vid (hng64_core), sampled    [47:32]   frame_starts
+//   [63:48]   line_starts                      [79:64]   late passes
+//   [95:80]   late passes in the last frame    [104:96]  line_starts before its first late pass
+reg [31:0] vid_s;
+reg [15:0] cnt_fs = 0, cnt_ls = 0, cnt_late = 0, late_cur = 0, late_last = 0;
+reg  [8:0] ls_cur = 0, first_cur = 0, first_last = 0;
+always @(posedge clk2x) begin
+	vid_s <= dbg_vid;
+	if (dbg_clear) begin
+		cnt_fs <= 0; cnt_ls <= 0; cnt_late <= 0;
+	end else begin
+		if (dbg_vid[0] && ~&cnt_fs)   cnt_fs   <= cnt_fs + 1'd1;
+		if (dbg_vid[1] && ~&cnt_ls)   cnt_ls   <= cnt_ls + 1'd1;
+		if (dbg_vid[13] && ~&cnt_late) cnt_late <= cnt_late + 1'd1;
+	end
+	if (dbg_vid[0]) begin
+		late_last  <= late_cur;   late_cur  <= 0;
+		first_last <= first_cur;  first_cur <= 9'h1FF;
+		ls_cur     <= 0;
+	end else begin
+		if (dbg_vid[1] && ~&ls_cur) ls_cur <= ls_cur + 1'd1;
+		if (dbg_vid[13]) begin
+			if (~&late_cur) late_cur <= late_cur + 1'd1;
+			if (late_cur == 0) first_cur <= ls_cur;
+		end
+	end
+end
+issp_probe #(.INSTANCE_ID("V"), .PROBE_W(105), .SOURCE_W(1)) u_issp_v (
+	.clk(clk2x),
+	.probe({first_last, late_last, cnt_late, cnt_ls, cnt_fs, vid_s}),
+	.source()
 );
 `else
 assign dbg_pause = 1'b0;

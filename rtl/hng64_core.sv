@@ -107,7 +107,10 @@ module hng64_core #(
     output logic [12:0] dbg_3d,         // {dl_full, dl_upbusy, dl_busy, state[3:0], queued[5:0]}
     output logic        dbg_3d_tri,     // clk2x pulses
     output logic        dbg_3d_up,      // clk1x pulses
-    output logic        dbg_mcu_int0    // the IO MCU's INT0 line (hng64_io, from 0x1f7021c4)
+    output logic        dbg_mcu_int0,   // the IO MCU's INT0 line (hng64_io, from 0x1f7021c4)
+    // clk2x: {w_urgent, w_valid, c_ready[7:0], c_rd[7:0], vtiming {late now, frame_pend, pend},
+    //         video busy[7:0], vbusy, line_start, frame_start}
+    output logic [31:0] dbg_vid
 );
 
     // declared ahead of the instances that share them
@@ -295,7 +298,8 @@ module hng64_core #(
         ldr_ready = c_ready[3];  ldr_valid = c_valid[3];
     end
 
-    hng64_ddram #(.N(NDDR)) u_ddr (
+    // the tile ROM, sprite ROM and 3D line fetch feed a line that must be ready when it is shown
+    hng64_ddram #(.N(NDDR), .PRIO(8'b1000_0011)) u_ddr (
         .clk(clk2x), .reset(mem_reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
@@ -400,6 +404,8 @@ module hng64_core #(
     logic [11:0] pal_a;
     logic [31:0] pal_d;
     logic        line_start, frame_start, vbusy, px_we, vlate;
+    logic  [7:0] vid_busy;
+    logic  [2:0] vid_sched;
     logic  [8:0] line, px_x;
     logic [23:0] px_rgb;
 
@@ -437,7 +443,7 @@ module hng64_core #(
         .d3_addr(f3_addr), .d3_rd(f3_rd), .d3_ready(c_ready[7]), .d3_data(ddr_data),
         .d3_valid(c_valid[7]),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
-        .dbg_we(), .dbg_x(), .dbg_pix());
+        .dbg_busy(vid_busy), .dbg_we(), .dbg_x(), .dbg_pix());
 
     hng64_vtiming u_timing (
         .clk(clk2x), .reset(game_reset), .flip(flip),
@@ -449,7 +455,7 @@ module hng64_core #(
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
         .raster_pos(raster_pos), .vblank_irq(vblank_irq), .raster_irq(raster_irq),
         .net_irq(net_irq), .vblank_level(vblank_level),
-        .dbg_late(vlate));
+        .dbg_late(vlate), .dbg_sched(vid_sched));
 
     // ---- 3D ---------------------------------------------------------------------------------------------
     assign plane_base[0] = D3_COL0;
@@ -476,6 +482,13 @@ module hng64_core #(
     assign dbg_3d[12:10] = {dl_full, dl_upbusy, dl_busy};
     assign dbg_3d_up     = dl_up;
     assign dbg_mcu_int0  = mcu_int0;
+    always_comb begin
+        dbg_vid = {w3_urgent, w3_valid, 16'd0, vid_sched, vid_busy, vbusy, line_start, frame_start};
+        for (int i = 0; i < 8; i++) begin
+            dbg_vid[14 + i] = c_rd[i];
+            dbg_vid[22 + i] = c_ready[i];
+        end
+    end
 
     assign dbg_fault = {!cfg_valid, vlate, mcu_overrun, mcu_unimpl, dma_err, err64};
     assign dbg_load  = {dl0_seen, cfg_valid, ldr_pending, ldr_done, ldr_active, rom_loaded,

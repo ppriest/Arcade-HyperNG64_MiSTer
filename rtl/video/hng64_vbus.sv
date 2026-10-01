@@ -142,7 +142,9 @@ module hng64_vbus (
             ack_pending <= 1'b0;
             pal0 <= 32'd0;
             for (int i = 0; i < 5; i++) sprregs[i] <= 32'd0;
-            for (int i = 0; i < 14; i++) videoregs[i] <= 32'd0;
+            // MAME's machine_start fills them with 0xdeadbeef, register 0 apart (hng64.cpp:2174),
+            // and the BIOS read-modifies-writes them, keeping some of the fill (MAME_KLUDGES.md)
+            for (int i = 0; i < 14; i++) videoregs[i] <= (i == 0) ? 32'd0 : 32'hdeadbeef;
             for (int i = 0; i < 24; i++) tcram[i] <= 32'd0;
             vis_x0 <= 10'd0;
             vis_y0 <= 10'd0;

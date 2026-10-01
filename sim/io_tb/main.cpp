@@ -223,6 +223,41 @@ int main(int argc, char **argv) {
     dut->reset = 0;
     for (int i = 0; i < 20000; i++) step2x();           // the SDRAM's initialisation
 
+    // ---- the dual-port RAM read back --------------------------------------------------------------------
+    // The replay cannot check it: its reads are the IO MCU's answers, which this bench does not run.
+    // Words and single bytes written, then read back as words and as bytes.
+    auto access = [&](uint32_t addr, bool we, uint8_t be, uint32_t data) {
+        dut->io_addr = addr & ~3u;
+        dut->io_we = we;
+        dut->io_be = be;
+        dut->io_wdata = data;
+        dut->io_req = 1;
+        step2x(); step2x();
+        dut->io_req = 0;
+        long guard = 0;
+        while (!dut->io_ack && ++guard < 100000) step2x();
+        const uint32_t got = dut->io_rdata;
+        step2x(); step2x();
+        return got;
+    };
+    {
+        int dp_bad = 0;
+        access(0x1f808010, true, 0xf, 0x11223344);
+        access(0x1f808014, true, 0xf, 0x55667788);
+        access(0x1f808018, true, 0x4, 0x00ab0000);            // the byte at addr+1 only
+        access(0x1f808018, true, 0x2, 0x0000cd00);            // the byte at addr+2 only
+        const uint32_t want[3] = {0x11223344, 0x55667788, 0x00abcd00};
+        for (int k = 0; k < 3; k++) {
+            const uint32_t got = access(0x1f808010 + 4 * k, false, 0xf, 0);
+            if (got != want[k]) {
+                printf("io: dual-port word %08x read %08x, wrote %08x%c", 0x1f808010 + 4 * k, got, want[k], 10);
+                dp_bad++;
+            }
+        }
+        printf("io: dual-port read back: %s%c", dp_bad ? "FAIL" : "ok", 10);
+        if (dp_bad) return 1;
+    }
+
     // ---- the replay -----------------------------------------------------------------------------------
     std::map<std::string, std::pair<long, long>> tally;  // device -> (compared, differing)
     std::map<std::string, long> driven;                  // reads driven but not compared

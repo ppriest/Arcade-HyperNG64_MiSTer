@@ -54,12 +54,19 @@ entity hng64_cpu is
       export_opcode    : out std_logic_vector(31 downto 0);
       export_regs      : out std_logic_vector(32 * 64 - 1 downto 0);  -- r0 in bits 63:0
 -- synthesis translate_on
+      dbg_pc           : out std_logic_vector(31 downto 0);   -- the fetch PC, for the stp revision's probe
       error_any        : out std_logic
    );
 end entity;
 
 architecture arch of hng64_cpu is
 
+   signal pc_u : unsigned(31 downto 0);
+   signal mem_idle   : std_logic;
+   signal wr_busy    : std_logic := '0';
+   signal wr_settle  : unsigned(3 downto 0) := (others => '0');
+   signal irq_hold   : std_logic;
+   signal req_s, rnw_s : std_logic;
    signal cpu_export : cpu_export_type;
    signal addr_u     : unsigned(31 downto 0);
    signal size_u     : unsigned(2 downto 0);
@@ -103,9 +110,12 @@ begin
       error_exception      => e_exc,
       error_fifo           => e_fifo,
       error_TLB            => e_tlb,
+      debug_pc             => pc_u,
+      mem_idle             => mem_idle,
+      irqHold              => irq_hold,
 
-      mem_request          => mem_request,
-      mem_rnw              => mem_rnw,
+      mem_request          => req_s,
+      mem_rnw              => rnw_s,
       mem_address          => addr_u,
       mem_req64            => mem_req64,
       mem_size             => size_u,
@@ -136,6 +146,44 @@ begin
       SS_DataRead_CPU      => open,
       SS_idle              => open
    );
+
+   dbg_pc <= std_logic_vector(pc_u);
+
+   -- The CPU posts stores to a write FIFO and runs on; MAME applies a store before the next
+   -- instruction. The games' interrupt handler acknowledges the controller (sw 0xBF70111C) three
+   -- instructions before it sets IE, so with the store still queued the line is high at IE and a
+   -- nested interrupt is taken that MAME never sees. If the store lands before that handler reads
+   -- Cause, it finds IP2 clear and takes its return path, which sets IE before its eret; an
+   -- interrupt there leaves EPC at the eret, which then returns to itself. sams64 stopped on
+   -- hardware with the fetch PC at that eret, 0x800008A4/A8 (probe P).
+   -- So no interrupt is taken while a request is queued or in flight, or for 8 clocks after a
+   -- write completes (the I/O block's irq_pending is registered). Only the trigger is held: Cause
+   -- IP2 is the line itself. Holding the line instead cleared IP2 whenever the handler's own
+   -- stack stores missed, and sent it down the return path every time (build ddf36fb).
+   process (clk1x)
+   begin
+      if rising_edge(clk1x) then
+         if (reset_1x = '1') then
+            wr_busy   <= '0';
+            wr_settle <= (others => '0');
+         else
+            if (req_s = '1') then
+               wr_busy <= not rnw_s;
+            elsif (mem_done = '1') then
+               wr_busy <= '0';
+            end if;
+            if (mem_done = '1' and wr_busy = '1') then
+               wr_settle <= to_unsigned(8, 4);
+            elsif (wr_settle /= 0) then
+               wr_settle <= wr_settle - 1;
+            end if;
+         end if;
+      end if;
+   end process;
+
+   mem_request <= req_s;
+   mem_rnw     <= rnw_s;
+   irq_hold <= '0' when (mem_idle = '1' and wr_settle = 0) else '1';
 
    process (clk93)
    begin

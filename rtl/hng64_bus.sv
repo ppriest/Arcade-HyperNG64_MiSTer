@@ -56,7 +56,7 @@ module hng64_bus (
     input  logic        io_ack,          // one cycle; io_rdata valid with it
     input  logic [31:0] io_rdata,
 
-    output logic        err_unmapped64   // a 64-bit access to I/O: not handled
+    output logic        err_unmapped64   // never set now: a 64-bit I/O access is two 32-bit ones
 );
 
     // Plain memory in MAME's map, kept in SDRAM or DDR3 by hng64_mainmem, which has the same
@@ -84,6 +84,8 @@ module hng64_bus (
     logic  [7:0] r_be;
     logic [63:0] beat_1x;        // single-read beat, from clk2x
     logic        busy_io;
+    logic        io_second;      // a 64-bit I/O access: the +4 word is on the port
+    logic [31:0] io_first;       // its +0 word, read
 
     // Write data and lanes into beat layout (memorymux.vhd:296-311).
     logic [63:0] wbeat;
@@ -118,6 +120,7 @@ module hng64_bus (
         if (reset) begin
             req_tgl        <= 1'b0;
             busy_io        <= 1'b0;
+            io_second      <= 1'b0;
             err_unmapped64 <= 1'b0;
         end else begin
             if (mem_request) begin
@@ -131,8 +134,10 @@ module hng64_bus (
                 if (is_store(mem_address)) begin
                     req_tgl <= ~req_tgl;
                 end else begin
-                    if (mem_req64) err_unmapped64 <= 1'b1;
-                    busy_io  <= 1'b1;
+                    // A 64-bit access (the games read the IO MCU's dual-port RAM with ld) is two
+                    // word accesses, +0 then +4, as MAME's 32-bit handlers see it; this is the +0.
+                    busy_io   <= 1'b1;
+                    io_second <= 1'b0;
                     io_req   <= 1'b1;
                     io_we    <= ~mem_rnw;
                     io_addr  <= {mem_address[31:2], 2'b00};
@@ -143,10 +148,20 @@ module hng64_bus (
                     if (mem_rnw) io_be <= 4'hF;
                 end
             end
-            if (busy_io && io_ack) begin
+            if (busy_io && io_ack && r_req64 && !io_second) begin
+                // the +0 word is in; issue the +4 word
+                io_first  <= io_rdata;
+                io_second <= 1'b1;
+                io_req    <= 1'b1;
+                io_addr   <= {r_addr[31:3], 3'b100};
+                io_wdata  <= bswap32(r_wdata[63:32]);
+                io_be     <= r_rnw ? 4'hF : {r_be[4], r_be[5], r_be[6], r_be[7]};
+            end else if (busy_io && io_ack) begin
                 busy_io      <= 1'b0;
+                io_second    <= 1'b0;
                 mem_done     <= 1'b1;
-                mem_dataRead <= justify(r_addr[2] ? {bswap32(io_rdata), 32'd0}
+                mem_dataRead <= r_req64 ? {bswap32(io_rdata), bswap32(io_first)}
+                              : justify(r_addr[2] ? {bswap32(io_rdata), 32'd0}
                                                   : {32'd0, bswap32(io_rdata)}, r_addr[2:0]);
             end
             if (done_tgl_1x != done_tgl_q) begin

@@ -37,10 +37,7 @@ entity cpu is
       error_exception       : out std_logic := '0';
       error_fifo            : out std_logic := '0';
       error_TLB             : out std_logic := '0';
-      debug_pc              : out unsigned(31 downto 0);   -- HyperNG64: the fetch PC, for an ISSP probe
-      mem_idle              : out std_logic;               -- HyperNG64: no request queued or in flight
-      irqHold               : in  std_logic := '0';        -- HyperNG64: take no interrupt this clock (Cause unaffected)
-
+      
       mem_request           : out std_logic := '0';
       mem_rnw               : out std_logic := '0'; 
       mem_address           : buffer unsigned(31 downto 0) := (others => '0'); 
@@ -2043,7 +2040,7 @@ begin
                      
                   end case;
                   
-                  if (irqTrigger = '1' and blockIRQ = '0' and irqHold = '0') then
+                  if (irqTrigger = '1' and blockIRQ = '0') then
                      decode_irq <= '1';
                      decodeNew  <= '0';
                   end if;
@@ -2136,8 +2133,6 @@ begin
    --PCnext       <= PC + 4;
    --PCnextBranch <= pcOld0 + unsigned((resize(signed(decodeImmData), 62) & "00"));
    -- assume region change cannot/will not happen with counting up or short jumps
-   debug_pc     <= PC(31 downto 0);
-   mem_idle     <= '1' when (writefifo_Empty = '1' and writefifo_wr = '0' and memstate = MEMSTATE_IDLE) else '0';
    PCnext       <= PC(63 downto 29) & (PC(28 downto 0) + 4);
    PCnextBranch <= pcOld0(63 downto 29) & (pcOld0(28 downto 0) + unsigned((resize(signed(decodeImmData), 27) & "00")));
    

@@ -306,6 +306,38 @@ int main(int argc, char **argv) {
         return bswap32(uint32_t(dut->mem_dataRead));
     };
 
+    // A 64-bit I/O access, which MAME's trace never shows (its handlers are 32-bit) but the games
+    // make (ld of the IO MCU's dual-port RAM): the bridge makes it two word accesses. Written as
+    // a doubleword, read back as one and as two words, then cleared.
+    {
+        auto access64 = [&](bool w, uint32_t addr, uint64_t v) -> uint64_t {
+            // the CPU's layout (cpu.vhd): the word at +0 byte-swapped in the high half on a write
+            dut->mem_address = addr;
+            dut->mem_rnw = !w;
+            dut->mem_req64 = 1;
+            dut->mem_writeMask = 0xff;
+            dut->mem_dataWrite = (uint64_t(bswap32(uint32_t(v >> 32))) << 32) | bswap32(uint32_t(v));
+            dut->mem_request = 1;
+            step1x();
+            dut->mem_request = 0;
+            long g = 0;
+            while (!dut->mem_done && ++g < 4000000) step1x();
+            dut->mem_req64 = 0;
+            // a doubleword load takes the word at +0 from the low half (cpu.vhd LOADTYPE_QWORD)
+            const uint64_t r = dut->mem_dataRead;
+            return (uint64_t(bswap32(uint32_t(r))) << 32) | bswap32(uint32_t(r >> 32));
+        };
+        const uint64_t pat = 0x0123456789abcdefull;
+        access64(true, 0x1f808400, pat);
+        const uint64_t got = access64(false, 0x1f808400, 0);
+        const uint32_t w0 = access(false, 0x1f808400, 0xffffffff, 0), w1 = access(false, 0x1f808404, 0xffffffff, 0);
+        const bool ok = got == pat && w0 == uint32_t(pat >> 32) && w1 == uint32_t(pat);
+        printf("sys: 64-bit I/O: wrote %016llx, read %016llx, as words %08x %08x: %s%c",
+               (unsigned long long)pat, (unsigned long long)got, w0, w1, ok ? "ok" : "FAIL", 10);
+        access64(true, 0x1f808400, 0);
+        if (!ok) return 1;
+    }
+
     // the NVRAM as MAME's .nvm file would hold it after the trace's writes: its share is a u32
     // array saved little-endian, so the byte at CPU address A is file byte (A - base) ^ 3
     std::vector<uint8_t> nv_model(0x4000, 0);

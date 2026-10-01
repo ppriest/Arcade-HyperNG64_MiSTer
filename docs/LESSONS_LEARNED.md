@@ -1338,3 +1338,11 @@ an MLAB does not have: merge them into one call with muxed address and data.
   with "Resource not accessible by personal access token (cloneTemplateRepository)" even with
   Administration write; the GraphQL mutation behind it is refused. The REST endpoint
   `POST repos/<owner>/<template>/generate` works with the same token. `new_core.py` uses it.
+- **[HyperNG64] MAME's MIPS program space is physical.** `cpu.spaces["program"]:read_u32(0x80000800)`
+  returns 0 with no error; kseg0/kseg1 code is at the physical address (`0x800`). A dump of the
+  exception handler read as all zero until this.
+- **[HyperNG64] The N64 VR4300 core posts stores; MAME does not.** A store goes to a write FIFO and
+  the pipeline runs on, so an interrupt acknowledge can still be queued when the next instructions
+  set IE. Where code acknowledges a device and then re-enables interrupts, the core sees the line
+  still high. Check the order of a store and an interrupt enable when a handler misbehaves only on
+  hardware.

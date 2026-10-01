@@ -191,10 +191,10 @@ module hng64_3d #(
     assign rslot     = rptr[SW-1:0];
     assign dbg_state = st;
     assign dbg_queued = 6'(occ);
-    assign dbg_tri    = tri_valid && tri_ready;
 
     // the triangle between the two: the setup record (geo_engine.setup_record)
     logic         tri_valid, tri_ready, t_neg;
+    assign dbg_tri = tri_valid && tri_ready;
     logic  [23:0] t_xy [0:5];
     logic  [29:0] t_p0_0;
     logic  [33:0] t_p0_1;

@@ -279,14 +279,14 @@ module hng64_io #(
 
     // ---- state machine ------------------------------------------------------------------------------------
     typedef enum logic [3:0] {
-        S_IDLE, S_MEM, S_MEM2, S_DP, S_DPLAST, S_VWAIT, S_CLR, S_DMA, S_SPIN, S_ACK
+        S_IDLE, S_MEM, S_MEM2, S_DP, S_DPLAST, S_DPLAST2, S_VWAIT, S_CLR, S_DMA, S_SPIN, S_ACK
     } state_t;
     state_t st;
 
     logic [31:0] result;
     logic  [1:0] lane;                  // dual-port byte loop: 3 is addr+0
-    logic        dp_pending;
-    logic  [1:0] dp_lane_q;
+    logic        dp_pending, dp_pend2;
+    logic  [1:0] dp_lane_q, dp_lane_q2;
     logic  [3:0] clr_i;                 // sprite-clear writes done
     logic  [8:0] spin;                  // the mailbox's 5 us
 
@@ -345,7 +345,7 @@ module hng64_io #(
     end
 
     logic clr_busy;                     // a clear is on the video port, waiting for its ack
-    logic dp_hack_q;                    // the byte in flight is at 0x600
+    logic dp_hack_q, dp_hack_q2;        // the byte in flight is at 0x600
 
     always_ff @(posedge clk) begin
         io_ack   <= 1'b0;
@@ -354,6 +354,11 @@ module hng64_io #(
         dp_we    <= 1'b0;
         v_req    <= 1'b0;
         dp_pending <= 1'b0;
+        // a dual-port read's byte is on dp_rdata two clocks after it is issued: dp_addr is a
+        // register here and the RAM registers it again (hng64_tdpram)
+        dp_pend2   <= dp_pending;
+        dp_lane_q2 <= dp_lane_q;
+        dp_hack_q2 <= dp_hack_q;
 
         if (int0_cnt != 11'd0) int0_cnt <= int0_cnt - 11'd1;
         dl_we    <= 1'b0;
@@ -370,6 +375,7 @@ module hng64_io #(
             int0_cnt <= 11'd0;
             fifo3d_cnt <= 13'd0;
             fbscroll   <= 32'd0;
+            for (int i = 0; i < 32; i++) texwrap[i] <= 8'h08;   // MAME's machine_start (hng64.cpp:2179)
             rtc_cd <= 4'h0; rtc_ce <= 4'h6; rtc_cf <= 4'h4;   // msm6242 device_start
             main_latch0 <= 16'd0; main_latch1 <= 16'd0; sound_data <= 16'd0;
             dma_go <= 1'b0;
@@ -566,12 +572,15 @@ module hng64_io #(
                 end
 
                 // dualport_r / dualport_w (hng64.cpp:1017): one byte per enabled lane, addr+0 first.
-                // A read issued here has its byte on dp_rdata the next clock.
+                // A read issued here has its byte on dp_rdata two clocks later (dp_pend2). Taking it
+                // one clock later read the previous address's byte: every lane one place late on
+                // hardware, the BIOS's I/O sequence 1 failed and its RAM test flagged the whole RAM.
+                // No bench compared dual-port reads; io_tb now reads them back.
                 S_DP: begin
                     // m_no_machine_error_code at 0x600, unless the MIPS has said 0x0c
-                    if (dp_pending)
-                        result[8*dp_lane_q +: 8] <= (dp_hack_q && mcu_en != 8'h0c)
-                                                  ? NO_MACHINE_ERROR_CODE : dp_rdata;
+                    if (dp_pend2)
+                        result[8*dp_lane_q2 +: 8] <= (dp_hack_q2 && mcu_en != 8'h0c)
+                                                   ? NO_MACHINE_ERROR_CODE : dp_rdata;
                     if (be[lane]) begin
                         dp_addr    <= {a[10:2], 2'(3 - lane)};
                         dp_wdata   <= wd[8*lane +: 8];
@@ -584,12 +593,12 @@ module hng64_io #(
                     else lane <= lane - 2'd1;
                 end
 
-                // the loop's last read lands one clock after it was issued
-                S_DPLAST: begin
-                    if (dp_pending)
-                        result[8*dp_lane_q +: 8] <= (dp_hack_q && mcu_en != 8'h0c)
-                                                  ? NO_MACHINE_ERROR_CODE : dp_rdata;
-                    st <= S_ACK;
+                // the loop's last two reads land after it
+                S_DPLAST, S_DPLAST2: begin
+                    if (dp_pend2)
+                        result[8*dp_lane_q2 +: 8] <= (dp_hack_q2 && mcu_en != 8'h0c)
+                                                   ? NO_MACHINE_ERROR_CODE : dp_rdata;
+                    st <= (st == S_DPLAST) ? S_DPLAST2 : S_ACK;
                 end
 
                 S_VWAIT: if (v_ack) begin

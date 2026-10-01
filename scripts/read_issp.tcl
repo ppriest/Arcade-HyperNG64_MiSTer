@@ -59,6 +59,33 @@ set fields_G {
     {cpu_req_waited 103 118 dec}
     {mcu_int0_pulses 119 127 dec}
 }
+# HyperNG64.sv, instance V: video scheduling and DDR3 requests
+set fields_V {
+    {frame_start      0   0 bit}
+    {line_start       1   1 bit}
+    {vbusy            2   2 bit}
+    {mixer_busy       3   3 bit}
+    {tilemaps_busy    4   7 hex}
+    {fetch3d_busy     8   8 bit}
+    {sprites_busy     9   9 bit}
+    {linepass_busy   10  10 bit}
+    {pend            11  11 bit}
+    {frame_pend      12  12 bit}
+    {late_now        13  13 bit}
+    {ddr_rd          14  21 hex}
+    {ddr_ready       22  29 hex}
+    {w_valid         30  30 bit}
+    {w_urgent        31  31 bit}
+    {frame_starts    32  47 dec}
+    {line_starts     48  63 dec}
+    {late_passes     64  79 dec}
+    {late_last_frame 80  95 dec}
+    {first_late_line 96 104 dec}
+}
+# HyperNG64.sv, instance P: the CPU's fetch PC
+set fields_P {
+    {pc               0  31 hex}
+}
 # HyperNG64.sv, instance T: one entry; `dump` reads them all
 set fields_T {
     {addr             0  31 hex}
@@ -136,6 +163,8 @@ switch -- $inst_id {
     F       { set fields $fields_F }
     G       { set fields $fields_G }
     T       { set fields $fields_T }
+    P       { set fields $fields_P }
+    V       { set fields $fields_V }
     default {
         puts "instance id '$inst_id' has no field table -- add one before reading it"
         exit 1

@@ -91,6 +91,7 @@ module hng64_video (
     output logic [23:0] px_rgb,
 
     // sim only: what each engine wrote to its line buffer this line
+    output logic  [7:0] dbg_busy,   // {line pass, sprites, 3D fetch, tilemaps 3:0, mixer}
     output logic  [4:0] dbg_we,
     output logic  [8:0] dbg_x [0:4],
     output logic [15:0] dbg_pix [0:4]
@@ -275,6 +276,8 @@ module hng64_video (
     end
 
     // ---- the 3D buffer's line -------------------------------------------------------------------------
+    typedef enum logic [1:0] { L_IDLE, L_RUN } lstate_t;
+    lstate_t lst;
     logic        f3_busy;
     logic [15:0] mix_d3;
 
@@ -311,14 +314,13 @@ module hng64_video (
     end
 
     // ---- the sequencer ------------------------------------------------------------------------------
-    typedef enum logic [1:0] { L_IDLE, L_RUN } lstate_t;
-    lstate_t lst;
     logic primed;                           // a line has been rendered, so there is one to mix
 
     // The sprite engine's frame-start pre-pass walks the whole list and takes longer than a line,
     // so the block stays busy through it: a line started during it would see an unfinished
     // candidate list.
     assign busy = (lst != L_IDLE) || spr_busy || f3_busy;
+    assign dbg_busy = {lst != L_IDLE, spr_busy, f3_busy, tm_busy, mix_busy};
 
     logic started;
 

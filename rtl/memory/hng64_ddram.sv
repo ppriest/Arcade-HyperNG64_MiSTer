@@ -16,10 +16,17 @@
 // The HPS writes the ROM image before the core runs. The one write port, the 3D's (hng64_3d),
 // takes single beats from a FIFO head, issued when the granted client is not reading, or before
 // reads once the FIFO reports itself half full. Writes take no place in the reply queue.
+//
+// Clients in PRIO (the video engines, which must finish a line before it is shown) go before
+// every other client and before the writer, and the other clients leave RESERVE of the in-flight
+// limit to them. Round robin alone gave a video engine one read in eight while the 3D was busy:
+// on hardware buriki's top 66 lines were mostly repeats of earlier lines, a new line every 14.
 
 module hng64_ddram #(
     parameter int N = 2,                 // clients
-    parameter int LIMIT = 48             // reads allowed in flight, under the reply queue's depth
+    parameter int LIMIT = 48,            // reads allowed in flight, under the reply queue's depth
+    parameter logic [N-1:0] PRIO = '0,   // clients served first
+    parameter int RESERVE = 8            // of LIMIT, kept for PRIO clients
 ) (
     input  logic        clk,
     input  logic        reset,
@@ -79,16 +86,25 @@ module hng64_ddram #(
     // registers. The grant moves to the next client asking once its holder is served or stops
     // asking; with requests held until ready, that loses no clock while others are waiting.
     logic [IW-1:0] gnt, nxt;
-    logic          nxt_any;
+    logic          nxt_any, nxt_pri;
 
     always_comb begin
         nxt = gnt;
         nxt_any = 1'b0;
+        nxt_pri = 1'b0;
+        for (int k = 1; k <= N; k++) begin
+            int unsigned i;
+            i = (int'(gnt) + k) % N;
+            if (!nxt_pri && PRIO[i] && c_rd[i]) begin
+                nxt = IW'(i);
+                nxt_pri = 1'b1;
+            end
+        end
         for (int k = 1; k <= N; k++) begin
             int unsigned i;
             i = (int'(gnt) + k) % N;
             if (!nxt_any && c_rd[i]) begin
-                nxt = IW'(i);
+                if (!nxt_pri) nxt = IW'(i);
                 nxt_any = 1'b1;
             end
         end
@@ -99,10 +115,12 @@ module hng64_ddram #(
     logic    [7:0] q_w, q_r;
     wire     [7:0] inflight = q_w - q_r;      // taken into the issue register, not yet answered
     assign dbg_inflight = inflight;
-    wire           room     = inflight < 8'(LIMIT);
+    logic          g_pri;                    // the granted client is in PRIO
+    wire           room     = inflight < (g_pri ? 8'(LIMIT) : 8'(LIMIT - RESERVE));
     wire           g_rd     = c_rd[gnt];
     logic          asked;                    // some client asked last clock
-    wire           wr_sel   = w_valid && (w_urgent || !asked || !room);
+    logic          pasked;                   // some PRIO client asked last clock
+    wire           wr_sel   = w_valid && !pasked && (w_urgent || !asked || !room);
     wire           rd_ok    = load && !wr_sel && room;     // registers and w_valid only
     wire           rd_take  = rd_ok && g_rd;
 
@@ -123,6 +141,8 @@ module hng64_ddram #(
             q_r     <= 8'd0;
             o_valid <= 1'b0;
             asked   <= 1'b0;
+            pasked  <= 1'b0;
+            g_pri   <= PRIO[0];
         end else begin
             if (load) begin
                 o_valid <= w_ready || rd_take;
@@ -136,8 +156,12 @@ module hng64_ddram #(
                 q_w <= q_w + 8'd1;
             end
             if (DDRAM_DOUT_READY) q_r <= q_r + 8'd1;
-            if (rd_take || !g_rd) gnt <= nxt;
-            asked <= nxt_any;
+            if (rd_take || !g_rd) begin
+                gnt   <= nxt;
+                g_pri <= PRIO[nxt];
+            end
+            asked  <= nxt_any;
+            pasked <= nxt_pri;
         end
     end
 

@@ -65,8 +65,11 @@ module hng64_vtiming (
     output logic        net_irq,
     output logic        vblank_level,
 
-    output logic        dbg_late       // sticky: a pass could not start when its line began
+    output logic        dbg_late,      // sticky: a pass could not start when its line began
+    output logic  [2:0] dbg_sched      // {a pass late this clock, frame_pend, pend}
 );
+
+    logic late_now;
 
     localparam logic [9:0] HTOTAL = 10'd768, HVIS = 10'd512, VTOTAL = 10'd528, VVIS = 10'd448;
     // ours, MAME gives none: centred in the blanking, 96-pixel porches. crt_adjust.sv anchors
@@ -144,6 +147,7 @@ module hng64_vtiming (
         line_start <= 1'b0;
         frame_start <= 1'b0;
         snapshot <= 1'b0;
+        late_now <= 1'b0;
         if (reset) begin
             pend <= 1'b0;
             dbg_late <= 1'b0;
@@ -153,6 +157,7 @@ module hng64_vtiming (
             if (line_begin) begin
                 // the last pass has not started, or has not finished, when the next is due
                 if (pass_due && (pend || busy)) dbg_late <= 1'b1;
+                late_now <= pass_due && (pend || busy);
                 if (pass_due) begin
                     pend       <= 1'b1;
                     pend_flush <= (pass_l == VVIS);
@@ -227,5 +232,7 @@ module hng64_vtiming (
     assign net_irq      = (net_hold != 2'd0);
     // the screen's vblank() as MAME reports it: outside the window's lines
     assign vblank_level = !in_y;
+
+    assign dbg_sched = {late_now, frame_pend, pend};
 
 endmodule

@@ -54,6 +54,14 @@ The N64 project assigns no library, and Quartus resolves `mem` to `work`. ModelS
   polled 0x2030021A, seen by the CPU port as 0x0030021A (ISSP instance T), until nothing else ran.
   Unmapped (kseg0/kseg1) addresses are masked to 29 bits where they are formed, as before.
 
+- `cpu.vhd`: a `debug_pc` output, the fetch PC's low 32 bits, read by the `HyperNG64_stp`
+  revision's ISSP probe P. No logic changes.
+
+- `cpu.vhd`: a `mem_idle` output, high when the write FIFO is empty and the memory port is idle,
+  used by `rtl/cpu/hng64_cpu.vhd` to hold the interrupt line off while a store is pending
+  (docs/HACKS.md); and an `irqHold` input, which keeps the decode stage from taking an
+  interrupt (`irqTrigger` and `blockIRQ` as before, and `irqHold` low). Cause is unchanged.
+
 Each modified file has its unmodified copy beside it as `*_upstream_reference.vhd`.
 
 Checked: all 15 files compile in ModelSim-Intel 10.5b (Quartus 17.0) with `vmap mem work`, and

@@ -50,6 +50,29 @@ def mame(game, n):
     return out
 
 
+def hw_raw(path):
+    """Each kept entry's raw data word as the CPU port gave it (index-aligned with hw())."""
+    out = []
+    for ln in open(path):
+        w = ln.split()
+        if len(w) < 6 or not w[0].isdigit():
+            continue
+        out.append(int(w[3], 16))
+    return out
+
+
+def read_value(raw, mask):
+    """A read as the bridge returns it, right-justified and in the CPU's byte order
+    (hng64_bus.sv justify), placed in MAME's lanes: the access's width and lanes are MAME's mask."""
+    lanes = [k for k in range(4) if (mask >> (8 * (3 - k))) & 0xFF]
+    n = len(lanes)
+    vb = (raw & ((1 << (8 * n)) - 1)).to_bytes(n, "little")    # the value's bytes, address order
+    v = 0
+    for byte, lane in zip(vb, lanes):
+        v |= byte << (8 * (3 - lane))
+    return v
+
+
 def mame_reg(path, n):
     """scripts/mame/regtrace.lua's log: every register access, reads included."""
     out = []
@@ -121,6 +144,7 @@ def compare(game, path, quiet=False):
     if "--regtrace" in sys.argv:
         reg = sys.argv[sys.argv.index("--regtrace") + 1]
     h = hw(path, all_reads=reg is not None)
+    raw_read = hw_raw(path) if reg else None
     m = mame_reg(reg, len(h) + 50) if reg else mame(game, len(h) + 50)
     data_diffs = 0
     for k in range(len(h)):
@@ -134,6 +158,8 @@ def compare(game, path, quiet=False):
                 print(f"{mark} {j:5d}  hw   {fmt(h[j])}")
                 print(f"         mame {fmt(m[j] if j < len(m) else None)}")
             return True
+        if a[0] == "r" and reg:
+            a = (a[0], a[1], b[2], read_value(raw_read[k], b[2]))
         if (a[0] == "w" or reg) and (a[2] != b[2] or a[3] != b[3]):
             data_diffs += 1
             if data_diffs <= 20 and not quiet:
