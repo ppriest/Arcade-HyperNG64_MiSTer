@@ -17,9 +17,9 @@
 //   0x1f808000  dual-port RAM       shared with the IO MCU, one byte per lane
 //   0x20000000  sprite RAM, sprite clears, sprite regs, video regs, palette, tcram: the video
 //                                   block's, through the v_* port. tcram 0x48 reads vblank.
-//   0x20300000  3D display list     the 3D pipeline's, Phase 3: stored, and an upload raises
-//                                   interrupt 3 a fixed time later as MAME's does
-//   0x30000000  3D buffer control   stored
+//   0x20300000  3D display list     written through to hng64_3d's copy; an upload queues it there
+//                                   and raises interrupt 3 a fixed time later as MAME's does
+//   0x30000000  3D buffer control   stored; 0x08 the buffer's x scroll
 //   0x60000000  sound RAM "2"       reads 0 (MAME: "actually seems unmapped")
 //   0x68000000  sound mailbox       a stand-in: no sound CPU yet (HACKS.md)
 //   0xc0000000  network board RAM   plain RAM: there is no network CPU (HACKS.md)
@@ -90,8 +90,24 @@ module hng64_io #(
     input  logic        v_ack,
     input  logic [31:0] v_rdata,
 
-    output logic  [7:0] fbcontrol0,     // m_fbcontrol[0], which picks the video's background
-    output logic        dbg_mcu_en_0c   // m_mcu_en == 0x0c, for the bench
+    output logic  [7:0] fbcontrol [0:3],    // m_fbcontrol; [0] picks the video's background
+    output logic [31:0] fbscroll,
+    output logic  [7:0] texwrap [0:31],
+
+    // the display list, held in hng64_3d: a write of a u32 (two u16 entries), and the upload.
+    // dl_busy holds a write back while an upload's copy runs, dl_upbusy an upload until a slot is
+    // free; dl_full holds interrupt 3 back until the queue has a free slot again (docs/HACKS.md).
+    output logic        dl_we,
+    output logic  [6:0] dl_addr,
+    output logic  [3:0] dl_be,
+    output logic [31:0] dl_wdata,
+    output logic        dl_up,
+    input  logic        dl_busy,
+    input  logic        dl_upbusy,
+    input  logic        dl_full,
+    output logic        dbg_mcu_en_0c,  // m_mcu_en == 0x0c, for the bench
+    output logic [31:0] dbg_irq_pending,
+    output logic  [4:0] dbg_irq_level
 );
 
     localparam logic [2:0] V_SPR = 3'd0, V_SPRREG = 3'd1, V_VREG = 3'd2, V_PAL = 3'd3,
@@ -101,7 +117,7 @@ module hng64_io #(
     typedef enum logic [4:0] {
         D_NONE, D_SYS, D_IRQC, D_DMAC, D_RTC, D_MCUIRQ, D_NVRAM, D_DP,
         D_SPR, D_CLR_EVEN, D_CLR_ODD, D_SPRREG, D_VREG, D_PAL, D_TCRAM,
-        D_DL, D_DLUP, D_DLVREG, D_FBCTL, D_TEXWRAP, D_SNDCOM, D_COM
+        D_DL, D_DLUP, D_DLVREG, D_FBCTL, D_FBSCROLL, D_TEXWRAP, D_SNDCOM, D_COM
     } dev_t;
 
     function automatic dev_t decode(input logic [31:0] a);
@@ -123,6 +139,7 @@ module hng64_io #(
         else if (a == 32'h2030_0200)                      decode = D_DLUP;
         else if (a == 32'h2030_0218)                      decode = D_DLVREG;
         else if (a == 32'h3000_0000)                      decode = D_FBCTL;
+        else if (a == 32'h3000_0008)                      decode = D_FBSCROLL;
         else if (a >= 32'h3000_0010 && a < 32'h3000_0030) decode = D_TEXWRAP;
         else if (a >= 32'h6800_0000 && a < 32'h6800_0010) decode = D_SNDCOM;
         else if (a >= 32'hc000_0000 && a < 32'hc000_1008) decode = D_COM;
@@ -144,10 +161,8 @@ module hng64_io #(
     // the latched write merged over the registers it can land on
     logic [31:0] dma_len_reg;
     logic [15:0] main_latch0, main_latch1;
-    logic [15:0] dl [0:255];
     wire  [31:0] len_new   = combine(dma_len_reg, wd, be);
     wire  [31:0] latch_new = combine({main_latch0, main_latch1}, wd, be);
-    wire  [31:0] dl_new    = combine({dl[{a[8:2], 1'b0}], dl[{a[8:2], 1'b1}]}, wd, be);
     wire   [2:0] tw_i      = 3'(a[5:2] - 4'd4);        // 0x30000010 is word 0
 
     // ---- system registers, NVRAM, network RAM: dword RAMs with byte enables ---------------------------
@@ -280,12 +295,11 @@ module hng64_io #(
     logic [31:0] raster_pos1;
     logic [10:0] int0_cnt;              // tempio_irqoff: INT0 held this many clocks
     logic [15:0] sound_data;
-    logic  [7:0] fbcontrol [0:3];
-    logic  [7:0] texwrap [0:31];
 
     assign mcu_int0       = (int0_cnt != 11'd0);
-    assign fbcontrol0     = fbcontrol[0];
     assign dbg_mcu_en_0c  = (mcu_en == 8'h0c);
+    assign dbg_irq_pending = irq_pending;
+    assign dbg_irq_level   = irq_level;
 
     // The sprite clears (sprite_clear_even_w / _odd_w, hng64.cpp:1075): each write clears four
     // dwords of one sprite or of two, 0x40 bytes a pair. The odd form skips +0x0c on purpose
@@ -342,7 +356,10 @@ module hng64_io #(
         dp_pending <= 1'b0;
 
         if (int0_cnt != 11'd0) int0_cnt <= int0_cnt - 11'd1;
-        if (fifo3d_cnt != 13'd0) fifo3d_cnt <= fifo3d_cnt - 13'd1;
+        dl_we    <= 1'b0;
+        dl_up    <= 1'b0;
+        // held at 2 while the queue is full, so interrupt 3 waits for a free slot
+        if (fifo3d_cnt != 13'd0 && !(fifo3d_cnt == 13'd2 && dl_full)) fifo3d_cnt <= fifo3d_cnt - 13'd1;
 
         if (reset) begin
             st <= S_IDLE;
@@ -352,6 +369,7 @@ module hng64_io #(
             raster_pos1 <= 32'hffff_ffff;
             int0_cnt <= 11'd0;
             fifo3d_cnt <= 13'd0;
+            fbscroll   <= 32'd0;
             rtc_cd <= 4'h0; rtc_ce <= 4'h6; rtc_cf <= 4'h4;   // msm6242 device_start
             main_latch0 <= 16'd0; main_latch1 <= 16'd0; sound_data <= 16'd0;
             dma_go <= 1'b0;
@@ -471,11 +489,22 @@ module hng64_io #(
                         end
 
                         D_DL: if (we) begin                             // dl_w: u16 halves
-                            dl[{a[8:2], 1'b0}] <= dl_new[31:16];
-                            dl[{a[8:2], 1'b1}] <= dl_new[15:0];
+                            if (dl_busy) st <= S_MEM;
+                            else begin
+                                dl_we    <= 1'b1;
+                                dl_addr  <= a[8:2];
+                                dl_be    <= be;
+                                dl_wdata <= wd;
+                            end
                         end
 
-                        D_DLUP: if (we) fifo3d_cnt <= 13'd5120;        // 0x200 * 8 CPU cycles
+                        D_DLUP: if (we) begin
+                            if (dl_upbusy) st <= S_MEM;
+                            else begin
+                                dl_up      <= 1'b1;
+                                fifo3d_cnt <= 13'd5120;                 // 0x200 * 8 CPU cycles
+                            end
+                        end
 
                         D_DLVREG: ;                                     // reads 0
 
@@ -486,6 +515,8 @@ module hng64_io #(
                                 result <= {fbcontrol[0], fbcontrol[1], fbcontrol[2], fbcontrol[3]};
                             end
                         end
+
+                        D_FBSCROLL: if (we) fbscroll <= combine(fbscroll, wd, be);   // write-only
 
                         D_TEXWRAP: begin
                             if (we) begin

@@ -35,7 +35,15 @@ REPO = Path(__file__).resolve().parent.parent
 XY_F = 12                                         # vertex fraction bits: 4 is Voodoo's, too few (phase3_3d.md)
 SCALE = {0: 1 << 28, 1: 1 << 26, 2: 1 << 8, 5: 1 << 24, 6: 1 << 24}   # by MAME parameter index
 DEPTH_CLEAR = 100 << 28                           # clear3d's 100.0 in the z format
+Z_DROP = 4          # low z bits the depth buffer does not keep: 4 leaves 24 (a 32-bit word with an 8-bit tag)
+GRAD_RCP = 20       # the setup's reciprocal of the determinant, mantissa bits; None divides exactly
 PIX_RCP = None      # per-pixel reciprocal of 1/w, mantissa bits; None divides exactly
+PIX_TABLE = 10      # the per-pixel reciprocal by table and one Newton step, table index bits
+DUMP = None         # an open file: each triangle's setup input and its spans, for sim/raster_tb
+FRAGS = None        # a list, in dump mode: per span, (texel byte addresses or None, pixels, draw, written)
+DUMP_K = (0, 1, 2, 5, 6)                          # the rasteriser's channels: z, 1/w, light/w, u/w, v/w
+DUMP_MAX = {}                                     # largest magnitude of each dumped quantity
+COVERAGE = "edge"   # "mame": poly.h's scanline extents; "edge": SpinalVoodoo's edge functions
 
 
 # Geometry widths, fraction bits (absolute) or mantissa bits (relative, for the reciprocal and
@@ -68,6 +76,27 @@ def qm(v, bits):
     return float(np.ldexp(np.floor(m * (1 << bits) + 0.5) / (1 << bits), e))
 
 
+def rcp_newton(w, tbits):
+    """The pixel unit's reciprocal of 1/w (an integer, SCALE[1]): w's top 21 bits wn (truncated,
+    a mantissa 1.20), y0 from a table indexed by the tbits bits after the leading 1 (the reciprocal
+    of the interval's midpoint to tbits + 2 fraction bits, rounded), one Newton step
+    y1 = y0 (2 - wn y0), truncated to 21 fraction bits. Returns (y1, e): 1/w = y1 / 2^(21 + e)
+    with e w's top bit index. w < 1 is taken as 1."""
+    w = np.maximum(np.asarray(w, dtype=np.int64), 1)
+    e = np.floor(np.log2(w.astype(np.float64))).astype(np.int64)
+    e = np.where((np.int64(1) << e) > w, e - 1, e)        # exact, whatever float log2 rounds to
+    e = np.where((np.int64(1) << (e + 1)) <= w, e + 1, e)
+    wn = np.where(e >= 20, w >> np.maximum(e - 20, 0), w << np.maximum(20 - e, 0))
+    p = tbits + 2
+    i = (wn >> (20 - tbits)) & ((1 << tbits) - 1)
+    table = np.array([((1 << (p + tbits + 2)) // ((1 << (tbits + 1)) + 2 * k + 1) + 1) >> 1
+                      for k in range(1 << tbits)], dtype=np.int64)
+    y0 = table[i]
+    corr = (np.int64(1) << (21 + p)) - wn * y0
+    y1 = (y0 * corr) >> (2 * p - 1)
+    return y1, e
+
+
 def _lg(v):
     return v.bit_length() - 1
 
@@ -81,6 +110,10 @@ def round_coord(v):
     """poly.h round_coordinate on an exact value in pixels."""
     ip = v.numerator // v.denominator
     return ip + (1 if v - ip > Fraction(1, 2) else 0)
+
+
+def _dmax(name, *vals):
+    DUMP_MAX[name] = max(DUMP_MAX.get(name, 0), *(abs(v) for v in vals))
 
 
 class FxRenderer(r3.Renderer):
@@ -98,6 +131,7 @@ class FxRenderer(r3.Renderer):
         for v in (v1, v2, v3):
             vs.append((q(v[0], 1 << XY_F), q(v[1], 1 << XY_F),
                        {k: q(v[2][k], SCALE[k]) for k in params}))
+        self._vs_in = list(vs)                           # as given, for the dump
         vs.sort(key=lambda t: t[1])                      # by y, stable, as MAME's swaps order it
         (x1, y1, p1), (x2, y2, p2), (x3, y3, p3) = vs
         one = 1 << XY_F
@@ -115,13 +149,20 @@ class FxRenderer(r3.Renderer):
         a01, a11, a21 = x3 - x2, x1 - x3, x2 - x1
         det = x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)
         dpdx, dpdy = {}, {}
+        grad = self._grad_exact if GRAD_RCP is None or det == 0 else self._grad_rcp(det)
         for k in params:
             if det == 0:
                 dpdx[k] = dpdy[k] = 0
             else:
-                dpdx[k] = round(Fraction(one * (p1[k] * a00 + p2[k] * a10 + p3[k] * a20), det))
-                dpdy[k] = round(Fraction(one * (p1[k] * a01 + p2[k] * a11 + p3[k] * a21), det))
+                # the plane's numerators from differences to vertex 1: a00 + a10 + a20 = 0
+                nx = (p2[k] - p1[k]) * a10 + (p3[k] - p1[k]) * a20
+                ny = (p2[k] - p1[k]) * a11 + (p3[k] - p1[k]) * a21
+                dpdx[k] = grad(nx, det)
+                dpdy[k] = grad(ny, det)
 
+        if COVERAGE == "edge":
+            self._edge_spans(vs, params, dpdx, dpdy, scan)
+            return
         for cur in range(v1yclip, v3yclip):
             fy = cur * one + one // 2                     # the scanline's centre, in vertex units
             sx = Fraction(x1) + Fraction((fy - y1) * (x3 - x1), (y3 - y1)) if y3 != y1 else Fraction(x1)
@@ -142,10 +183,148 @@ class FxRenderer(r3.Renderer):
             scan(cur, ix0, ix1, start, dpdx)
 
     @staticmethod
+    def _grad_exact(n, det):
+        return round(Fraction((1 << XY_F) * n, det))
+
+    @staticmethod
+    def _grad_rcp(det):
+        """The setup unit's gradient: one reciprocal of |det| a triangle, its top GRAD_RCP + 1 bits
+        (truncated) divided into 2^(2 GRAD_RCP + 1), a restoring divide of GRAD_RCP + 2 steps; then
+        each numerator times it, rounded half up, sign restored."""
+        m = GRAD_RCP
+        d = abs(det)
+        e = d.bit_length() - 1
+        dn = d >> (e - m) if e >= m else d << (m - e)
+        r = (1 << (2 * m + 1)) // dn                    # 1/d = r / 2^(m + 1 + e)
+        sh = m + 1 + e - XY_F
+        neg = det < 0
+
+        def grad(n, _det):
+            v = n * r
+            v = (v + (1 << (sh - 1))) >> sh if sh > 0 else v << -sh
+            return -v if neg else v
+        return grad
+
+    def _edge_spans(self, vs, params, dpdx, dpdy, scan):
+        """SpinalVoodoo's coverage (TriangleSetup.scala, SpanWalker.scala): a pixel is drawn when
+        its centre gives all three edge functions >= 0, the edges oriented by the triangle's winding
+        and the constant of every edge but the top and left ones less one unit, so a centre exactly
+        on a shared edge belongs to one triangle. Rows from roundHalfDown of the top vertex's y to
+        that of the bottom's; each row's span solved exactly per edge."""
+        one = 1 << XY_F
+        (xa, ya, pa), (xb, yb, _), (xc, yc, _) = vs
+        cross = (xb - xa) * (yc - ya) - (xc - xa) * (yb - ya)
+        if cross == 0:
+            return
+        sign = -1 if cross < 0 else 1
+        edges = []
+        for (x0, y0), (x1, y1) in (((xa, ya), (xb, yb)), ((xb, yb), (xc, yc)), ((xc, yc), (xa, ya))):
+            a, b, c = sign * (y0 - y1), sign * (x1 - x0), sign * (x0 * y1 - x1 * y0)
+            if not (a > 0 or (a == 0 and b > 0)):
+                c -= 1
+            edges.append((a, b, c))
+
+        def rhd(v):                                     # roundHalfDown, to pixels
+            ip, fr = v >> XY_F, v & (one - 1)
+            return ip + (1 if fr > one // 2 else 0)
+        y0p, y1p = max(rhd(ya), 0), min(rhd(yc), 512 + 1)
+        if DUMP:
+            DUMP.write(("A %s" + chr(10)) % " ".join("%d" % v for v in self._attr))
+            DUMP.write(("V %s" + chr(10)) % " ".join("%d %d %s" % (x, y, " ".join("%d" % p.get(k, 0) for k in DUMP_K))
+                                         for x, y, p in self._vs_in))
+            for x, y, p in self._vs_in:
+                for k in DUMP_K:
+                    _dmax(f"vertexp{k}", p.get(k, 0))
+            _dmax("det", cross)
+            chans = [(pa.get(k, 0), dpdx.get(k, 0), dpdy.get(k, 0)) for k in DUMP_K]
+            DUMP.write("T %d %d %d %d %d %d %d %s\n" % (
+                xa, ya, xb, yb, xc, yc, int(sign < 0), " ".join("%d %d %d" % t for t in chans)))
+            _dmax("vertex", xa, ya, xb, yb, xc, yc)
+            for k, (p0, dx, dy) in zip(DUMP_K, chans):
+                _dmax(f"grad{k}", dx, dy)
+        ax_pix, ay_pix = rhd(xa), rhd(ya)
+        base = {k: pa[k] + ((((ax_pix * one + one // 2) - xa) * dpdx[k]
+                             + ((ay_pix * one + one // 2) - ya) * dpdy[k]) >> XY_F) for k in params}
+        for py in range(y0p, y1p):
+            cy = py * one + one // 2
+            lo, hi = 0, 513                              # centres px*one + one/2, px in [lo, hi)
+            for a, b, c in edges:
+                r = b * cy + c                           # a * (px*one + one/2) + r >= 0
+                if a == 0:
+                    if r < 0:
+                        lo, hi = 1, 0
+                    continue
+                # a*one*px >= -r - a*one/2
+                num = -r - a * (one // 2)
+                den = a * one
+                if a > 0:
+                    lo = max(lo, -((-num) // den))       # ceil(num / den)
+                else:
+                    hi = min(hi, num // den + 1)         # px <= floor(num / den)
+            if lo >= hi:
+                continue
+            start = {k: base[k] + (lo - ax_pix) * dpdx[k] + (py - ay_pix) * dpdy[k] for k in params}
+            if DUMP and py < 512 and lo < 513:
+                h = min(hi, 513)                         # x = 512 lands in column 0 (MAME_KLUDGES)
+                DUMP.write("S %d %d %d %s\n" % (py, lo, h - 1, " ".join(
+                    "%d" % start.get(k, 0) for k in DUMP_K)))
+                for k in params:
+                    _dmax(f"value{k}", start[k], start[k] + (h - 1 - lo) * dpdx[k])
+            scan(py, lo, hi, start, dpdx)
+
+    @staticmethod
     def _walk_i(start, d, n):
         return start + np.arange(n, dtype=np.int64) * d
 
+    def draw_shaded(self, p):
+        """drawShaded with geom_int.py's integer vertices, when the geometry left them: already in
+        the rasteriser's formats, handed over as floats that q() turns back into the same integers."""
+        iv = getattr(p, "iv", None)
+        if iv is None:
+            return super().draw_shaded(p)
+        st = self.stats
+        st.add("polys_drawn")
+        one = float(1 << XY_F)
+        sc = {k: float(v) for k, v in SCALE.items()}
+        for j in range(1, len(iv) - 1):
+            vs = [iv[0], iv[j], iv[j + 1]]
+            if p.flat:
+                tri = [[v["x"] / one, v["y"] / one, [v["z"] / sc[0], 0.0, 0.0, 0.0]] for v in vs]
+                self.triangle(*tri, 4, self.flat_scan(p))
+            else:
+                tri = [[v["x"] / one, v["y"] / one,
+                        [v["z"] / sc[0], v["rw"] / sc[1], v["l"] / sc[2], 0.0, 0.0,
+                         v["u"] / sc[5], v["v"] / sc[6]]] for v in vs]
+                self.triangle(*tri, 7, self.texture_scan(p))
+
+    def _set_attr(self, rd):
+        """The pixel unit's per-triangle fields, as dumped for sim/raster_tb (Pixel.scala Attr):
+        flat, blend, 4bpp, texture index, sub-page, h and v page offsets, palette (the colour for
+        a flat triangle), scroll x and y (texels), wrap exponents x and y (at most 31)."""
+        wx = min(int(rd.tex_mask_x).bit_length() - 1, 31) if rd.tex_mask_x else 0
+        wy = min(int(rd.tex_mask_y).bit_length() - 1, 31) if rd.tex_mask_y else 0
+        pal = (rd.pal_offset + rd.color_index) & 0xFFFF if rd.flat else rd.pal_offset & 0xFFFF
+        self._attr = (int(bool(rd.flat)), int(bool(rd.blend)), int(rd.tex4bpp), rd.tex_index & 15,
+                      (rd.tex_page_small >> 14) & 3, (rd.tex_page_small >> 7) & 0x7F,
+                      rd.tex_page_small & 0x7F, pal, (rd.texscrollx & 0x3FFF) >> 5,
+                      (rd.texscrolly & 0x3FFF) >> 5, wx, wy)
+        _dmax("wrap", int(rd.tex_mask_x).bit_length(), int(rd.tex_mask_y).bit_length())
+
+    def _plot(self, y, x0, x1, z, color, draw):
+        if Z_DROP:
+            # the depth plane's z: 28 - Z_DROP fraction bits, 0 to 1 - 2^-(28 - Z_DROP)
+            z = np.clip(np.asarray(z) >> Z_DROP, 0, (1 << (28 - Z_DROP)) - 1)
+        if FRAGS is not None:
+            # for the memory study (cache_3d.py): written is the depth test against the buffer
+            # before the span, exact but for the rare pixel at x = 512 folded onto column 0
+            idx = y * 512 + (np.arange(x0, x1) & 511)
+            written = np.asarray(draw, dtype=bool) & (np.asarray(z) < self.depth[idx])
+            FRAGS.append((self._span_addr, idx, np.asarray(draw, dtype=bool), written))
+        super()._plot(y, x0, x1, z, color, draw)
+
     def flat_scan(self, rd):
+        self._set_attr(rd)
+        self._span_addr = None
         def scan(y, x0, x1, start, dpdx):
             if y > 511 or y < 0 or x0 >= x1:
                 return
@@ -156,6 +335,7 @@ class FxRenderer(r3.Renderer):
         return scan
 
     def texture_scan(self, rd):
+        self._set_attr(rd)
         base = rd.tex_index * 1024 * 1024
         sub = (rd.tex_page_small & 0xC000) >> 14
         hoff = (rd.tex_page_small & 0x3F80) >> 7
@@ -185,7 +365,16 @@ class FxRenderer(r3.Renderer):
             s = self._walk_i(start[5], dpdx[5], n)
             t = self._walk_i(start[6], dpdx[6], n)
             # texel = (u/w) / (1/w) * 1024 = (S / Ss) / (W / Ws) * 2^10
-            if PIX_RCP is None:
+            if PIX_TABLE is not None:
+                # x * 2^k / w = x y1 / 2^(21 + e - k), truncated toward zero as C's (int)
+                y1, e = rcp_newton(w, PIX_TABLE)
+
+                def mulr(x, k):
+                    m = (np.abs(x) * y1) >> (21 + e - k)
+                    return np.where(x < 0, -m, m)
+                ts = mulr(s, _lg(SCALE[1]) + 10 - _lg(SCALE[5])) + sy
+                tt = mulr(t, _lg(SCALE[1]) + 10 - _lg(SCALE[6])) + sx
+            elif PIX_RCP is None:
                 ts = scaled_div(s, w, _lg(SCALE[1]) + 10 - _lg(SCALE[5])) + sy
                 tt = scaled_div(t, w, _lg(SCALE[1]) + 10 - _lg(SCALE[6])) + sx
             else:
@@ -199,13 +388,17 @@ class FxRenderer(r3.Renderer):
                 ts = np.fmod(ts, rd.tex_mask_y) + 8 * voff
             ti = tt & 1023
             si = ts & 1023
+            self._span_addr = base + np.where(rd.tex4bpp, si * 512 + (ti >> 1), si * 1024 + ti)
             if rd.tex4bpp:
                 b = self.tex[base + si * 512 + (ti >> 1)]
                 pen = np.where(ti & 1, (b >> 4) & 0x0F, b & 0x0F)
             else:
                 pen = self.tex[base + si * 1024 + ti]
             # light = (L / Ls) / (W / Ws); MAME keeps light / 16
-            lightval = scaled_div(light, w, _lg(SCALE[1]) - 4 - _lg(SCALE[2])) & 0xFF
+            if PIX_TABLE is not None:
+                lightval = mulr(light, _lg(SCALE[1]) - 4 - _lg(SCALE[2])) & 0xFF
+            else:
+                lightval = scaled_div(light, w, _lg(SCALE[1]) - 4 - _lg(SCALE[2])) & 0xFF
             color = (((rd.pal_offset + pen.astype(np.int64)) & 0x7FF) | (lightval << 12)) & 0xFFFF
             if rd.blend:
                 color |= 0x800
@@ -335,16 +528,32 @@ def main():
     ap.add_argument("game")
     ap.add_argument("frames", type=int, nargs="+")
     ap.add_argument("--xy-bits", type=int, default=XY_F, help="vertex fraction bits")
-    ap.add_argument("--geometry", default=None,
-                    help="fixed-point geometry: 'mv=24,eye=20,...' (GEO's keys; 'float' leaves one); "
-                         "empty for all float64")
+    ap.add_argument("--dump", action="store_true",
+                    help="write each frame's triangles and spans to debug/<game>-f<n>/raster.txt")
+    ap.add_argument("--grad-rcp", default=str(GRAD_RCP),
+                    help="the setup's reciprocal of the determinant, mantissa bits, or 'exact'")
+    ap.add_argument("--pix-table", type=int, default=PIX_TABLE,
+                    help="per-pixel reciprocal by table and Newton step: table index bits")
+    ap.add_argument("--z-drop", type=int, default=Z_DROP, help="low z bits the depth buffer drops")
+    ap.add_argument("--coverage", choices=("mame", "edge"), default=COVERAGE,
+                    help="mame: poly.h's scanline extents; edge: SpinalVoodoo's edge functions")
+    ap.add_argument("--geometry", default="int",
+                    help="'int': geom_int.py, the RTL's specification (the default); 'float': MAME's "
+                         "float geometry; 'mv=24,eye=20,...': float64 rounded at GEO's stages")
     a = ap.parse_args()
     globals()["XY_F"] = a.xy_bits
+    globals()["COVERAGE"] = a.coverage
+    globals()["Z_DROP"] = a.z_drop
+    globals()["PIX_TABLE"] = a.pix_table
+    globals()["GRAD_RCP"] = None if a.grad_rcp == "exact" else int(a.grad_rcp)
     from PIL import Image
     import render_model as rm
     import rom_regions
     r3.Renderer = FxRenderer
-    if a.geometry is not None:
+    if a.geometry == "int":
+        import geom_int
+        r3.Machine = geom_int.IntMachine
+    elif a.geometry != "float":
         r3.Machine = FxMachine
         for kv in a.geometry.split(","):
             if kv:
@@ -353,8 +562,24 @@ def main():
     for f in a.frames:
         d = REPO / "debug" / f"{a.game}-f{f}"
         wl = d / "wlog.trace"
+        if a.dump:
+            globals()["DUMP"] = open(d / "raster.txt", "w")
+            globals()["FRAGS"] = []
         res = r3.run(a.game, [f], trace=wl, capture=True) if wl.exists() else r3.run(a.game, [f])
         color, st, stats = res[f]
+        if DUMP:
+            color.astype("<u2").tofile(d / "raster_color.bin")
+            n = [len(f[1]) for f in FRAGS]
+            np.savez_compressed(d / "fragments.npz",
+                                addr=np.concatenate([f[0] if f[0] is not None else np.full(k, -1)
+                                                     for f, k in zip(FRAGS, n)]).astype(np.int64),
+                                pixel=np.concatenate([f[1] for f in FRAGS]).astype(np.int32),
+                                draw=np.concatenate([f[2] for f in FRAGS]),
+                                written=np.concatenate([f[3] for f in FRAGS]))
+            globals()["FRAGS"] = None
+            DUMP.close()
+            globals()["DUMP"] = None
+            print("dump: " + ", ".join(f"{k} {v.bit_length() + 1} bits" for k, v in sorted(DUMP_MAX.items())))
         cap = rm.Capture(d)
         gfx = rm.Gfx(rm.reorder_scrtile(rom_regions.region(a.game, "scrtile")))
         spr = rm.Gfx(rom_regions.region(a.game, "sprtile"))

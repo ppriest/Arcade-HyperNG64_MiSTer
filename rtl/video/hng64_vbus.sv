@@ -18,9 +18,9 @@
 // writes its own copy; at vblank `snapshot` copies all of it into the one the sprite engine
 // reads, 12,288 clocks, and `snapshot_done` then starts the engine's frame.
 //
-// THE PALETTE IS SIX COPIES: the mixer reads five entries a clock (hng64_mixer.sv), a copy's
-// second port is needed for the CPU's writes, and one more copy answers the CPU's reads.
-// docs/MEMORY.md budgets it.
+// THE PALETTE IS ONE RAM: the CPU writes and reads it on port A (clk1x) and the mixer reads it on
+// port B (clk2x), one contributor a clock (hng64_mixer.sv). It was six copies while the mixer read
+// five entries a clock.
 //
 // The background colour is palette entry 0 when bit 0 of the 3D buffer control's first byte is
 // set, else black, as tb_video has it from MAME (hng64_v.cpp, screen_update).
@@ -62,8 +62,8 @@ module hng64_vbus (
 
     input  logic [13:0] sram_addr,      // the engine's copy, data the clock after
     output logic [31:0] sram_data,
-    input  logic [11:0] pal_a [0:4],    // data the clock after
-    output logic [31:0] pal_d [0:4]
+    input  logic [11:0] pal_a,          // the mixer's read, data the clock after
+    output logic [31:0] pal_d
 );
 
     localparam logic [2:0] V_SPR = 3'd0, V_SPRREG = 3'd1, V_VREG = 3'd2, V_PAL = 3'd3,
@@ -122,26 +122,13 @@ module hng64_vbus (
         if (copy_wr_en && copy_wr == 14'd12287) snapshot_done <= 1'b1;
     end
 
-    // ---- palette: five copies for the mixer, one for the CPU's reads ---------------------------------
+    // ---- palette ------------------------------------------------------------------------------------
     logic [31:0] pal_cpu_q;
 
-    // every copy takes the same byte-enabled write on the same clock, so all six always agree; the
-    // CPU reads its own copy on port A
-    hng64_bram #(.AW(12), .DW(32)) u_pal_cpu (
+    hng64_bram #(.AW(12), .DW(32)) u_pal (
         .a_clk(clk1x), .a_addr(v_addr[11:0]), .a_be(wr_pal ? v_be : 4'd0), .a_wdata(v_wdata),
         .a_rdata(pal_cpu_q),
-        .b_clk(clk1x), .b_addr(12'd0), .b_rdata());
-
-    // one array per copy, so each is its own block RAM
-    genvar gc;
-    generate
-    for (gc = 0; gc < 5; gc++) begin : g_pal
-        hng64_bram #(.AW(12), .DW(32)) u_pal (
-            .a_clk(clk1x), .a_addr(v_addr[11:0]), .a_be(wr_pal ? v_be : 4'd0), .a_wdata(v_wdata),
-            .a_rdata(),
-            .b_clk(clk2x), .b_addr(pal_a[gc]), .b_rdata(pal_d[gc]));
-    end
-    endgenerate
+        .b_clk(clk2x), .b_addr(pal_a), .b_rdata(pal_d));
 
     // ---- the CPU port -------------------------------------------------------------------------------
     logic       ack_pending;

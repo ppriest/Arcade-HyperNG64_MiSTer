@@ -1,0 +1,6 @@
+words 1687
+entry init 0
+entry clear 34
+entry upload 76
+reg samsho 13
+reg vlen 14

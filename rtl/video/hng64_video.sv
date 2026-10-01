@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The 2D video block: four tilemap line engines, the sprite line engine, five line buffers and
-// the mixer.
+// The video block: four tilemap line engines, the sprite line engine, the 3D buffer's line
+// (hng64_fb3d), their line buffers and the mixer.
 //
 // The five engines run at the same time, not one after another: each fills its own line buffer,
 // and the mixer reads all five when they are done. The four tilemap engines share one tile-VRAM
@@ -30,7 +30,7 @@ module hng64_video (
 
     input  logic        frame_start,        // vblank start: the sprite list is snapshotted here
     input  logic        line_start,
-    input  logic  [4:0] dbg_layer_off,      // the OSD's debug page: tilemaps 0-3, sprites; 0 = on
+    input  logic  [5:0] dbg_layer_off,      // the OSD's debug page: tilemaps 0-3, sprites, 3D; 0 = on
     input  logic  [8:0] line,
     output logic        busy,
 
@@ -66,8 +66,25 @@ module hng64_video (
     input  logic [63:0] prom_data,
     input  logic        prom_valid,
 
-    output logic [11:0] pal_a [0:4],
-    input  logic [31:0] pal_d [0:4],
+    output logic [11:0] pal_a,
+    input  logic [31:0] pal_d,
+
+    // the 3D buffer (hng64_fb3d)
+    input  logic  [9:0] vis_y0,
+    input  logic  [9:0] vis_h,
+    input  logic  [7:0] fbcontrol0,
+    input  logic  [7:0] fbcontrol2,
+    input  logic [31:0] fbscroll,
+    input  logic        show_valid,
+    input  logic        show_plane,
+    output logic        shown_valid,
+    output logic        shown_plane,
+    input  logic [27:0] plane_base [0:1],
+    output logic [27:0] d3_addr,
+    output logic        d3_rd,
+    input  logic        d3_ready,
+    input  logic [63:0] d3_data,
+    input  logic        d3_valid,
 
     output logic        px_we,
     output logic  [8:0] px_x,
@@ -257,6 +274,20 @@ module hng64_video (
         mix_bank <= ~bank;
     end
 
+    // ---- the 3D buffer's line -------------------------------------------------------------------------
+    logic        f3_busy;
+    logic [15:0] mix_d3;
+
+    hng64_fb3d u_fb3d (
+        .clk(clk), .reset(reset),
+        .frame_start(frame_start), .line_start(line_start && lst == L_IDLE && !spr_busy),
+        .line(line), .bank(bank), .busy(f3_busy),
+        .vis_y0(vis_y0), .vis_h(vis_h), .blit_off(fbcontrol0[0]), .fbscroll(fbscroll),
+        .show_valid(show_valid), .show_plane(show_plane),
+        .shown_valid(shown_valid), .shown_plane(shown_plane), .plane_base(plane_base),
+        .d_addr(d3_addr), .d_rd(d3_rd), .d_ready(d3_ready), .d_data(d3_data), .d_valid(d3_valid),
+        .mix_x(mix_x), .mix_pix(mix_d3));
+
     // ---- the mixer ---------------------------------------------------------------------------------
     logic mix_start, mix_busy;
     assign mixing = mix_busy;
@@ -264,6 +295,7 @@ module hng64_video (
     hng64_mixer u_mix (
         .clk(clk), .reset(reset), .start(mix_start), .busy(mix_busy),
         .lb_x(mix_x), .tm_pix(mix_tm), .spr_pix(mix_spr),
+        .d3_pix(dbg_layer_off[5] ? 16'd0 : mix_d3), .d3_palbase(fbcontrol2[5]),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb), .screen_dis(screen_dis),
         .pal_a(pal_a), .pal_d(pal_d),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb));
@@ -286,7 +318,7 @@ module hng64_video (
     // The sprite engine's frame-start pre-pass walks the whole list and takes longer than a line,
     // so the block stays busy through it: a line started during it would see an unfinished
     // candidate list.
-    assign busy = (lst != L_IDLE) || spr_busy;
+    assign busy = (lst != L_IDLE) || spr_busy || f3_busy;
 
     logic started;
 
@@ -313,7 +345,7 @@ module hng64_video (
                 // disabled never raises it at all, which is why the wait is on all five together
                 L_RUN: begin
                     started <= 1'b1;
-                    if (started && tm_busy == 4'd0 && !spr_busy && !mix_busy) begin
+                    if (started && tm_busy == 4'd0 && !spr_busy && !mix_busy && !f3_busy) begin
                         bank   <= ~bank;
                         primed <= 1'b1;
                         lst    <= L_IDLE;

@@ -65,10 +65,10 @@ module tb_mixer (
         pal_d[3] = pal_d3;
         pal_d[4] = pal_d4;
         pal_a0 = pal_a[0];
-        pal_a1 = pal_a[1];
-        pal_a2 = pal_a[2];
-        pal_a3 = pal_a[3];
-        pal_a4 = pal_a[4];
+        pal_a1 = 12'd0;
+        pal_a2 = 12'd0;
+        pal_a3 = 12'd0;
+        pal_a4 = 12'd0;
     end
 
     always_ff @(posedge clk)
@@ -76,10 +76,10 @@ module tb_mixer (
 
     hng64_mixer dut (
         .clk(clk), .reset(reset), .start(start), .busy(busy),
-        .lb_x(lb_x), .tm_pix(tm_pix), .spr_pix(spr_pix),
+        .lb_x(lb_x), .tm_pix(tm_pix), .spr_pix(spr_pix), .d3_pix(16'd0), .d3_palbase(1'b0),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb),
         .screen_dis(tcram[2][31:16] == 16'd0 || tcram[2][15:0] == 16'd0),
-        .pal_a(pal_a), .pal_d(pal_d),
+        .pal_a(pal_a[0]), .pal_d(pal_d[0]),     // one read a clock; the bench's other four ports idle
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb));
 
 endmodule

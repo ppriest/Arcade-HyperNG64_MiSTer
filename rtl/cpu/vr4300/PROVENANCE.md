@@ -47,6 +47,13 @@ The N64 project assigns no library, and Quartus resolves `mem` to `work`. ModelS
   `"00000110"`, which is what MAME reports (docs/MAME_KLUDGES.md). Status and Config are then set
   through the savestate port by `rtl/cpu/hng64_cpu.vhd`.
 
+- `cpu_cop0.vhd`: a TLB-translated physical address is kept at 32 bits (`TLB_fetchAddrOutMasked`).
+  Upstream masks it to 29 bits, the N64's physical space; the HNG64 BIOS maps its devices above
+  0x20000000 through the TLB (the sound mailbox at 0x68000000 by a 16 MB page, the 3D registers at
+  0x20300000), and with the mask those accesses landed in main RAM. Found on hardware: the BIOS
+  polled 0x2030021A, seen by the CPU port as 0x0030021A (ISSP instance T), until nothing else ran.
+  Unmapped (kseg0/kseg1) addresses are masked to 29 bits where they are formed, as before.
+
 Each modified file has its unmodified copy beside it as `*_upstream_reference.vhd`.
 
 Checked: all 15 files compile in ModelSim-Intel 10.5b (Quartus 17.0) with `vmap mem work`, and

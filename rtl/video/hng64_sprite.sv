@@ -64,16 +64,27 @@ module hng64_sprite #(
 
     typedef enum logic [4:0] {
         P_IDLE, P_W0, P_W1, P_W2, P_W4, P_HEIGHT, P_STORE,
-        L_CLEAR, L_PICK, L_W0, L_W1, L_W2, L_W4, L_MOS, L_MULY, L_MULO,
+        L_CLEAR, L_PICK, L_TEST, L_W0, L_W1, L_W2, L_W4, L_MOS, L_MULY, L_MULO,
         F_TILE, F_TILE_W, F_PAL, F_ISSUE, L_POP, L_WIDTH, L_MULX, L_EMIT
     } state_t;
     state_t st;
 
-    // candidates from the pre-pass
-    logic [10:0] cand_idx [0:MAXCAND-1];
-    logic signed [11:0] cand_y [0:MAXCAND-1];
-    logic [10:0] cand_h [0:MAXCAND-1];
+    // candidates from the pre-pass, in a RAM read one ahead of the scan: {sprite, top row, the row
+    // after its last} (the end as the 12-bit sum the test was written with, wrap and all)
+    logic [34:0] cand_mem [0:MAXCAND-1];
+    logic [34:0] cand_q;
+    logic        cand_we;
+    logic  [8:0] cand_wa;
+    logic [34:0] cand_wd;
     logic  [8:0] ncand, ci;
+    wire   [8:0] cand_ra = (st == L_TEST) ? ci + 9'd1 : ci;   // L_TEST: the next candidate, ahead
+    always_ff @(posedge clk) begin
+        if (cand_we) cand_mem[cand_wa] <= cand_wd;
+        cand_q <= cand_mem[cand_ra];
+    end
+    wire        [10:0] cq_idx = cand_q[34:24];
+    wire signed [11:0] cq_y   = cand_q[23:12];
+    wire signed [11:0] cq_end = cand_q[11:0];
 
     logic [10:0] sp, cur;
     logic [31:0] w0, w1, w2, w4;
@@ -259,6 +270,7 @@ module hng64_sprite #(
 
     always_ff @(posedge clk) begin
         mos_start <= 1'b0;
+        cand_we   <= 1'b0;
         if (reset) begin
             px_we  <= 1'b0;
             ram_rd <= 1'b0;
@@ -313,10 +325,10 @@ module hng64_sprite #(
                 P_STORE: begin
                     if (height != 11'd0 && ncand != MAXCAND[8:0]
                         && raw_y < 12'sd448 && (raw_y + $signed({1'b0, height})) > 12'sd0) begin
-                        cand_idx[ncand] <= sp;
-                        cand_y[ncand]   <= raw_y;
-                        cand_h[ncand]   <= height;
-                        ncand           <= ncand + 9'd1;
+                        cand_we <= 1'b1;
+                        cand_wa <= ncand;
+                        cand_wd <= {sp, raw_y, 12'(raw_y + $signed({1'b0, height}))};
+                        ncand   <= ncand + 9'd1;
                     end
                     if (sp == 11'd1535) begin
                         st <= P_IDLE;
@@ -338,14 +350,16 @@ module hng64_sprite #(
                     end
                 end
 
-                L_PICK: begin
+                // the RAM is read at ci here; L_TEST tests it and reads ci + 1 meanwhile
+                L_PICK: st <= L_TEST;
+
+                L_TEST: begin
                     if (ci >= ncand) begin
                         st <= P_IDLE;
-                    end else if (cand_y[ci] <= $signed({3'b0, line})
-                              && $signed({3'b0, line}) < cand_y[ci] + $signed({1'b0, cand_h[ci]})) begin
-                        cur      <= cand_idx[ci];
-                        rely     <= {2'b0, line} - cand_y[ci][10:0];
-                        ram_addr <= {cand_idx[ci], 3'd0};
+                    end else if (cq_y <= $signed({3'b0, line}) && $signed({3'b0, line}) < cq_end) begin
+                        cur      <= cq_idx;
+                        rely     <= {2'b0, line} - cq_y[10:0];
+                        ram_addr <= {cq_idx, 3'd0};
                         ram_rd   <= 1'b1;
                         st       <= L_W0;
                     end else begin

@@ -1,6 +1,7 @@
 # Read the core's debug probes over JTAG (In-System Sources and Probes).
 #
 #   python scripts/read_issp.py [instance] [clear] [set N] [pulse N]
+#   python scripts/read_issp.py T dump        # the first 4,096 I/O requests since configuration
 #
 # SignalTap acquisition is GUI-only in Quartus Prime Lite 17.0 -- there are no
 # *signaltap* Tcl commands -- so ISSP is what a headless workflow can drive.
@@ -33,7 +34,6 @@ set fields_F {
     {dl0_seen        71  71 bit}
     {faults          72  77 hex}
     {cpu_error       78  78 bit}
-    {rot_overflow    79  79 bit}
     {pll_locked      80  80 bit}
     {cpu_reset       81  81 bit}
     {pause           82  82 bit}
@@ -41,6 +41,33 @@ set fields_F {
     {mcu_insns       99 114 dec}
     {cpu_irq        115 115 bit}
     {cpu_irq_rises  116 127 dec}
+}
+# HyperNG64.sv, instance G
+set fields_G {
+    {irq_pending      0  31 hex}
+    {irq_level       32  36 dec}
+    {irq3_rises      37  48 dec}
+    {3d_queued       49  54 dec}
+    {3d_state        55  58 dec}
+    {3d_dl_busy      59  59 bit}
+    {3d_dl_upbusy    60  60 bit}
+    {3d_dl_full      61  61 bit}
+    {ddr_inflight    62  69 dec}
+    {dl_uploads      70  85 dec}
+    {triangles       86 101 dec}
+    {cpu_req_pending 102 102 bit}
+    {cpu_req_waited 103 118 dec}
+    {mcu_int0_pulses 119 127 dec}
+}
+# HyperNG64.sv, instance T: one entry; `dump` reads them all
+set fields_T {
+    {addr             0  31 hex}
+    {data            32  63 hex}
+    {mask            64  71 hex}
+    {read            72  72 bit}
+    {req64           73  73 bit}
+    {next_slot       80  91 dec}
+    {recorded        92 107 dec}
 }
 # ---------------------------------------------------------------------------
 
@@ -92,8 +119,8 @@ set want ""
 set skip 0
 foreach a $argv {
     if {$skip} { set skip 0; continue }
-    if {$a eq "set" || $a eq "pulse"} { set skip 1; continue }
-    if {$a ne "clear"} { set want $a }
+    if {$a eq "set" || $a eq "pulse" || $a eq "from" || $a eq "count"} { set skip 1; continue }
+    if {$a ne "clear" && $a ne "dump" && $a ne "ring"} { set want $a }
 }
 set idx [lindex [lindex $insts 0] 0]
 set inst_id [lindex [lindex $insts 0] 3]
@@ -107,6 +134,8 @@ if {$want ne ""} {
 # than guesses.
 switch -- $inst_id {
     F       { set fields $fields_F }
+    G       { set fields $fields_G }
+    T       { set fields $fields_T }
     default {
         puts "instance id '$inst_id' has no field table -- add one before reading it"
         exit 1
@@ -115,6 +144,37 @@ switch -- $inst_id {
 puts "decoding instance $inst_id"
 
 start_insystem_source_probe -device_name $dev -hardware_name $hw
+
+# T dump: stop the capture, read the entries in order, let it run again. `ring` reads a ring
+# capture (source bit 11) oldest first; otherwise the one-shot capture from entry 0.
+if {$inst_id eq "T" && [lsearch $argv dump] >= 0} {
+    proc tsrc {idx v} { write_source_data -instance_index $idx -value [format %X $v] -value_in_hex }
+    set mode [expr {[lsearch $argv ring] >= 0 ? 8192 : 0}]
+    tsrc $idx [expr {$mode | 4096}]
+    set raw [read_probe_data -instance_index $idx]
+    set next [bits_to_int $raw 80 91]
+    set n [bits_to_int $raw 92 107]
+    set count [expr {$n < 4096 ? $n : 4096}]
+    set first [expr {($mode && $n >= 4096) ? $next : 0}]
+    # `from F count C`: a window of the capture, for reading it in chunks
+    set k0 0
+    set i [lsearch -exact $argv "from"];  if {$i >= 0} { set k0 [lindex $argv [expr {$i+1}]] }
+    set i [lsearch -exact $argv "count"]; if {$i >= 0} { set count [expr {min($count, $k0 + [lindex $argv [expr {$i+1}]])}] }
+    puts "trace: $n requests recorded, $k0 to [expr {$count - 1}] read out"
+    puts "  #     rw  address     data        mask  64"
+    for {set k $k0} {$k < $count} {incr k} {
+        set slot [expr {($first + $k) & 4095}]
+        tsrc $idx [expr {$mode | 4096 | $slot}]
+        tsrc $idx [expr {$mode | 4096 | $slot}]
+        set e [read_probe_data -instance_index $idx]
+        puts [format "  %4d  %s  0x%08X  0x%08X  %02X    %d" $k \
+            [expr {[bits_to_int $e 72 72] ? "r" : "w"}] [bits_to_int $e 0 31] [bits_to_int $e 32 63] \
+            [bits_to_int $e 64 71] [bits_to_int $e 73 73]]
+    }
+    tsrc $idx $mode
+    end_insystem_source_probe
+    exit 0
+}
 set raw [read_probe_data -instance_index $idx]
 puts "raw ([string length $raw] bits): $raw"
 puts ""

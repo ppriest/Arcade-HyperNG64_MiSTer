@@ -61,7 +61,7 @@ module tb_romload (
         .clk(clk),
         .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
         .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-        .base(cfg_base), .size(cfg_size), .valid(cfg_valid));
+        .base(cfg_base), .size(cfg_size), .flags(), .valid(cfg_valid));
 
     wire  [15:0] SDRAM_DQ;
     wire  [12:0] SDRAM_A;

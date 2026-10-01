@@ -2,7 +2,7 @@
 //
 // The whole board less its CPU, driven by MAME's bus trace.
 //
-//     scripts/run_verilator.sh sys_tb [+frames=400,800] [+n=4000000] [+fb=1] [+flip=1] [+rot=1]
+//     scripts/run_verilator.sh sys_tb [+frames=400,800] [+n=4000000] [+fb=1] [+flip=1]
 //
 // The core is loaded the way MiSTer loads it: the layout blob as rom index 1 and the IO MCU's ROM
 // as index 2 through the byte path, and an index-0 download with no bytes, because the HPS
@@ -28,11 +28,6 @@
 //
 // +flip=1 runs with Flip Screen on from reset, and each frame is compared with the model's turned
 // 180 degrees: MAME has no flip for this board, so the unflipped frame rotated is the reference.
-//
-// +rot=1 runs the HDMI rotator (screen_rotate_two, clockwise) on the core's output, its writes
-// going through the core's FIFO into the DDR3 model beside the video's reads. After each frame
-// the rotator's buffer is compared with the captured frame turned 90 degrees, and the frames are
-// still compared with the model, so the reads are checked under the write load.
 
 #include "Vtb_sys.h"
 #include "verilated.h"
@@ -110,10 +105,6 @@ int main(int argc, char **argv) {
     const long limit = atol(arg("n", "4000000").c_str());
     const bool with_fb = atoi(arg("fb", "0").c_str()) != 0;
     const bool flip = atoi(arg("flip", "0").c_str()) != 0;
-    const bool rot = atoi(arg("rot", "0").c_str()) != 0;
-    // the rotator's window: three 8 MB buffers at 0x24000000
-    std::vector<uint8_t> rot_mem(rot ? 3u << 23 : 0);
-    long rot_writes = 0, rot_bad_frames = 0;
     std::set<int> frames;
     {
         std::string fl = arg("frames", "400,800");
@@ -143,14 +134,15 @@ int main(int argc, char **argv) {
     };
     const auto mcu = slurp("debug/rom/hng64-iomcu.bin");
 
-    // the blob: "HNG1", then base and size per region, big-endian; the BIOS cut to 16 KB
-    std::vector<uint8_t> blob = {'H', 'N', 'G', '1'};
+    // the blob: "HNG2", then base and size per region, big-endian, then flags; the BIOS cut to 16 KB
+    std::vector<uint8_t> blob = {'H', 'N', 'G', '2'};
     auto put32 = [&](uint32_t v) { for (int i = 3; i >= 0; i--) blob.push_back(uint8_t(v >> (8 * i))); };
     for (const auto &r : reg) {
         put32(r.base);
         put32(std::string(r.name) == "bios" ? 0x4000u : r.size);
     }
     for (int i = 0; i < 4; i++) put32(0);              // textures0, verts: not carried
+    put32(0);                                          // flags
 
     // ---- the trace -----------------------------------------------------------------------------------
     std::vector<Ev> ev;
@@ -184,7 +176,6 @@ int main(int argc, char **argv) {
     dut->ioctl_wr = 0;
     dut->inputs_flat = ~0ULL;                           // nothing pressed
     dut->flip = flip;
-    dut->rotate = rot;
     dut->DDRAM_BUSY = 0;
     dut->DDRAM_DOUT_READY = 0;
 
@@ -208,16 +199,9 @@ int main(int argc, char **argv) {
         // DDRAM_RD depends on BUSY combinationally: accept with the BUSY the core will see
         dut->eval();
         if (dut->DDRAM_WE && !dut->DDRAM_BUSY) {
-            const uint32_t byte = uint32_t(dut->DDRAM_ADDR) << 3;
-            if (byte >= 0x24000000u && byte < 0x25800000u && rot) {
-                for (int i = 0; i < 8; i++)
-                    if (dut->DDRAM_BE & (1 << i))
-                        rot_mem[byte - 0x24000000u + i] = uint8_t(dut->DDRAM_DIN >> (8 * i));
-                rot_writes++;
-            } else {
-                printf("sys: DDR3 write outside the rotator's window, %08x\n", byte);
-                exit(1);
-            }
+            printf("sys: a DDR3 write, and nothing in the core writes DDR3: %08x\n",
+                   uint32_t(dut->DDRAM_ADDR) << 3);
+            exit(1);
         }
         if (dut->DDRAM_RD && !dut->DDRAM_BUSY) {
             uint32_t byte = uint32_t(dut->DDRAM_ADDR & 0x1ffffff) << 3;
@@ -343,23 +327,6 @@ int main(int argc, char **argv) {
             cap_seen_blank = false;
             long g = 0;
             while ((cap_armed || capturing) && ++g < 20000000) step1x();
-            if (rot) {
-                // the buffer this frame went into, then time for the FIFO to drain; the rotator
-                // moves to its next buffer at the VSync rise, four lines on
-                const int fb = dut->rot_fb;
-                for (int i = 0; i < 4000; i++) step1x();
-                const uint8_t *b = &rot_mem[size_t(fb) << 23];
-                long rdiff = 0;
-                for (int y = 0; y < 448; y++)
-                    for (int x = 0; x < 512; x++) {
-                        const uint8_t *px = &b[size_t(x) * 1792 + size_t(447 - y) * 4];
-                        const uint8_t *want_px = &frame_rgb[(size_t(y) * 512 + x) * 3];
-                        if (px[0] != want_px[0] || px[1] != want_px[1] || px[2] != want_px[2]) rdiff++;
-                    }
-                printf("sys: frame %d rotated: %ld of %d pixels in buffer %d differ from the frame "
-                       "turned 90 degrees clockwise\n", mame_frame, rdiff, 448 * 512, fb);
-                if (rdiff) rot_bad_frames++;
-            }
             // every captured frame is kept, whether or not there is a model to compare with
             {
                 FILE *o = fopen(("debug/" + set + "-sys/frame" + std::to_string(mame_frame) +
@@ -466,10 +433,8 @@ int main(int argc, char **argv) {
 
     printf("sys: faults %02x; %ld compared reads differ; %ld frames differ\n", dut->dbg_fault,
            bad_reads, frames_bad);
-    if (rot)
-        printf("sys: rotator: %ld writes, FIFO overflow %d\n", rot_writes, dut->rot_overflow);
     const bool fail = bad_reads || frames_bad || (dut->dbg_fault & 0x1f) || nv_bad ||
-                      rot_bad_frames || dut->rot_overflow ||
+
                       nv_pulses != nv_writes || nv_bad_dl || nv_bad_cpu;
     delete dut;
     return fail ? 1 : 0;

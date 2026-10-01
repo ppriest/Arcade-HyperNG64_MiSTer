@@ -26,9 +26,6 @@ module tb_sys (
     input  logic  [7:0] ioctl_dout,
     input  logic [63:0] inputs_flat,    // IN0 in bits 7:0
     input  logic        flip,
-    input  logic        rotate,         // HDMI rotation on, clockwise
-    output logic  [1:0] rot_fb,         // the rotator's buffer being written
-    output logic        rot_overflow,
     output logic  [7:0] nv_rdata,
     output logic        nv_written,
 
@@ -85,28 +82,12 @@ module tb_sys (
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
         .DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE),
-        .rot_we(rot_we), .rot_addr(rot_addr), .rot_din(rot_din), .rot_be(rot_be),
-        .rot_overflow(rot_overflow),
+
         .ce_pix(ce_pix), .hsync(hsync), .vsync(vsync), .hblank(hblank), .vblank(vblank),
         .r(r), .g(g), .b(b),
         .lamp_we(), .lamp_addr(), .lamp_data(),
-        .dbg_fault(dbg_fault), .dbg_layer_off(5'd0), .dbg_load(), .dbg_mcu_pc(),
+        .dbg_fault(dbg_fault), .dbg_layer_off(6'd0), .dbg_load(), .dbg_mcu_pc(),
         .dbg_mcu_fetch());
-
-    // the HDMI rotator on the native raster, as HyperNG64.sv has it
-    logic        hsync, vsync, rot_we;
-    logic [28:0] rot_addr;
-    logic [63:0] rot_din;
-    logic  [7:0] rot_be;
-    screen_rotate_two u_rot (
-        .CLK_VIDEO(clk2x), .CE_PIXEL(ce_pix),
-        .VGA_R(r), .VGA_G(g), .VGA_B(b), .VGA_HS(hsync), .VGA_VS(vsync), .VGA_DE(~(hblank | vblank)),
-        .rotate_ccw(1'b0), .no_rotate(~rotate), .flip(1'b0), .two_screen(1'b0), .video_rotated(),
-        .FB_EN(), .FB_FORMAT(), .FB_WIDTH(), .FB_HEIGHT(), .FB_BASE(), .FB_STRIDE(),
-        .FB_VBL(1'b0), .FB_LL(1'b0),
-        .DDRAM_CLK(), .DDRAM_BUSY(1'b0), .DDRAM_BURSTCNT(), .DDRAM_ADDR(rot_addr),
-        .DDRAM_DIN(rot_din), .DDRAM_BE(rot_be), .DDRAM_WE(rot_we), .DDRAM_RD());
-    assign rot_fb = u_rot.i_fb;
 
     sdram_chip_model_wide #(.MB(32)) u_chip (
         .clk(clk2x), .SDRAM_DQ(SDRAM_DQ), .SDRAM_A(SDRAM_A), .SDRAM_BA(SDRAM_BA),

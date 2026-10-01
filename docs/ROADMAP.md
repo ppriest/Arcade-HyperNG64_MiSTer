@@ -103,7 +103,7 @@ Phase 0 so far:
   Verilator with the CPU and PLL stubbed; no Quartus run yet (user decision).
 - **The standard feature set is in, in simulation.** NVRAM to the `.nvm` (`sim/sys_tb`, both
   directions), CRT Adjust (`sim/crt_tb`), HDMI scaling and crop, Flip Screen from the OSD or a fake
-  DIP (`sys_tb +flip=1`: frames exact against the model turned 180 degrees), HDMI rotation
+  DIP (`sys_tb +flip=1`: frames exact against the model turned 180 degrees), HDMI rotation (since dropped for area)
   (`sys_tb +rot=1`: the rotated buffers exact, the frames exact under the writes), the hidden
   Debug page (layer switches) and ISSP instance F in the stp revision. Hiscore is n/a (no
   `hiscore.dat` entry). None of it has been built or run on hardware.
@@ -113,11 +113,33 @@ Phase 0 so far:
   (memories built from registers; `docs/LESSONS_LEARNED.md`). The clk2x paths are not yet looked at:
   Quartus is on hold (user decision). The sprite engine's z-buffer has since moved to MLABs,
   unsynthesised.
+- **Second full build, 2D shrunk, no 3D** (release revision, 73b78aa): 29,192 of 41,910 ALMs (70%;
+  the first was 35,048), 2,036,545 block memory bits, 42 DSP. Setup slack: clk2x -4.899 ns (was
+  -34.823; now the sprite engine's candidate list, `hng64_sprite` `ci` to `cand_h`), clk93 -2.509 (the
+  VR4300's forwarding into `stall1`; underclocking is accepted), the SDRAM pins +0.031, the rest met.
+  12,718 ALMs free for the 3D, whose first standalone fit is 12,536 (docs/phase3_3d.md).
 - **Phase 3 started (user approval).** `scripts/render_3d.py` transcribes `hng64_3d.ipp` and
   `poly.h`'s rasteriser and clipper in float32 and replays the display-list writes of a trace
   (the bus trace, or a capture's own write log, `mame_capture.py --wlog`). Exact against MAME: the
   BIOS logo (frames 500-652, six frames) and in-game frame 2500, 0 of 229,376 pixels each. What
   in MAME's 3D reads as a slip rather than a guess is in `docs/MAME_KLUDGES.md`, 3D.
+- **3D rasteriser RTL** (`rtl/3d/hng64_raster.v`, SpinalHDL): plane gradients (one 20-bit
+  reciprocal a triangle), SpinalVoodoo's setup and span walker at HNG64's widths, and the pixel
+  unit (1/w by a 10-bit table and a Newton step, texel address, light). With the texel read and
+  depth test in the bench, the 3D buffer is identical to the fixed-point model's on six captures
+  (sim/raster_tb). A SpinalVoodoo walker bug fixed (`rtl/3d/PROVENANCE.md`). A prefetching
+  texture cache and the render buffer (depth plane with frame tags, colour planes, write-back
+  depth cache) work through models of hng64_ddram's ports: the colour plane written to DDR3
+  matches the model on six captures, two frames each; the start-up texture blocking copy is
+  byte-exact.
+- **3D in the core** (`rtl/hng64_3d.sv`, `rtl/video/hng64_fb3d.sv`; `docs/phase3_3d.md`, In the
+  core): the upload queue, frame sequence and double-buffered display, the DDR3 clients, and the
+  3D as the mixer's sixth contributor. `sim/g3d_tb` (engine, rasteriser and hng64_ddram from a
+  capture's events) identical to the model on sams64 2500; `scripts/video_regress.sh` passes.
+  The full fit and the display path on a whole frame are still to run.
+- **3D geometry specified in integers** (`scripts/geom_int.py`, the model's default): within a few
+  pixels of float geometry against MAME on six frames. Its RTL is a microcoded engine (user
+  decision; `docs/phase3_3d.md`, Geometry RTL): products at most 36 x 36 bits, divides by magnitude.
 Hardware notes and feasibility from MAME (`E:/mame` 5ae594bafe9) and the N64 core
 (`MiSTer-devel/N64_MiSTer` adbf9b5). No RTL yet.
 
@@ -408,6 +430,21 @@ frame-buffer read-out into the mixer, flip) in SystemVerilog, reusing SpinalVood
 setup, rasteriser, texture cache and DDR3 back end where they fit. SpinalVoodoo has no licence;
 one has been asked of its author and is assumed granted for planning (user decision). If the
 answer is no, reuse is off and the plan is redone.
+
+**3D: area (user decision).** Phase 2 as built leaves about 6,900 ALMs; the 3D is estimated at
+10,000-11,500 (`docs/phase3_3d.md`, Area). The area comes from shrinking the 2D video and from
+dropping HDMI rotation (done). Not taken: the framework's size options, a cheaper 3D.
+
+**3D: architecture (user decisions).** Render buffer in DDR3 with a frame tag instead of a clear;
+two buffers swapped at the clearing vblank; SpinalVoodoo's triangle setup and rasteriser, widened,
+the command, geometry, texture and pixel units ours (`docs/phase3_3d.md`, Proposed architecture).
+
+**3D: memory (user decisions).** Immediate mode kept: depth (32 bits: frame tag and z) and colour
+(16 bits) as two planes in DDR3, the display reading colour only. A frame too heavy to finish in
+time shows the previous 3D frame (for HACKS when built); fatfurwa 2500 is estimated at 63% of the
+DDRAM port's data clocks on its own. Tiled rendering, 3-4x less traffic, was not taken: it puts
+the 3D two frames behind the 2D. The texture ROM is copied once at start-up into 4 x 8-byte blocks
+(32-byte lines), 1.4-3x fewer texture misses (`docs/phase3_3d.md`, DDR3 traffic).
 
 **3D: fixed point, not MAME's floats.** Every 3D input is 16-bit fixed point: MAME's `uToF`
 (`hng64_3d.ipp:1288`) is `s16 / 32768` on the matrices, vertices, texture coordinates and

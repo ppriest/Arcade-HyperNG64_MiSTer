@@ -1099,6 +1099,18 @@ ack address that is also an input port must acknowledge on writes only.
   guess, the `initial` block, cost a full build; a one-module Quartus project answers it in a
   minute. Check a RAM form in isolation before a full synthesis, not after.
 
+### [HyperNG64] SpinalHDL: `Mem.write`'s explicit `enable` is not qualified by the enclosing `when`
+
+`mem.write(addr, data)` inside `when(c)` writes only when `c`; `mem.write(addr, data, enable = e)`
+inside the same `when(c)` writes whenever `e`, `c` or not. The generated Verilog shows it: the
+write's `if` tests `e` alone. Passing an explicit enable therefore means passing the whole
+condition. Found in the 3D render buffer (`rtl/3d/spinal/hng64/raster/RenderBuf.scala`): the depth
+test's write used `enable = px === k` inside `when(pass)`, so every compare stage wrote its z
+whether it passed or not. `sim/raster_tb` showed 339 of 262,144 pixels wrong on sams64 2500, the
+same count at every memory latency; a replay of the compare stage's own fragments showed stored
+z values that had failed their test. Two write calls on one `Mem` also give two write ports, which
+an MLAB does not have: merge them into one call with muxed address and data.
+
 ## Debug instrumentation: how not to fool yourself
 
 - **Never reset a debug counter with the reset you are investigating.** Two `0x000000` readings were

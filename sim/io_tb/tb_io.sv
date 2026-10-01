@@ -75,7 +75,10 @@ module tb_io (
         .dma_go(dma_go), .dma_done(dma_done),
         .v_req(v_req), .v_we(v_we), .v_sel(v_sel), .v_addr(v_addr), .v_be(v_be),
         .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata),
-        .fbcontrol0(), .dbg_mcu_en_0c());
+        .fbcontrol(), .fbscroll(), .texwrap(),
+        .dl_we(), .dl_addr(), .dl_be(), .dl_wdata(), .dl_up(),
+        .dl_busy(1'b0), .dl_upbusy(1'b0), .dl_full(1'b0),
+        .dbg_mcu_en_0c());
 
     logic        st_rvalid, st_wdone;
     logic [63:0] st_rdata;

@@ -13,10 +13,9 @@
 // are 32, 128 and 160 bytes apart, and a sprite's two rows 128. What buys the throughput is the
 // depth in flight, not the width of each read.
 //
-// The HPS writes the ROM image before the core runs, so the clients only read. The one writer is
-// the HDMI rotator (screen_rotate_two, through hng64_wfifo): single beats into its own window,
-// issued when no read is, or before reads once its FIFO is half full, so a rotated picture loses
-// no pixels to a busy video line. Writes take no place in the reply queue.
+// The HPS writes the ROM image before the core runs. The one write port, the 3D's (hng64_3d),
+// takes single beats from a FIFO head, issued when the granted client is not reading, or before
+// reads once the FIFO reports itself half full. Writes take no place in the reply queue.
 
 module hng64_ddram #(
     parameter int N = 2,                 // clients
@@ -48,28 +47,49 @@ module hng64_ddram #(
     input  logic        c_rd   [0:N-1],
     output logic        c_ready [0:N-1],
     output logic [63:0] c_data,
-    output logic        c_valid [0:N-1]
+    output logic        c_valid [0:N-1],
+    output logic  [7:0] dbg_inflight
 );
 
     localparam int IW = (N <= 2) ? 1 : (N <= 4) ? 2 : 3;
 
     assign DDRAM_BURSTCNT = 8'd1;
-    assign DDRAM_DIN      = w_din;
     assign c_data         = DDRAM_DOUT;
 
-    // ---- which client to serve: round robin, so no client can be starved by a busier one -------
-    logic [IW-1:0] last, pick;
-    logic          any;
+    // ---- the issue register --------------------------------------------------------------------------
+    // What goes to the port is a register, loaded when it is empty or its contents are being
+    // taken this clock. So nothing a client computes reaches DDRAM_ADDR, or another client's
+    // ready, in the same clock: the first full fit had the geometry engine's decode in front of
+    // the HPS port (-9.6 ns) and every video engine (docs/phase3_3d.md, Timing).
+    logic          o_valid, o_we;
+    logic   [28:0] o_addr;
+    logic   [63:0] o_din;
+    logic    [7:0] o_be;
+
+    wire load = !o_valid || !DDRAM_BUSY;
+
+    assign DDRAM_RD   = o_valid && !o_we;
+    assign DDRAM_WE   = o_valid && o_we;
+    assign DDRAM_ADDR = o_addr;
+    assign DDRAM_DIN  = o_din;
+    assign DDRAM_BE   = o_be;
+
+    // ---- which client: a registered round-robin grant ------------------------------------------------
+    // Only the granted client can be taken, so a client's ready depends on its own request and on
+    // registers. The grant moves to the next client asking once its holder is served or stops
+    // asking; with requests held until ready, that loses no clock while others are waiting.
+    logic [IW-1:0] gnt, nxt;
+    logic          nxt_any;
 
     always_comb begin
-        pick = '0;
-        any  = 1'b0;
+        nxt = gnt;
+        nxt_any = 1'b0;
         for (int k = 1; k <= N; k++) begin
             int unsigned i;
-            i = (int'(last) + k) % N;
-            if (!any && c_rd[i]) begin
-                pick = IW'(i);
-                any  = 1'b1;
+            i = (int'(gnt) + k) % N;
+            if (!nxt_any && c_rd[i]) begin
+                nxt = IW'(i);
+                nxt_any = 1'b1;
             end
         end
     end
@@ -77,35 +97,47 @@ module hng64_ddram #(
     // ---- in flight, and the queue that routes each reply back ------------------------------------
     logic [IW-1:0] q [0:127];
     logic    [7:0] q_w, q_r;
-    wire     [7:0] inflight = q_w - q_r;
-    wire           read_ok   = any && (inflight < 8'(LIMIT));
-    wire           wr_sel    = w_valid && (w_urgent || !read_ok);
-    wire           can_issue = read_ok && !wr_sel && !DDRAM_BUSY;
+    wire     [7:0] inflight = q_w - q_r;      // taken into the issue register, not yet answered
+    assign dbg_inflight = inflight;
+    wire           room     = inflight < 8'(LIMIT);
+    wire           g_rd     = c_rd[gnt];
+    logic          asked;                    // some client asked last clock
+    wire           wr_sel   = w_valid && (w_urgent || !asked || !room);
+    wire           rd_ok    = load && !wr_sel && room;     // registers and w_valid only
+    wire           rd_take  = rd_ok && g_rd;
 
-    assign w_ready    = wr_sel && !DDRAM_BUSY;
-    assign DDRAM_WE   = w_ready;
-    assign DDRAM_RD   = can_issue;
-    assign DDRAM_BE   = wr_sel ? w_be : 8'hFF;
-    assign DDRAM_ADDR = wr_sel ? w_addr : {4'b0011, c_addr[pick][27:3]};
+    assign w_ready = load && wr_sel;
 
+    // each ready from its own request: rd_take's mux of all of them would put every client's
+    // request in front of every other client's ready as far as timing analysis can tell
     always_comb
         for (int i = 0; i < N; i++) begin
-            c_ready[i] = can_issue && (pick == IW'(i));
+            c_ready[i] = rd_ok && (gnt == IW'(i)) && c_rd[i];
             c_valid[i] = DDRAM_DOUT_READY && (q[q_r[6:0]] == IW'(i));
         end
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            last <= '0;
-            q_w  <= 8'd0;
-            q_r  <= 8'd0;
+            gnt     <= '0;
+            q_w     <= 8'd0;
+            q_r     <= 8'd0;
+            o_valid <= 1'b0;
+            asked   <= 1'b0;
         end else begin
-            if (can_issue) begin
-                q[q_w[6:0]] <= pick;
-                q_w  <= q_w + 8'd1;
-                last <= pick;
+            if (load) begin
+                o_valid <= w_ready || rd_take;
+                o_we    <= w_ready;
+                o_addr  <= w_ready ? w_addr : {4'b0011, c_addr[gnt][27:3]};
+                o_din   <= w_din;
+                o_be    <= w_ready ? w_be : 8'hFF;
+            end
+            if (rd_take) begin
+                q[q_w[6:0]] <= gnt;
+                q_w <= q_w + 8'd1;
             end
             if (DDRAM_DOUT_READY) q_r <= q_r + 8'd1;
+            if (rd_take || !g_rd) gnt <= nxt;
+            asked <= nxt_any;
         end
     end
 

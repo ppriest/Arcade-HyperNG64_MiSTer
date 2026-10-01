@@ -79,13 +79,6 @@ module hng64_core #(
     output logic  [7:0] DDRAM_BE,
     output logic        DDRAM_WE,
 
-    // the HDMI rotator's writes (screen_rotate_two in HyperNG64.sv), clk2x: one clock each, queued
-    input  logic        rot_we,
-    input  logic [28:0] rot_addr,
-    input  logic [63:0] rot_din,
-    input  logic  [7:0] rot_be,
-    output logic        rot_overflow,   // sticky: a rotated pixel was lost
-
     // video, clk2x
     output logic        ce_pix,
     output logic        hsync,
@@ -103,11 +96,18 @@ module hng64_core #(
     // debug: sticky faults, for the OSD page and the ISSP probe
     output logic  [5:0] dbg_fault,      // bus 64-bit I/O, DMA outside store, MCU opcode,
                                         // MCU overrun, video line late, layout blob invalid
-    input  logic  [4:0] dbg_layer_off,  // the OSD's debug page: tilemaps 0-3, sprites; 0 = on
+    input  logic  [5:0] dbg_layer_off,  // the OSD's debug page: tilemaps 0-3, sprites, 3D; 0 = on
     output logic  [7:0] dbg_load,       // {dl0_seen, cfg_valid, ldr_pending, ldr_done,
                                         //  ldr_active, rom_loaded, mem_reset, game_reset}
     output logic [15:0] dbg_mcu_pc,
-    output logic        dbg_mcu_fetch   // one clk2x clock per MCU instruction
+    output logic        dbg_mcu_fetch,  // one clk2x clock per MCU instruction
+    output logic [31:0] dbg_irq_pending,
+    output logic  [4:0] dbg_irq_level,
+    output logic  [7:0] dbg_ddr_inflight,
+    output logic [12:0] dbg_3d,         // {dl_full, dl_upbusy, dl_busy, state[3:0], queued[5:0]}
+    output logic        dbg_3d_tri,     // clk2x pulses
+    output logic        dbg_3d_up,      // clk1x pulses
+    output logic        dbg_mcu_int0    // the IO MCU's INT0 line (hng64_io, from 0x1f7021c4)
 );
 
     // declared ahead of the instances that share them
@@ -120,22 +120,31 @@ module hng64_core #(
     logic [25:0] srom_addr, prom_addr;
     logic        srom_rd, prom_rd;
     logic [63:0] ddr_data;
-    logic [27:0] c_addr [0:3];
-    logic        c_rd [0:3];
-    logic        c_ready [0:3];
-    logic        c_valid [0:3];
+    localparam int NDDR = 8;            // srom, prom, gameprg, BIOS copy, verts, textures, depth, 3D line
+    logic [27:0] c_addr [0:NDDR-1];
+    logic        c_rd [0:NDDR-1];
+    logic        c_ready [0:NDDR-1];
+    logic        c_valid [0:NDDR-1];
+
+    // The 3D's buffers in DDR3, above every set's ROM image (scripts/build_mra.py D3_BASE):
+    // textures0 in blocks (16 MB), the depth plane (1 MB), two colour planes (512 KB each).
+    localparam logic [27:0] D3_TEX = 28'hE000000, D3_DEPTH = 28'hF000000,
+                            D3_COL0 = 28'hF100000, D3_COL1 = 28'hF180000;
+    logic        show_valid, show_plane, shown_valid, shown_plane;
+    logic [27:0] plane_base [0:1];
 
     // ---- loading and resets ----------------------------------------------------------------------
     localparam int NREG = 6;            // gameprg, bios, scrtile, sprtile, textures0, verts
     logic [27:0] cfg_base [0:NREG-1];
     logic [27:0] cfg_size [0:NREG-1];
     logic        cfg_valid;
+    logic [31:0] cfg_flags;
 
     hng64_romcfg #(.N(NREG)) u_cfg (
         .clk(clk1x),
         .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
         .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-        .base(cfg_base), .size(cfg_size), .valid(cfg_valid));
+        .base(cfg_base), .size(cfg_size), .flags(cfg_flags), .valid(cfg_valid));
 
     wire dl0 = ioctl_download && (ioctl_index == 16'd0);
     logic game_reset, mem_reset;
@@ -266,36 +275,35 @@ module hng64_core #(
         .c_ready(s_ready), .c_data(s_data), .c_valid(s_valid),
         .d_addr(ldr_saddr), .d_din(ldr_sdin), .d_we(ldr_swe), .d_ready(ldr_sready));
 
-    // ---- DDR3: the two tile ROMs, gameprg, and the BIOS copy -------------------------------------------
+    // ---- DDR3: the two tile ROMs, gameprg, the BIOS copy, and the 3D's four readers and writer ------
+    logic [27:0] v3_addr, t3_addr, z3_addr, f3_addr, w3_addr;
+    logic        v3_rd, t3_rd, z3_rd, f3_rd;
+    logic [63:0] w3_data;
+    logic  [7:0] w3_be;
+    logic        w3_valid, w3_urgent, w3_ready;
 
     always_comb begin
         c_addr[0] = cfg_base[2] + {2'd0, srom_addr};    c_rd[0] = srom_rd;
         c_addr[1] = cfg_base[3] + {2'd0, prom_addr};    c_rd[1] = prom_rd;
         c_addr[2] = prg_addr;                           c_rd[2] = prg_rd;
         c_addr[3] = ldr_addr;                           c_rd[3] = ldr_rd;
+        c_addr[4] = v3_addr;                            c_rd[4] = v3_rd;
+        c_addr[5] = t3_addr;                            c_rd[5] = t3_rd;
+        c_addr[6] = z3_addr;                            c_rd[6] = z3_rd;
+        c_addr[7] = f3_addr;                            c_rd[7] = f3_rd;
         prg_ready = c_ready[2];  prg_valid = c_valid[2];
         ldr_ready = c_ready[3];  ldr_valid = c_valid[3];
     end
 
-    logic [28:0] w_addr;
-    logic [63:0] w_din;
-    logic  [7:0] w_be;
-    logic        w_valid, w_urgent, w_ready;
-
-    hng64_wfifo u_rotq (
-        .clk(clk2x), .reset(mem_reset),
-        .in_we(rot_we), .in_addr(rot_addr), .in_din(rot_din), .in_be(rot_be),
-        .w_addr(w_addr), .w_din(w_din), .w_be(w_be), .w_valid(w_valid), .w_urgent(w_urgent),
-        .w_ready(w_ready), .overflow(rot_overflow));
-
-    hng64_ddram #(.N(4)) u_ddr (
+    hng64_ddram #(.N(NDDR)) u_ddr (
         .clk(clk2x), .reset(mem_reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
         .DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE),
-        .w_addr(w_addr), .w_din(w_din), .w_be(w_be), .w_valid(w_valid), .w_urgent(w_urgent),
-        .w_ready(w_ready),
-        .c_addr(c_addr), .c_rd(c_rd), .c_ready(c_ready), .c_data(ddr_data), .c_valid(c_valid));
+        .w_addr({4'b0011, w3_addr[27:3]}), .w_din(w3_data), .w_be(w3_be), .w_valid(w3_valid),
+        .w_urgent(w3_urgent), .w_ready(w3_ready),
+        .c_addr(c_addr), .c_rd(c_rd), .c_ready(c_ready), .c_data(ddr_data), .c_valid(c_valid),
+        .dbg_inflight(dbg_ddr_inflight));
 
     // ---- the main board's I/O -----------------------------------------------------------------------
     logic        v_req, v_we, v_ack;
@@ -308,7 +316,14 @@ module hng64_core #(
     logic        mcu_int0, mcu_irq_2x, mcu_irq;
     logic [10:0] dp_addr;
     logic        dp_we;
-    logic  [7:0] dp_wdata, dp_rdata, fbcontrol0;
+    logic  [7:0] dp_wdata, dp_rdata;
+    logic  [7:0] fbcontrol [0:3];
+    logic [31:0] fbscroll;
+    logic  [7:0] texwrap [0:31];
+    logic        dl_we, dl_up, dl_busy, dl_upbusy, dl_full;
+    logic  [6:0] dl_addr;
+    logic  [3:0] dl_be;
+    logic [31:0] dl_wdata;
 
     // the .nvm file: downloaded as index 4, read back through ioctl_addr on an upload
     wire nv_dl_we = ioctl_download && ioctl_index == 16'd4 && ioctl_wr && ioctl_addr < 27'h4000;
@@ -330,7 +345,10 @@ module hng64_core #(
         .dma_go(dma_go), .dma_done(dma_done),
         .v_req(v_req), .v_we(v_we), .v_sel(v_sel), .v_addr(v_addr), .v_be(v_be),
         .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata),
-        .fbcontrol0(fbcontrol0), .dbg_mcu_en_0c());
+        .fbcontrol(fbcontrol), .fbscroll(fbscroll), .texwrap(texwrap),
+        .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
+        .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full),
+        .dbg_mcu_en_0c(), .dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level));
 
     // ---- the IO MCU: 8 MHz from 125, as an accumulator (8/125 exactly) ----------------------------------
     logic [6:0] mcu_acc;
@@ -379,8 +397,8 @@ module hng64_core #(
     logic [13:0] sram_addr;
     logic        sram_rd;
     logic [31:0] sram_data;
-    logic [11:0] pal_a [0:4];
-    logic [31:0] pal_d [0:4];
+    logic [11:0] pal_a;
+    logic [31:0] pal_d;
     logic        line_start, frame_start, vbusy, px_we, vlate;
     logic  [8:0] line, px_x;
     logic [23:0] px_rgb;
@@ -388,7 +406,7 @@ module hng64_core #(
     hng64_vbus u_vbus (
         .clk1x(clk1x), .clk2x(clk2x), .reset(game_reset),
         .v_req(v_req), .v_we(v_we), .v_sel(v_sel), .v_addr(v_addr), .v_be(v_be),
-        .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata), .fbcontrol0(fbcontrol0),
+        .v_wdata(v_wdata), .v_ack(v_ack), .v_rdata(v_rdata), .fbcontrol0(fbcontrol[0]),
         .videoregs(videoregs), .tcram(tcram), .spriteregs0(spriteregs0),
         .spriteregs1(spriteregs1), .bg_rgb(bg_rgb),
         .vis_x0(vis_x0), .vis_y0(vis_y0), .vis_w(vis_w), .vis_h(vis_h),
@@ -412,6 +430,12 @@ module hng64_core #(
         .prom_addr(prom_addr), .prom_rd(prom_rd), .prom_ready(c_ready[1]),
         .prom_data(ddr_data), .prom_valid(c_valid[1]),
         .pal_a(pal_a), .pal_d(pal_d),
+        .vis_y0(vis_y0), .vis_h(vis_h), .fbcontrol0(fbcontrol[0]), .fbcontrol2(fbcontrol[2]),
+        .fbscroll(fbscroll),
+        .show_valid(show_valid), .show_plane(show_plane),
+        .shown_valid(shown_valid), .shown_plane(shown_plane), .plane_base(plane_base),
+        .d3_addr(f3_addr), .d3_rd(f3_rd), .d3_ready(c_ready[7]), .d3_data(ddr_data),
+        .d3_valid(c_valid[7]),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
         .dbg_we(), .dbg_x(), .dbg_pix());
 
@@ -426,6 +450,32 @@ module hng64_core #(
         .raster_pos(raster_pos), .vblank_irq(vblank_irq), .raster_irq(raster_irq),
         .net_irq(net_irq), .vblank_level(vblank_level),
         .dbg_late(vlate));
+
+    // ---- 3D ---------------------------------------------------------------------------------------------
+    assign plane_base[0] = D3_COL0;
+    assign plane_base[1] = D3_COL1;
+
+    hng64_3d u_3d (
+        .clk1x(clk1x), .clk2x(clk2x), .reset(game_reset),
+        .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
+        .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full), .texwrap(texwrap),
+        .vblank(vblank_level), .clear_en(tcram[20][16]),
+        .have3d(cfg_size[4] != 28'd0 && cfg_size[5] != 28'd0), .samsho(cfg_flags[0]),
+        .vert_base(cfg_base[5]), .vert_len(cfg_size[5][24:1]),
+        .tex_rom(cfg_base[4]), .tex_groups(cfg_size[4][24:13]), .tex_blocked(D3_TEX),
+        .depth_base(D3_DEPTH), .plane_base(plane_base),
+        .show_valid(show_valid), .show_plane(show_plane),
+        .shown_valid(shown_valid), .shown_plane(shown_plane),
+        .v_addr(v3_addr), .v_rd(v3_rd), .v_ready(c_ready[4]), .v_valid(c_valid[4]),
+        .t_addr(t3_addr), .t_rd(t3_rd), .t_ready(c_ready[5]), .t_valid(c_valid[5]),
+        .z_addr(z3_addr), .z_rd(z3_rd), .z_ready(c_ready[6]), .z_valid(c_valid[6]),
+        .d_data(ddr_data),
+        .w_addr(w3_addr), .w_data(w3_data), .w_be(w3_be), .w_valid(w3_valid),
+        .w_urgent(w3_urgent), .w_ready(w3_ready),
+        .dbg_state(dbg_3d[9:6]), .dbg_queued(dbg_3d[5:0]), .dbg_tri(dbg_3d_tri));
+    assign dbg_3d[12:10] = {dl_full, dl_upbusy, dl_busy};
+    assign dbg_3d_up     = dl_up;
+    assign dbg_mcu_int0  = mcu_int0;
 
     assign dbg_fault = {!cfg_valid, vlate, mcu_overrun, mcu_unimpl, dma_err, err64};
     assign dbg_load  = {dl0_seen, cfg_valid, ldr_pending, ldr_done, ldr_active, rom_loaded,

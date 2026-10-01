@@ -71,16 +71,13 @@ REQUIRED_INSTANCES = (
     "u_sdram|sdram:u_sdram",           # the SDRAM controller, inside hng64_sdram
     "hng64_ddram:u_ddr",               # the DDR3 transport
     "hng64_crt:u_crt",                 # CRT Adjust
-    "screen_rotate_two:screen_rotate", # HDMI rotation
     "video_freak:video_freak",         # HDMI scaling and crop
 )
 
 # Macros the design needs defined in the .qsf, and what breaks without each.
 # Presence is not connection: a module can stay in the netlist with its ports
 # bound to implicitly declared wires because a VERILOG_MACRO went missing.
-REQUIRED_MACROS = {
-    "MISTER_FB": "HDMI rotation needs the FB_* ports",
-}
+REQUIRED_MACROS = {}
 # ---------------------------------------------------------------------------
 
 

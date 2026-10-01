@@ -117,9 +117,10 @@ int main(int argc, char **argv) {
 
     for (int y = 0; y < HEIGHT; y++) {
         std::fill(got.begin(), got.end(), 0xFFFFFFFF);
-        // both RAMs answer a cycle after their address: lb_q holds the line-buffer address from
-        // the previous cycle, and reading pal_a before eval() gives the palette the same delay
-        int lb_q = 0;
+        // both RAMs answer a cycle after their address: lb_q and pal_q hold the addresses from the
+        // previous cycle (the mixer's palette address comes from its registers, so it has to be
+        // taken after eval(), as the line-buffer address is)
+        int lb_q = 0, pal_q = 0;
         auto serve = [&]() {
             size_t o = (size_t(y) * WIDTH + lb_q) * 2;
             auto rd = [&](const std::vector<uint8_t> &v) -> uint16_t {
@@ -130,13 +131,10 @@ int main(int argc, char **argv) {
             dut->tm2_pix = rd(layer[2]);
             dut->tm3_pix = rd(layer[3]);
             dut->spr_pix = rd(spr);
-            dut->pal_d0 = be32(pal, size_t(dut->pal_a0) * 4);
-            dut->pal_d1 = be32(pal, size_t(dut->pal_a1) * 4);
-            dut->pal_d2 = be32(pal, size_t(dut->pal_a2) * 4);
-            dut->pal_d3 = be32(pal, size_t(dut->pal_a3) * 4);
-            dut->pal_d4 = be32(pal, size_t(dut->pal_a4) * 4);
+            dut->pal_d0 = be32(pal, size_t(pal_q) * 4);
             dut->eval();
             lb_q = dut->lb_x;
+            pal_q = dut->pal_a0;
         };
 
         dut->start = 1;

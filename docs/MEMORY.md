@@ -83,7 +83,7 @@ The 5CSEBA6 has 553 M10K blocks, 5,662,720 bits. Counted in blocks:
 |---|---|---|---|
 | tile VRAM | 4,194,304 | **410** | 512 KB |
 | sprite list | 393,216 | 39 | 48 KB, doubled for the vblank snapshot: 78 |
-| palette | 131,072 | 13 | six copies: five for the mixer's read ports, each needing its other port for the CPU's writes, and one for the CPU's reads: 78 |
+| palette | 131,072 | 13 | one RAM: the CPU on port A, the mixer, one contributor a clock, on port B (it was six copies while the mixer read five a clock): 13 |
 | NVRAM | 131,072 | 13 | 16 KB |
 | CPU caches and TLBs | 207,872 | 26 | measured, Phase 0 |
 | line buffers | 40,960 | 4 | 5 x 512 x 16, doubled for line-ahead: 8; plus the 2 x 512 x 24 output buffer: 3 |
@@ -166,26 +166,32 @@ largest would cost 64 MB of load time and fixing the bases in RTL would need an 
 | `0x2000000` | 1 MB | `bios` | CPU read; copied to SDRAM at start-up |
 | `0x2100000` | 32 or 64 MB | `scrtile` | tilemap engines, per line |
 | ... | 32 or 64 MB | `sprtile` | sprite engine, per line |
-| | | `textures0` | 3D, Phase 3; appends here |
-| | | `verts` | 3D, Phase 3; appends here |
+| ... | 16 MB | `textures0` | read once at start-up, into the blocked copy |
+| ... | 12 or 24 MB | `verts` | the geometry engine |
+| `0xE000000` | 16 MB | the blocked textures | 3D: written at start-up, then the texture cache |
+| `0xF000000` | 1 MB | the depth plane | 3D: read and written by the render buffer |
+| `0xF100000` | 512 KB | colour plane 0 | 3D: written by the render buffer, read per line for display |
+| `0xF180000` | 512 KB | colour plane 1 | the same, the other frame |
 
-`sams64` ends at `0x6100000` (97 MB); `sams64_2`, `fatfurwa` and `buriki` at `0xa100000`
-(161 MB). Phase 3 appends `textures0` (16 MB) and `verts` (12 MB or 24 MB).
+With `textures0` and `verts` (24 MB for the two sams64 sets, 12 MB for the others), `sams64`
+ends at `0x8900000` (137 MB), `sams64_2` at `0xC900000` (201 MB), `fatfurwa` and `buriki` at
+`0xBD00000` (189 MB). The 3D's buffers are fixed in
+`rtl/hng64_core.sv` (`D3_*`); `build_mra.py` refuses an image that reaches `D3_BASE`.
 
-Index 1's blob is `"HNG1"` then a 32-bit base and a 32-bit size, big-endian, for `gameprg`,
-`bios`, `scrtile`, `sprtile`, `textures0`, `verts` in that order. A size of zero means the
-`.mra` does not carry that region.
+Index 1's blob is `"HNG2"`, then a 32-bit base and a 32-bit size, big-endian, for `gameprg`,
+`bios`, `scrtile`, `sprtile`, `textures0`, `verts` in that order, then a 32-bit flags word
+(bit 0: `init_ss64`'s `m_samsho64_3d_hack`). A size of zero means the `.mra` does not carry that
+region; without `textures0` and `verts` the 3D stays off.
 
-The HDMI rotator is a separate window outside this one, as in the MS32 core
-(`0x24000000`, three 8 MB buffers), and is the only DDR3 writer at run time. Its one-clock pixel
-writes are queued in `rtl/memory/hng64_wfifo.sv` (256 entries) and issued by `hng64_ddram` when
-no read is, or before reads once the queue is half full. It writes only when Orientation is CW or
-CCW: 229,376 single-beat writes a frame, 14 M a second, scattered a column apart.
+The 3D is the only writer at run time, through `hng64_ddram`'s write port: the blocked textures
+at start-up, then depth and colour. HDMI rotation, which wrote a rotated frame at `0x24000000`,
+was dropped for area (user decision).
 
 Collision check: every module driving `DDRAM_ADDR` is listed here with its window, and the
 windows are shown disjoint. `DDRAM_ADDR` has one driver, `rtl/memory/hng64_ddram.sv`: reads at
-`0x30000000` + the layout above (`scrtile`, `sprtile`, `gameprg`, the BIOS copy), writes from the
-rotator at `0x24000000`-`0x257fffff`. `sim/sys_tb` stops on a write outside that window.
+`0x30000000` + the layout above (`scrtile`, `sprtile`, `gameprg`, the BIOS copy, `textures0`,
+`verts`, and the 3D's four regions), writes only at `0x3E000000`-`0x3F1FFFFF` (the 3D's), which
+no ROM region reaches. `sim/sys_tb` carries no 3D data, so it still stops on any write.
 
 ## Loading
 

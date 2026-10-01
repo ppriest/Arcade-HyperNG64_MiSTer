@@ -61,12 +61,15 @@ NVRAM_SIZE = 0x4000
 MAMEVERSION = "0285"
 
 # The regions the core reads at run time, in DDR3 order. `textures0` and `verts`
-# are Phase 3: they append at the end, so adding them moves nothing.
-LAYOUT = ["gameprg", "bios", "scrtile", "sprtile"]
+# are Phase 3: they append at the end, so adding them moved nothing.
+LAYOUT = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts"]
+# The 3D's own buffers start here (rtl/hng64_core.sv, D3_*): the blocked textures,
+# the depth plane and two colour planes. The ROM image must end below it.
+D3_BASE = 0xE000000
 ALIGN = 0x100000
 
 # rom index 1. Big-endian, the CPU's order; `layout()` fills it.
-CFG_MAGIC = b"HNG1"
+CFG_MAGIC = b"HNG2"
 CFG_REGIONS = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts"]
 
 
@@ -83,6 +86,14 @@ def games(text):
     return out
 
 
+def init_of(text, game):
+    """The GAME() line's init function, which sets the flags word."""
+    m = re.search(r'^GAMEL?\(\s*\d+,\s*' + game + r'\s*,(?:[^,]*,){4}\s*(\w+)\s*,', text, re.M)
+    if not m:
+        raise SystemExit(f"no GAME() line for {game}")
+    return m.group(1)
+
+
 def layout(decls):
     """[(region, base, size)] packed in LAYOUT order, aligned to ALIGN.
 
@@ -97,18 +108,22 @@ def layout(decls):
         size = decls[region][0]
         out.append((region, pos, size))
         pos += (size + ALIGN - 1) & ~(ALIGN - 1)
+    if pos > D3_BASE:
+        raise SystemExit(f"the ROM image ends at {pos:#x}, over the 3D buffers at {D3_BASE:#x}")
     return out
 
 
-def config_blob(lay):
-    """rom index 1: the magic, then a base and a size per region of CFG_REGIONS.
-    A region the .mra does not carry gets a zero size, which is how the core
-    knows it is absent."""
+def config_blob(lay, flags=0):
+    """rom index 1: the magic, then a base and a size per region of CFG_REGIONS,
+    then the flags word (bit 0: init_ss64's m_samsho64_3d_hack). A region the
+    .mra does not carry gets a zero size, which is how the core knows it is
+    absent."""
     have = {r: (b, s) for r, b, s in lay}
     blob = bytearray(CFG_MAGIC)
     for r in CFG_REGIONS:
         base, size = have.get(r, (0, 0))
         blob += base.to_bytes(4, "big") + size.to_bytes(4, "big")
+    blob += flags.to_bytes(4, "big")
     return bytes(blob)
 
 
@@ -230,7 +245,8 @@ def build(game, bl, meta, out_dir):
            '  </switches>',
            f"  <mameversion>{MAMEVERSION}</mameversion>"]
 
-    blob = config_blob(lay)
+    # init_ss64 sets m_samsho64_3d_hack (hng64.cpp:1847)
+    blob = config_blob(lay, flags=int(init_of(driver(), game) == "init_ss64"))
     # index 1 comes first: the HPS sends roms in file order, and the core needs
     # the layout before anything reads DDR3.
     xml.append('  <rom index="1"><part>' +

@@ -13,12 +13,14 @@
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>
   <mameversion>0285</mameversion>
-  <rom index="1"><part>48 4E 47 31 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 02 00 00 00 04 10 00 00 02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</part></rom>
+  <rom index="1"><part>48 4E 47 32 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 02 00 00 00 04 10 00 00 02 00 00 00 06 10 00 00 01 00 00 00 07 10 00 00 01 80 00 00 00 00 00 01</part></rom>
   <rom index="2" zip="hng64.zip" md5="none"><part name="tmp87ph40an.bin" crc="b70df21f" offset="0x4000" length="0x4000"/></rom>
   <!-- gameprg: 0x2000000 bytes at 0x0 -->
   <!-- bios: 0x100000 bytes at 0x2000000 -->
   <!-- scrtile: 0x2000000 bytes at 0x2100000 -->
   <!-- sprtile: 0x2000000 bytes at 0x4100000 -->
+  <!-- textures0: 0x1000000 bytes at 0x6100000 -->
+  <!-- verts: 0x1800000 bytes at 0x7100000 -->
   <rom index="0" zip="sams64.zip|hng64.zip" md5="none" address="0x30000000">
     <!-- gameprg: 0x2000000 bytes at 0x0, 0x1000000 of erase byte 0x00 -->
       <interleave output="32">
@@ -62,6 +64,22 @@
         <part name="002-sp06a.58" crc="1bcfe48e" map="0010"/>
         <part name="002-sp07a.59" crc="a5049bd7" map="0100"/>
         <part name="002-sp08a.60" crc="c2e57813" map="1000"/>
+      </interleave>
+    <!-- textures0: 0x1000000 bytes at 0x6100000 -->
+      <part name="002-tx01a.1" crc="233749b5"/>
+      <part name="002-tx02a.2" crc="d5074be2"/>
+      <part name="002-tx03a.3" crc="68c313f7"/>
+      <part name="002-tx04a.4" crc="f7dac24f"/>
+    <!-- verts: 0x1800000 bytes at 0x7100000 -->
+      <interleave output="48">
+        <part name="002-vt01a.17" crc="403fd7fd" map="000021"/>
+        <part name="002-vt02a.18" crc="e1885905" map="002100"/>
+        <part name="002-vt03a.19" crc="2074a6a6" map="210000"/>
+      </interleave>
+      <interleave output="48">
+        <part name="002-vt04a.20" crc="aefc4d94" map="000021"/>
+        <part name="002-vt05a.21" crc="d32ee9cb" map="002100"/>
+        <part name="002-vt06a.22" crc="13bf3636" map="210000"/>
       </interleave>
   </rom>
   <nvram index="4" size="16384"/>

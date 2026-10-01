@@ -1184,7 +1184,9 @@ begin
    TLBREAD_region   <= unsigned(TLBMEM_readData(99 downto 98));
    TLBREAD_random   <= TLBMEM_readData(100);
    
-   TLB_fetchAddrOutMasked <= "000" & TLB_fetchAddrOut(28 downto 0); -- only for 32bit mode, 64bit needs addr &= 0x7FFFFFFF;
+   -- HyperNG64: the full 32-bit physical address. Upstream masks it to 29 bits, enough for the
+   -- N64; the HNG64 maps its devices above 0x20000000 through the TLB (rtl/cpu/vr4300/PROVENANCE.md).
+   TLB_fetchAddrOutMasked <= TLB_fetchAddrOut;
    
    icpu_TLB_instr : entity work.cpu_TLB_instr
    port map

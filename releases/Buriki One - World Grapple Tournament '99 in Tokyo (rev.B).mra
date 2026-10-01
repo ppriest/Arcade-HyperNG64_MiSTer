@@ -13,12 +13,14 @@
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>
   <mameversion>0285</mameversion>
-  <rom index="1"><part>48 4E 47 31 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</part></rom>
+  <rom index="1"><part>48 4E 47 32 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 0A 10 00 00 01 00 00 00 0B 10 00 00 00 C0 00 00 00 00 00 00</part></rom>
   <rom index="2" zip="hng64.zip" md5="none"><part name="tmp87ph40an.bin" crc="b70df21f" offset="0x4000" length="0x4000"/></rom>
   <!-- gameprg: 0x2000000 bytes at 0x0 -->
   <!-- bios: 0x100000 bytes at 0x2000000 -->
   <!-- scrtile: 0x4000000 bytes at 0x2100000 -->
   <!-- sprtile: 0x4000000 bytes at 0x6100000 -->
+  <!-- textures0: 0x1000000 bytes at 0xa100000 -->
+  <!-- verts: 0xc00000 bytes at 0xb100000 -->
   <rom index="0" zip="buriki.zip|hng64.zip" md5="none" address="0x30000000">
     <!-- gameprg: 0x2000000 bytes at 0x0, 0x800000 of erase byte 0x00 -->
       <interleave output="32">
@@ -70,6 +72,17 @@
         <part name="007sp08a.118" crc="7a158c67" map="1000"/>
       </interleave>
       <part repeat="0x1000000">00</part>
+    <!-- textures0: 0x1000000 bytes at 0xa100000 -->
+      <part name="007tx01a.1" crc="a7774075"/>
+      <part name="007tx02a.2" crc="bc05d5fd"/>
+      <part name="007tx03a.3" crc="da9484fb"/>
+      <part name="007tx04a.4" crc="02aa3f46"/>
+    <!-- verts: 0xc00000 bytes at 0xb100000 -->
+      <interleave output="48">
+        <part name="007vt01a.17" crc="f78a0376" map="000021"/>
+        <part name="007vt02a.18" crc="f365f608" map="002100"/>
+        <part name="007vt03a.19" crc="ba05654d" map="210000"/>
+      </interleave>
   </rom>
   <nvram index="4" size="16384"/>
 </misterromdescription>

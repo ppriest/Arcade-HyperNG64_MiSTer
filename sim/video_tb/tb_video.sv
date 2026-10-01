@@ -145,14 +145,14 @@ module tb_video (
         pal_d[3] = pal_d3;
         pal_d[4] = pal_d4;
         pal_a0 = pal_a[0];
-        pal_a1 = pal_a[1];
-        pal_a2 = pal_a[2];
-        pal_a3 = pal_a[3];
-        pal_a4 = pal_a[4];
+        pal_a1 = 12'd0;
+        pal_a2 = 12'd0;
+        pal_a3 = 12'd0;
+        pal_a4 = 12'd0;
     end
 
     hng64_video dut (
-        .dbg_layer_off(5'd0),
+        .dbg_layer_off(6'd0),
         .clk(clk), .reset(reset),
         .frame_start(frame_start), .line_start(line_start), .line(line), .busy(busy),
         .videoregs(videoregs), .tcram(tcram),
@@ -166,7 +166,12 @@ module tb_video (
         .sram_addr(sram_addr), .sram_rd(sram_rd), .sram_data(sram_data),
         .prom_addr(prom_addr), .prom_rd(prom_rd), .prom_ready(c_ready[1]),
         .prom_data(ddr_data), .prom_valid(prom_valid),
-        .pal_a(pal_a), .pal_d(pal_d),
+        .pal_a(pal_a[0]), .pal_d(pal_d[0]),     // one read a clock; the bench's other four ports idle
+        // no 3D: no plane is ever shown, so the fetcher reads nothing
+        .vis_y0(10'd0), .vis_h(10'd448), .fbcontrol0(8'd0), .fbcontrol2(8'd0), .fbscroll(32'd0),
+        .show_valid(1'b0), .show_plane(1'b0), .shown_valid(), .shown_plane(),
+        .plane_base('{28'd0, 28'd0}),
+        .d3_addr(), .d3_rd(), .d3_ready(1'b0), .d3_data(64'd0), .d3_valid(1'b0),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
         .dbg_we(dbg_we), .dbg_x(dbg_x), .dbg_pix(dbg_pix));
 

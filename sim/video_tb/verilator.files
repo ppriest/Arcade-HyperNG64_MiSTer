@@ -3,6 +3,7 @@ rtl/video/hng64_tilemap.sv
 rtl/common/hng64_mlab.sv
 rtl/video/hng64_sprite.sv
 rtl/video/hng64_mixer.sv
+rtl/video/hng64_fb3d.sv
 rtl/common/hng64_bram.sv
 rtl/video/hng64_video.sv
 rtl/memory/hng64_ddram.sv

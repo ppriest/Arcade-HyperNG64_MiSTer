@@ -106,3 +106,5 @@ rtl/synth_check/output_files/
 rtl/synth_check/*.rpt
 rtl/synth_check/*.qws
 rtl/synth_check/*.log
+rtl/3d/spinal/.scala-build/
+rtl/3d/spinal/.bsp/

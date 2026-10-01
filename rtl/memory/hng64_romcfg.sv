@@ -7,9 +7,9 @@
 // sizes come from the .mra rather than from a parameter here. scripts/build_mra.py emits the
 // blob and the parts from one layout(), so they cannot disagree.
 //
-// The blob is "HNG1" then a 32-bit base and a 32-bit size, big-endian, per region, in the
-// order REGIONS below. A size of zero means the .mra does not carry that region, which is how
-// a Phase-2 .mra says it has no 3D data.
+// The blob is "HNG2" then a 32-bit base and a 32-bit size, big-endian, per region, in the
+// order REGIONS below, then a 32-bit flags word (bit 0: init_ss64's m_samsho64_3d_hack). A size
+// of zero means the .mra does not carry that region, which is how an .mra says it has no 3D data.
 //
 // Index 1 arrives before index 0 (the HPS sends roms in file order), so `valid` is up before
 // anything reads DDR3. It is not cleared by a later download: an OSD reset re-sends nothing.
@@ -27,10 +27,11 @@ module hng64_romcfg #(
 
     output logic [27:0] base [0:N-1],
     output logic [27:0] size [0:N-1],
+    output logic [31:0] flags,
     output logic        valid
 );
 
-    localparam int BYTES = 4 + 8 * N;
+    localparam int BYTES = 4 + 8 * N + 4;
 
     logic [7:0] blob [0:BYTES-1];
     logic       seen [0:BYTES-1];
@@ -60,8 +61,9 @@ module hng64_romcfg #(
             base[r] = be28(4 + 8 * r);
             size[r] = be28(4 + 8 * r + 4);
         end
+        flags = {blob[BYTES-4], blob[BYTES-3], blob[BYTES-2], blob[BYTES-1]};
         valid = all_seen && blob[0] == "H" && blob[1] == "N" && blob[2] == "G"
-                         && blob[3] == "1";
+                         && blob[3] == "2";
     end
 
 endmodule

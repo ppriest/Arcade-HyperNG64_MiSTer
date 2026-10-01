@@ -30,7 +30,6 @@ assign VGA_DISABLE = 0;
 assign HDMI_FREEZE = 0;
 assign HDMI_BLACKOUT = 0;
 assign HDMI_BOB_DEINT = 0;
-assign FB_FORCE_BLANK = 0;
 
 assign AUDIO_S = 1;
 assign AUDIO_L = 0;
@@ -44,12 +43,6 @@ assign BUTTONS = 0;
 //////////////////////////////////////////////////////////////////
 
 wire [1:0] ar = status[122:121];
-
-// HDMI orientation, for a monitor turned on its side. Auto is no rotation: every set is
-// horizontal. The rotator taps the native raster, so it follows Flip Screen and not CRT Adjust.
-wire [1:0] rot_sel    = status[64:63];
-wire       rotate_en  = rot_sel[1];                 // CW or CCW
-wire       rotate_ccw = (rot_sel == 2'd3);
 
 `include "build_id.v"
 
@@ -66,7 +59,6 @@ localparam CONF_STR = {
 	"-;",
 	// H5: the HDMI scaler's options, hidden under direct video where they do nothing
 	"H5O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
-	"H5O[64:63],Orientation,Auto,Off,CW,CCW;",
 	"O[65],Flip Screen,Off,On;",
 	"H5O[68:66],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer,HV-Integer;",
 	"H5O[70:69],Crop,Off,432 lines,360 lines;",
@@ -87,6 +79,7 @@ localparam CONF_STR = {
 	"H1P1O[83],Tilemap 2,On,Off;",
 	"H1P1O[84],Tilemap 3,On,Off;",
 	"H1P1O[85],Sprites,On,Off;",
+	"H1P1O[86],3D,On,Off;",
 	"-;",
 	"T[0],Reset;",
 	"R[0],Reset and close OSD;",
@@ -266,15 +259,16 @@ hng64_cpu u_cpu
 ///////////////////////   BOARD   /////////////////////////////////
 
 wire       ce_pix, hsync, vsync, hblank, vblank;
-wire        rot_we, rot_overflow;
-wire [28:0] rot_addr;
-wire [63:0] rot_din;
-wire  [7:0] rot_be;
 wire [7:0] r, g, b;
 wire [5:0] dbg_fault;
 wire [7:0] dbg_load;
 wire [15:0] dbg_mcu_pc;
 wire       dbg_mcu_fetch;
+wire [31:0] dbg_irq_pending;
+wire  [4:0] dbg_irq_level;
+wire  [7:0] dbg_ddr_inflight;
+wire [12:0] dbg_3d;
+wire        dbg_3d_tri, dbg_3d_up, dbg_mcu_int0;
 
 hng64_core u_core
 (
@@ -297,14 +291,15 @@ hng64_core u_core
 	.DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
 	.DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
 	.DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE),
-	.rot_we(rot_we), .rot_addr(rot_addr), .rot_din(rot_din), .rot_be(rot_be),
-	.rot_overflow(rot_overflow),
 
 	.ce_pix(ce_pix), .hsync(hsync), .vsync(vsync), .hblank(hblank), .vblank(vblank),
 	.r(r), .g(g), .b(b),
 	.lamp_we(), .lamp_addr(), .lamp_data(),
-	.dbg_fault(dbg_fault), .dbg_layer_off(status[85:81]),
-	.dbg_load(dbg_load), .dbg_mcu_pc(dbg_mcu_pc), .dbg_mcu_fetch(dbg_mcu_fetch)
+	.dbg_fault(dbg_fault), .dbg_layer_off(status[86:81]),
+	.dbg_load(dbg_load), .dbg_mcu_pc(dbg_mcu_pc), .dbg_mcu_fetch(dbg_mcu_fetch),
+	.dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
+	.dbg_ddr_inflight(dbg_ddr_inflight), .dbg_3d(dbg_3d), .dbg_3d_tri(dbg_3d_tri), .dbg_3d_up(dbg_3d_up),
+	.dbg_mcu_int0(dbg_mcu_int0)
 );
 
 ///////////////////////   DEBUG PROBE   ///////////////////////////
@@ -319,7 +314,7 @@ hng64_core u_core
 //   [15:0]    frames (vblank rises)            [31:16]  CPU memory requests
 //   [63:32]   the last CPU request's address   [71:64]  dbg_load (hng64_core)
 //   [77:72]   dbg_fault                        [78]     CPU error_any
-//   [79]      rotator queue overflow            [80]     PLL locked
+//   [79]      0 (was HDMI rotation)             [80]     PLL locked
 //   [81]      CPU reset                         [82]     pause
 //   [98:83]   IO MCU PC                         [114:99] IO MCU instructions
 //   [115]     CPU interrupt line                [127:116] CPU interrupt rises
@@ -355,9 +350,110 @@ end
 
 issp_probe #(.INSTANCE_ID("F"), .PROBE_W(128), .SOURCE_W(8)) u_issp_f (
 	.clk(clk1x),
-	.probe({cnt_irq, cpu_irq, cnt_mcu, dbg_mcu_pc, pause, cpu_reset, pll_locked, rot_overflow,
+	.probe({cnt_irq, cpu_irq, cnt_mcu, dbg_mcu_pc, pause, cpu_reset, pll_locked, 1'b0,
 	        cpu_error, dbg_fault, dbg_load, last_addr, cnt_req, cnt_frames}),
 	.source(src_f)
+);
+
+// ISSP instance G: interrupts, the 3D, DDR3, and whether the CPU is waiting on the bus. Counters
+// as F's (no reset, saturating, cleared by F's source bit 0). Field table: read_issp.tcl fields_G.
+//
+//   [31:0]    hng64_io's irq_pending           [36:32]  irq_level
+//   [48:37]   interrupt 3 (the 3D FIFO) rises  [61:49]  dbg_3d: {dl_full, dl_upbusy, dl_busy,
+//                                                         state[3:0], queued[5:0]} (hng64_3d)
+//   [69:62]   DDR3 reads in flight             [85:70]  display-list uploads
+//   [101:86]  triangles to the rasteriser      [102]    a CPU request is outstanding
+//   [118:103] clk1x clocks it has waited       [127:119] INT0 pulses to the IO MCU
+reg [11:0] cnt_irq3 = 0;
+reg [15:0] cnt_up = 0, cnt_tri = 0, pend_cyc = 0;
+reg [8:0]  cnt_int0 = 0;
+reg        irq3_d = 0, mem_pend = 0, int0_d = 0;
+always @(posedge clk1x) begin
+	irq3_d <= dbg_irq_pending[3];
+	int0_d <= dbg_mcu_int0;
+	if (dbg_mcu_int0 && !int0_d && ~&cnt_int0) cnt_int0 <= cnt_int0 + 1'd1;
+	if (mem_request) begin
+		mem_pend <= 1'b1;
+		pend_cyc <= 0;
+	end else if (mem_done) begin
+		mem_pend <= 1'b0;
+	end else if (mem_pend && ~&pend_cyc) begin
+		pend_cyc <= pend_cyc + 1'd1;
+	end
+	if (dbg_clear) begin
+		cnt_irq3 <= 0;
+		cnt_up <= 0;
+	end else begin
+		if (dbg_irq_pending[3] && !irq3_d && ~&cnt_irq3) cnt_irq3 <= cnt_irq3 + 1'd1;
+		if (dbg_3d_up && ~&cnt_up) cnt_up <= cnt_up + 1'd1;
+	end
+end
+always @(posedge clk2x) begin
+	if (dbg_clear) cnt_tri <= 0;
+	else if (dbg_3d_tri && ~&cnt_tri) cnt_tri <= cnt_tri + 1'd1;
+end
+
+issp_probe #(.INSTANCE_ID("G"), .PROBE_W(128), .SOURCE_W(1)) u_issp_g (
+	.clk(clk1x),
+	.probe({cnt_int0, pend_cyc, mem_pend, cnt_tri, cnt_up, dbg_ddr_inflight, dbg_3d, cnt_irq3,
+	        dbg_irq_level, dbg_irq_pending}),
+	.source()
+);
+
+// ISSP instance T: CPU requests as they complete, {req64, read, byte mask, data (the write's, or
+// the read's as returned), address}, 4,096 of them. By default only register accesses (not main
+// RAM, program ROM, BIOS, or the tilemap, sprite, palette, 3D-bank and sound memories the BIOS
+// tests) and only the first 4,096 after configuration or a restart, which is the
+// order MAME's system trace (scripts/mame/systrace.lua) can be compared with. Source: [11:0] the
+// entry read out, [12] stop the capture, [13] keep the last 4,096 instead, [14] all requests,
+// [15] restart (a rising edge). Probe: {entries recorded [15:0], the next slot [11:0], the entry
+// [79:0]}; `read_issp.py T dump` reads them (read_issp.tcl). [16] widens the default to the
+// memories as well (every I/O request).
+wire [16:0] src_t;
+reg  [79:0] trace [0:4095];
+reg  [79:0] trace_q;
+reg  [11:0] trace_w = 0;
+reg  [15:0] trace_n = 0;
+reg         t_pend = 0, t_rnw, t_64, t_io, t_mem, t_rst_d = 0;
+reg  [31:0] t_addr, t_wdata;
+reg  [7:0]  t_mask;
+wire        t_full = !src_t[13] && trace_n[12];
+always @(posedge clk1x) begin
+	trace_q <= trace[src_t[11:0]];
+	t_rst_d <= src_t[15];
+	if (mem_request) begin
+		t_pend  <= 1'b1;
+		t_addr  <= mem_address;
+		t_rnw   <= mem_rnw;
+		t_64    <= mem_req64;
+		t_mask  <= mem_writeMask;
+		t_wdata <= mem_dataWrite[31:0];
+		t_io    <= (mem_size == 3'b001) && !(mem_address < 32'h0100_0000 ||
+		           (mem_address >= 32'h0400_0000 && mem_address < 32'h0600_0000) ||
+		           (mem_address >= 32'h1FC0_0000 && mem_address < 32'h1FC8_0000));
+		t_mem   <= (mem_address >= 32'h2000_0000 && mem_address < 32'h2000_C000) ||
+		           (mem_address >= 32'h2010_0000 && mem_address < 32'h2018_0000) ||
+		           (mem_address >= 32'h2020_0000 && mem_address < 32'h2020_4000) ||
+		           (mem_address >= 32'h3010_0000 && mem_address < 32'h3030_0000) ||
+		           (mem_address >= 32'h6000_0000 && mem_address < 32'h6800_0000);
+	end else if (mem_done && t_pend) begin
+		t_pend <= 1'b0;
+		if (((t_io && (!t_mem || src_t[16])) || src_t[14]) && !src_t[12] && !t_full) begin
+			trace[trace_w] <= {6'd0, t_64, t_rnw, t_mask, t_rnw ? mem_dataRead[31:0] : t_wdata, t_addr};
+			trace_w <= trace_w + 1'd1;
+			if (~&trace_n) trace_n <= trace_n + 1'd1;
+		end
+	end
+	if (src_t[15] && !t_rst_d) begin
+		trace_w <= 0;
+		trace_n <= 0;
+	end
+end
+
+issp_probe #(.INSTANCE_ID("T"), .PROBE_W(108), .SOURCE_W(17)) u_issp_t (
+	.clk(clk1x),
+	.probe({trace_n, trace_w, trace_q}),
+	.source(src_t)
 );
 `else
 assign dbg_pause = 1'b0;
@@ -395,7 +491,7 @@ wire   vga_de    = crt_on ? ~(crt_hb | crt_vb) : ~(hblank | vblank);
 wire [11:0] crop_size = (status[70:69] == 2'd1) ? 12'd432 :
                         (status[70:69] == 2'd2) ? 12'd360 : 12'd0;
 
-// The picture is 4:3 whatever its pixel count, the board drove a 4:3 monitor; 3:4 turned.
+// The picture is 4:3 whatever its pixel count: the board drove a 4:3 monitor.
 video_freak video_freak
 (
 	.CLK_VIDEO(CLK_VIDEO),
@@ -408,28 +504,13 @@ video_freak video_freak
 	.VIDEO_ARY(VIDEO_ARY),
 
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? (rotate_en ? 12'd3 : 12'd4) : (ar - 1'd1)),
-	.ARY((!ar) ? (rotate_en ? 12'd4 : 12'd3) : 12'd0),
+	.ARX((!ar) ? 12'd4 : (ar - 1'd1)),
+	.ARY((!ar) ? 12'd3 : 12'd0),
 	.CROP_SIZE(crop_size),
 	.CROP_OFF(status[75:71]),
 	.SCALE(status[68:66])
 );
 
-// HDMI rotation (screen_rotate_two, vendored): a copy of the frame turned into DDR3 at
-// 0x24000000, which the framework's scaler shows instead; analog keeps the native raster. Its
-// writes are queued in the core and share hng64_ddram with the ROM reads (sim/sys_tb +rot=1).
-screen_rotate_two screen_rotate
-(
-	.CLK_VIDEO(clk2x), .CE_PIXEL(ce_pix),
-	.VGA_R(r), .VGA_G(g), .VGA_B(b), .VGA_HS(hsync), .VGA_VS(vsync), .VGA_DE(~(hblank | vblank)),
-	.rotate_ccw(rotate_ccw), .no_rotate(~rotate_en), .flip(1'b0), .two_screen(1'b0),
-	.video_rotated(),
-	.FB_EN(FB_EN), .FB_FORMAT(FB_FORMAT), .FB_WIDTH(FB_WIDTH), .FB_HEIGHT(FB_HEIGHT),
-	.FB_BASE(FB_BASE), .FB_STRIDE(FB_STRIDE), .FB_VBL(FB_VBL), .FB_LL(FB_LL),
-	.DDRAM_CLK(), .DDRAM_BUSY(1'b0), .DDRAM_BURSTCNT(), .DDRAM_ADDR(rot_addr),
-	.DDRAM_DIN(rot_din), .DDRAM_BE(rot_be), .DDRAM_WE(rot_we), .DDRAM_RD()
-);
-
-assign LED_USER = |dbg_fault | cpu_error | rot_overflow;
+assign LED_USER = |dbg_fault | cpu_error;
 
 endmodule

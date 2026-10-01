@@ -13,12 +13,14 @@
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>
   <mameversion>0285</mameversion>
-  <rom index="1"><part>48 4E 47 31 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</part></rom>
+  <rom index="1"><part>48 4E 47 32 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 0A 10 00 00 01 00 00 00 0B 10 00 00 00 C0 00 00 00 00 00 00</part></rom>
   <rom index="2" zip="hng64.zip" md5="none"><part name="tmp87ph40an.bin" crc="b70df21f" offset="0x4000" length="0x4000"/></rom>
   <!-- gameprg: 0x2000000 bytes at 0x0 -->
   <!-- bios: 0x100000 bytes at 0x2000000 -->
   <!-- scrtile: 0x4000000 bytes at 0x2100000 -->
   <!-- sprtile: 0x4000000 bytes at 0x6100000 -->
+  <!-- textures0: 0x1000000 bytes at 0xa100000 -->
+  <!-- verts: 0xc00000 bytes at 0xb100000 -->
   <rom index="0" zip="fatfurwa.zip|hng64.zip" md5="none" address="0x30000000">
     <!-- gameprg: 0x2000000 bytes at 0x0, 0x1000000 of erase byte 0x00 -->
       <interleave output="32">
@@ -62,6 +64,17 @@
         <part name="006sp06a.110" crc="dccc3f75" map="0010"/>
         <part name="006sp07a.114" crc="cd7baa1b" map="0100"/>
         <part name="006sp08a.118" crc="9c3044ac" map="1000"/>
+      </interleave>
+    <!-- textures0: 0x1000000 bytes at 0xa100000 -->
+      <part name="006tx01a.1" crc="ab4c1747"/>
+      <part name="006tx02a.2" crc="7854a229"/>
+      <part name="006tx03a.3" crc="94edfbd1"/>
+      <part name="006tx04a.4" crc="82d61652"/>
+    <!-- verts: 0xc00000 bytes at 0xb100000 -->
+      <interleave output="48">
+        <part name="006vt01a.17" crc="5c20ed4c" map="000021"/>
+        <part name="006vt02a.18" crc="150eb717" map="002100"/>
+        <part name="006vt03a.19" crc="021cfcaf" map="210000"/>
       </interleave>
   </rom>
   <rom index="4" zip="fatfurwa.zip|hng64.zip" md5="none">
