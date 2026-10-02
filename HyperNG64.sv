@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // HyperNG64 for MiSTer: the framework glue around rtl/hng64_core.sv (the board less its CPU) and
-// rtl/cpu/hng64_cpu.vhd (the VR4300). Clocks: clk93 the CPU pipeline, clk1x the bus and hps_io,
-// clk2x SDRAM, DDR3, video and the IO MCU (docs/ROADMAP.md, clock plan). No sound yet.
+// rtl/cpu/hng64_cpu.vhd (the VR4300). Clocks: clk1x the bus and hps_io, clk2x SDRAM, DDR3, video
+// and the IO MCU; the CPU on its own PLL (c93, c1x, c2x) and the 3D on its own (clk3d), each
+// crossing to the board through FIFOs (docs/ROADMAP.md, clock plan). No sound yet.
 //
 // Download indices: 0 the ROM set, which the HPS writes straight into DDR3 (.mra address=);
 // 1 the layout blob (rtl/memory/hng64_romcfg.sv); 2 the IO MCU's ROM; 4 the NVRAM (.nvm), which
@@ -60,6 +61,8 @@ localparam CONF_STR = {
 	// H5: the HDMI scaler's options, hidden under direct video where they do nothing
 	"H5O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[65],Flip Screen,Off,On;",
+	"O[114:113],CPU clock (on reset),75 MHz,87.5 MHz,100 MHz;",
+	"O[116:115],3D clock (on reset),100 MHz,83.3 MHz,71.4 MHz;",
 	"H5O[68:66],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer,HV-Integer;",
 	"H5O[70:69],Crop,Off,432 lines,360 lines;",
 	"H5O[75:71],Crop offset,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
@@ -148,22 +151,79 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
-wire clk93, clk1x, clk2x, clk_sdram, pll_locked;
+wire clk3d, clk1x, clk2x, clk_sdram, pll_locked;
+wire [63:0] main_to_pll, main_from_pll;
 pll pll
 (
 	.refclk(CLK_50M),
 	.rst(0),
-	.outclk_0(clk93),
+	.outclk_0(clk3d),
 	.outclk_1(clk1x),
 	.outclk_2(clk2x),
 	.outclk_3(clk_sdram),
-	.locked(pll_locked)
+	.locked(pll_locked),
+	.reconfig_to_pll(main_to_pll),
+	.reconfig_from_pll(main_from_pll)
 );
-assign SDRAM_CLK = clk_sdram;
+
+// The 3D's clock from the OSD, applied at a reset: outclk_0's divider of the PLL's 500 MHz
+// counters, 5, 6 or 7 (100, 83.3, 71.4 MHz). Built and timed at 100, so the slower ones only gain
+// slack. The core is held in reset (clk3d_hold) until it is done.
+wire        maincfg_wait, maincfg_write, clk3d_hold;
+wire  [5:0] maincfg_addr;
+wire [31:0] maincfg_data;
+pll_cfg pll_cfg_main
+(
+	.mgmt_clk(CLK_50M),
+	.mgmt_reset(0),
+	.mgmt_waitrequest(maincfg_wait),
+	.mgmt_read(0),
+	.mgmt_write(maincfg_write),
+	.mgmt_readdata(),
+	.mgmt_address(maincfg_addr),
+	.mgmt_writedata(maincfg_data),
+	.reconfig_to_pll(main_to_pll),
+	.reconfig_from_pll(main_from_pll)
+);
+
+hng64_pllsel #(.ADDR(6'd5), .V0(32'h0002_0302), .V1(32'h0000_0303), .V2(32'h0002_0403)) u_3dclk
+(
+	.clk(CLK_50M), .sel(status[116:115]), .apply(reset), .locked(pll_locked), .hold(clk3d_hold),
+	.mgmt_waitrequest(maincfg_wait), .mgmt_write(maincfg_write), .mgmt_address(maincfg_addr),
+	.mgmt_writedata(maincfg_data)
+);
+// SDRAM_CLK through a DDIO output, so it leaves from the I/O cell as the data does: as a plain
+// assign the PLL output reached the pin through fabric routing and the read capture missed clk2x
+// by 2.4 ns. datain_h 1, datain_l 0: the pin follows clk_sdram, whose phase stays the PLL's.
+altddio_out
+#(
+	.extend_oe_disable("OFF"),
+	.intended_device_family("Cyclone V"),
+	.invert_output("OFF"),
+	.lpm_hint("UNUSED"),
+	.lpm_type("altddio_out"),
+	.oe_reg("UNREGISTERED"),
+	.power_up_high("OFF"),
+	.width(1)
+)
+sdramclk_ddr
+(
+	.datain_h(1'b1),
+	.datain_l(1'b0),
+	.outclock(clk_sdram),
+	.dataout(SDRAM_CLK),
+	.aclr(1'b0),
+	.aset(1'b0),
+	.oe(1'b1),
+	.outclocken(1'b1),
+	.sclr(1'b0),
+	.sset(1'b0)
+);
+
 assign DDRAM_CLK = clk2x;
 
 // held through every download: hng64_core's loader copies the BIOS on its release
-wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download;
+wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download | clk3d_hold;
 
 ///////////////////////   INPUTS   ////////////////////////////////
 
@@ -217,22 +277,72 @@ wire dbg_pause;                         // ISSP source bit 1, stp revision only
 
 ///////////////////////   CPU   ///////////////////////////////////
 
+// The CPU on its own PLL (rtl/pll/pll_cpu.v): c93 its pipeline, c1x and c2x its memory port, in
+// the 3:2:4 the vendored VR4300 needs, at 75 MHz as built and timed, or 87.5 or 100 MHz from the
+// OSD (hng64_pllsel, applied at a reset). hng64_cpu_cdc carries its port to the board's clk1x and
+// clk2x. The board side keeps the mem_* names; the CPU's are c_*.
+wire        c93, c1x, c2x, cpu_locked;
+wire [63:0] cpu_to_pll, cpu_from_pll;
+pll_cpu pll_cpu
+(
+	.refclk(CLK_50M),
+	.rst(0),
+	.outclk_0(c93),
+	.outclk_1(c1x),
+	.outclk_2(c2x),
+	.locked(cpu_locked),
+	.reconfig_to_pll(cpu_to_pll),
+	.reconfig_from_pll(cpu_from_pll)
+);
+
+wire        cpucfg_wait, cpucfg_write, cpuclk_hold;
+wire  [5:0] cpucfg_addr;
+wire [31:0] cpucfg_data;
+pll_cfg pll_cfg_cpu
+(
+	.mgmt_clk(CLK_50M),
+	.mgmt_reset(0),
+	.mgmt_waitrequest(cpucfg_wait),
+	.mgmt_read(0),
+	.mgmt_write(cpucfg_write),
+	.mgmt_readdata(),
+	.mgmt_address(cpucfg_addr),
+	.mgmt_writedata(cpucfg_data),
+	.reconfig_to_pll(cpu_to_pll),
+	.reconfig_from_pll(cpu_from_pll)
+);
+
+hng64_pllsel #(.ADDR(6'd4), .V0(32'h0000_0303), .V1(32'h0002_0403), .V2(32'h0000_0404)) u_cpuclk
+(
+	.clk(CLK_50M), .sel(status[114:113]), .apply(reset), .locked(cpu_locked), .hold(cpuclk_hold),
+	.mgmt_waitrequest(cpucfg_wait), .mgmt_write(cpucfg_write), .mgmt_address(cpucfg_addr),
+	.mgmt_writedata(cpucfg_data)
+);
+
 wire        mem_request, mem_rnw, mem_req64, mem_done, rdram_granted2x, ddr3_DOUT_READY;
 wire [31:0] mem_address;
 wire  [2:0] mem_size;
 wire  [7:0] mem_writeMask;
 wire [63:0] mem_dataWrite, mem_dataRead, ddr3_DOUT;
+wire        c_request, c_rnw, c_req64, c_done, c_granted2x, c_DOUT_READY;
+wire [31:0] c_address;
+wire  [2:0] c_size;
+wire  [7:0] c_writeMask;
+wire [63:0] c_dataWrite, c_dataRead, c_DOUT;
 wire        cpu_irq, cpu_reset, cpu_error;
 wire [31:0] cpu_pc;
+wire [127:0] cpu_cop0;
 
 // hng64_cpu wants the reset-state load (ss_reset) to fall while its reset is still held, then
-// rewrites COP0 Status and Config two and three clk93 cycles later. The core's cpu_reset (clk1x)
-// is taken into clk93, where ss_reset falls with it and the CPU's reset 16 cycles after; the
-// CPU's clk1x reset is that one taken back.
-reg       rst93_s = 1'b1, ss_reset = 1'b1, cpu_rst93 = 1'b1, cpu_rst1x = 1'b1;
+// rewrites COP0 Status and Config two and three c93 cycles later. The core's cpu_reset (clk1x),
+// and hng64_pllsel's hold while the clock changes, are taken into c93 through two registers, where
+// ss_reset falls with them and the CPU's reset 16 cycles after; the CPU's c1x reset is that one
+// taken across.
+reg       rst93_a = 1'b1, rst93_s = 1'b1, ss_reset = 1'b1, cpu_rst93 = 1'b1, cpu_rst1x = 1'b1;
 reg [3:0] rst93_cnt = 4'd0;
-always @(posedge clk93) begin
-	rst93_s <= cpu_reset;
+always @(posedge c93) begin
+	rst93_a <= cpu_reset | cpuclk_hold;
+	rst93_s <= rst93_a;
 	if (rst93_s) begin
 		ss_reset  <= 1'b1;
 		cpu_rst93 <= 1'b1;
@@ -243,18 +353,41 @@ always @(posedge clk93) begin
 		else            rst93_cnt <= rst93_cnt + 1'd1;
 	end
 end
-always @(posedge clk1x) cpu_rst1x <= cpu_rst93;
+always @(posedge c1x) cpu_rst1x <= cpu_rst93;
+
+// the interrupt line and Pause into the CPU's c1x
+reg irq_a = 1'b0, irq_c = 1'b0, pause_a = 1'b0, pause_c = 1'b0;
+always @(posedge c1x) begin
+	irq_a   <= cpu_irq;
+	irq_c   <= irq_a;
+	pause_a <= pause | dbg_pause;
+	pause_c <= pause_a;
+end
 
 hng64_cpu u_cpu
 (
-	.clk1x(clk1x), .clk93(clk93), .clk2x(clk2x),
+	.clk1x(c1x), .clk93(c93), .clk2x(c2x),
 	.reset_1x(cpu_rst1x), .reset_93(cpu_rst93), .ss_reset(ss_reset),
-	.irq(cpu_irq), .pause(pause | dbg_pause),
-	.mem_request(mem_request), .mem_rnw(mem_rnw), .mem_address(mem_address),
-	.mem_req64(mem_req64), .mem_size(mem_size), .mem_writeMask(mem_writeMask),
-	.mem_dataWrite(mem_dataWrite), .mem_dataRead(mem_dataRead), .mem_done(mem_done),
-	.rdram_granted2x(rdram_granted2x), .ddr3_DOUT(ddr3_DOUT), .ddr3_DOUT_READY(ddr3_DOUT_READY),
-	.dbg_pc(cpu_pc), .error_any(cpu_error)
+	.irq(irq_c), .pause(pause_c),
+	.mem_request(c_request), .mem_rnw(c_rnw), .mem_address(c_address),
+	.mem_req64(c_req64), .mem_size(c_size), .mem_writeMask(c_writeMask),
+	.mem_dataWrite(c_dataWrite), .mem_dataRead(c_dataRead), .mem_done(c_done),
+	.rdram_granted2x(c_granted2x), .ddr3_DOUT(c_DOUT), .ddr3_DOUT_READY(c_DOUT_READY),
+	.dbg_pc(cpu_pc), .dbg_cop0(cpu_cop0), .error_any(cpu_error)
+);
+
+hng64_cpu_cdc u_cpu_cdc
+(
+	.c1x(c1x), .c2x(c2x), .c_rst(cpu_rst1x),
+	.c_request(c_request), .c_rnw(c_rnw), .c_address(c_address), .c_req64(c_req64),
+	.c_size(c_size), .c_mask(c_writeMask), .c_wdata(c_dataWrite),
+	.c_dataRead(c_dataRead), .c_done(c_done),
+	.c_granted2x(c_granted2x), .c_DOUT(c_DOUT), .c_DOUT_READY(c_DOUT_READY),
+	.b1x(clk1x), .b2x(clk2x), .b_rst(cpu_reset),
+	.b_request(mem_request), .b_rnw(mem_rnw), .b_address(mem_address), .b_req64(mem_req64),
+	.b_size(mem_size), .b_mask(mem_writeMask), .b_wdata(mem_dataWrite),
+	.b_dataRead(mem_dataRead), .b_done(mem_done),
+	.b_granted2x(rdram_granted2x), .b_DOUT(ddr3_DOUT), .b_DOUT_READY(ddr3_DOUT_READY)
 );
 
 ///////////////////////   BOARD   /////////////////////////////////
@@ -271,10 +404,11 @@ wire  [7:0] dbg_ddr_inflight;
 wire [12:0] dbg_3d;
 wire        dbg_3d_tri, dbg_3d_up, dbg_mcu_int0;
 wire [31:0] dbg_vid;
+wire [48:0] dbg_spr;
 
 hng64_core u_core
 (
-	.clk1x(clk1x), .clk2x(clk2x), .reset(reset), .sdram_init(~pll_locked),
+	.clk1x(clk1x), .clk2x(clk2x), .clk3d(clk3d), .reset(reset), .sdram_init(~pll_locked),
 
 	.mem_request(mem_request), .mem_rnw(mem_rnw), .mem_address(mem_address),
 	.mem_req64(mem_req64), .mem_size(mem_size), .mem_writeMask(mem_writeMask),
@@ -301,7 +435,7 @@ hng64_core u_core
 	.dbg_load(dbg_load), .dbg_mcu_pc(dbg_mcu_pc), .dbg_mcu_fetch(dbg_mcu_fetch),
 	.dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
 	.dbg_ddr_inflight(dbg_ddr_inflight), .dbg_3d(dbg_3d), .dbg_3d_tri(dbg_3d_tri), .dbg_3d_up(dbg_3d_up),
-	.dbg_mcu_int0(dbg_mcu_int0), .dbg_vid(dbg_vid)
+	.dbg_mcu_int0(dbg_mcu_int0), .dbg_vid(dbg_vid), .dbg_spr(dbg_spr)
 );
 
 ///////////////////////   DEBUG PROBE   ///////////////////////////
@@ -343,11 +477,13 @@ always @(posedge clk2x) begin
 	vb_d <= vblank;
 	if (dbg_clear) begin
 		cnt_frames <= 0;
-		cnt_mcu <= 0;
 	end else begin
 		if (vblank && !vb_d && ~&cnt_frames) cnt_frames <= cnt_frames + 1'd1;
-		if (dbg_mcu_fetch && ~&cnt_mcu)      cnt_mcu <= cnt_mcu + 1'd1;
 	end
+end
+always @(posedge clk1x) begin
+	if (dbg_clear)                       cnt_mcu <= 0;
+	else if (dbg_mcu_fetch && ~&cnt_mcu) cnt_mcu <= cnt_mcu + 1'd1;
 end
 
 issp_probe #(.INSTANCE_ID("F"), .PROBE_W(128), .SOURCE_W(8)) u_issp_f (
@@ -459,11 +595,17 @@ issp_probe #(.INSTANCE_ID("T"), .PROBE_W(108), .SOURCE_W(17)) u_issp_t (
 );
 
 // ISSP instance P: the CPU's fetch PC, sampled; reading it a few times shows where the CPU is.
-reg [31:0] pc_s;
-always @(posedge clk93) pc_s <= cpu_pc;
-issp_probe #(.INSTANCE_ID("P"), .PROBE_W(32), .SOURCE_W(1)) u_issp_p (
-	.clk(clk93),
-	.probe(pc_s),
+// And COP0's BadVAddr, Status, Cause and EPC (low words): after an exception the handler runs
+// with EXL set, so they hold the exception's until it returns.
+reg [31:0]  pc_s;
+reg [127:0] cop0_s;
+always @(posedge c93) begin
+	pc_s   <= cpu_pc;
+	cop0_s <= cpu_cop0;
+end
+issp_probe #(.INSTANCE_ID("P"), .PROBE_W(160), .SOURCE_W(1)) u_issp_p (
+	.clk(c93),
+	.probe({cop0_s, pc_s}),
 	.source()
 );
 
@@ -472,6 +614,12 @@ issp_probe #(.INSTANCE_ID("P"), .PROBE_W(32), .SOURCE_W(1)) u_issp_p (
 //   [31:0]    dbg_vid (hng64_core), sampled    [47:32]   frame_starts
 //   [63:48]   line_starts                      [79:64]   late passes
 //   [95:80]   late passes in the last frame    [104:96]  line_starts before its first late pass
+//   the last frame's longest line pass, in clk2x clocks (a line is 3840):
+//   [120:105] its length (linepass busy)       [136:121] sprites busy in it
+//   [152:137] a tilemap busy                   [168:153] 3D fetch busy
+//   [184:169] mixer busy                       [200:185] a video DDR3 read (0, 1, 7) not taken
+//   [216:201] a 3D write offered
+//   [265:217] the sprite engine, sampled (hng64_sprite dbg_q)
 reg [31:0] vid_s;
 reg [15:0] cnt_fs = 0, cnt_ls = 0, cnt_late = 0, late_cur = 0, late_last = 0;
 reg  [8:0] ls_cur = 0, first_cur = 0, first_last = 0;
@@ -496,9 +644,37 @@ always @(posedge clk2x) begin
 		end
 	end
 end
-issp_probe #(.INSTANCE_ID("V"), .PROBE_W(105), .SOURCE_W(1)) u_issp_v (
+// per pass: counted while the line pass is busy, the longest kept for the frame
+reg [15:0] p_len, p_spr, p_tm, p_f3, p_mix, p_stall, p_wv;
+reg [15:0] m_len, m_spr, m_tm, m_f3, m_mix, m_stall, m_wv;
+reg [15:0] l_len, l_spr, l_tm, l_f3, l_mix, l_stall, l_wv;
+reg        pass_q;
+wire       pass_on  = vid_s[10];
+wire       vstall   = |(vid_s[21:14] & ~vid_s[29:22] & 8'b1000_0011);
+function [15:0] inc(input [15:0] v, input c); inc = (c && ~&v) ? v + 1'd1 : v; endfunction
+always @(posedge clk2x) begin
+	pass_q <= pass_on;
+	if (pass_on && !pass_q) begin
+		p_len <= 1; p_spr <= vid_s[9]; p_tm <= |vid_s[7:4]; p_f3 <= vid_s[8];
+		p_mix <= vid_s[3]; p_stall <= vstall; p_wv <= vid_s[30];
+	end else if (pass_on) begin
+		p_len <= inc(p_len, 1'b1); p_spr <= inc(p_spr, vid_s[9]); p_tm <= inc(p_tm, |vid_s[7:4]);
+		p_f3 <= inc(p_f3, vid_s[8]); p_mix <= inc(p_mix, vid_s[3]); p_stall <= inc(p_stall, vstall);
+		p_wv <= inc(p_wv, vid_s[30]);
+	end else if (pass_q && p_len > m_len) begin
+		{m_len, m_spr, m_tm, m_f3, m_mix, m_stall, m_wv} <= {p_len, p_spr, p_tm, p_f3, p_mix, p_stall, p_wv};
+	end
+	if (vid_s[0]) begin
+		{l_len, l_spr, l_tm, l_f3, l_mix, l_stall, l_wv} <= {m_len, m_spr, m_tm, m_f3, m_mix, m_stall, m_wv};
+		m_len <= 0;
+	end
+end
+
+reg [48:0] spr_s;
+always @(posedge clk2x) spr_s <= dbg_spr;
+issp_probe #(.INSTANCE_ID("V"), .PROBE_W(266), .SOURCE_W(1)) u_issp_v (
 	.clk(clk2x),
-	.probe({first_last, late_last, cnt_late, cnt_ls, cnt_fs, vid_s}),
+	.probe({spr_s, l_wv, l_stall, l_mix, l_f3, l_tm, l_spr, l_len, first_last, late_last, cnt_late, cnt_ls, cnt_fs, vid_s}),
 	.source()
 );
 `else
@@ -557,6 +733,12 @@ video_freak video_freak
 	.SCALE(status[68:66])
 );
 
-assign LED_USER = |dbg_fault | cpu_error;
+// cpu_error is the CPU's (c93), taken into clk1x before it leaves for sys's 50 MHz
+reg cpu_err_a = 0, cpu_err_1x = 0;
+always @(posedge clk1x) begin
+	cpu_err_a  <= cpu_error;
+	cpu_err_1x <= cpu_err_a;
+end
+assign LED_USER = |dbg_fault | cpu_err_1x;
 
 endmodule

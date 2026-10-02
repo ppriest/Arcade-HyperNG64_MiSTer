@@ -10,6 +10,7 @@ module tb_mixer (
     input  logic        clk,
     input  logic        reset,
     input  logic        start,
+    input  logic        rebuild,
     output logic        busy,
 
     output logic  [8:0] lb_x,
@@ -75,7 +76,7 @@ module tb_mixer (
         if (tcram_we) tcram[tcram_a] <= tcram_w;
 
     hng64_mixer dut (
-        .clk(clk), .reset(reset), .start(start), .busy(busy),
+        .clk(clk), .reset(reset), .start(start), .rebuild(rebuild), .busy(busy),
         .lb_x(lb_x), .tm_pix(tm_pix), .spr_pix(spr_pix), .d3_pix(16'd0), .d3_palbase(1'b0),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb),
         .screen_dis(tcram[2][31:16] == 16'd0 || tcram[2][15:0] == 16'd0),

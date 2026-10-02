@@ -132,8 +132,21 @@ int main(int argc, char **argv) {
     std::deque<std::pair<uint64_t, uint64_t>> rq;
     uint64_t cycles = 0, reads = 0, writes = 0;
     int show_delay = -1;
+    // clk2x 125 MHz and clk3d 100 MHz, unrelated as on the board: times in ns, clk2x toggling every
+    // 4 and clk3d every 5; clk3d's edges between clk2x's are made in time order
+    uint64_t tns = 0, t3 = 0;
+    int clk3 = 0;
+    auto run3 = [&](uint64_t until) {
+        while (t3 <= until) {
+            clk3 ^= 1;
+            dut->clk3d = clk3;
+            dut->eval();
+            t3 += 5;
+        }
+    };
     auto tick = [&](bool rst) {
         dut->reset = rst;
+        run3(tns);
         rnd = rnd * 1103515245u + 12345u;
         dut->DDRAM_BUSY = int((rnd >> 16) % 100) < busy_pct;
         dut->DDRAM_DOUT_READY = !rq.empty() && rq.front().first <= cycles;
@@ -162,10 +175,12 @@ int main(int argc, char **argv) {
             dut->shown_plane = dut->show_plane;
         }
         if (show_delay >= 0) show_delay--;
+        run3(tns + 4);
         dut->clk2x = 1;
         dut->clk1x = (cycles & 1) ? 0 : 1;
         dut->eval();
         cycles++;
+        tns += 8;
     };
 
     for (int i = 0; i < 8; i++) tick(true);
@@ -219,6 +234,8 @@ int main(int argc, char **argv) {
         if (fed && swaps == int(clears) && dut->state == 6 && dut->queued == 0) break;
     }
 
+    // the display reads an offered plane at a vblank, long after; let the arbiter's last writes out
+    for (int i = 0; i < 2000; i++) tick(false);
     const bool finished = fed && swaps == int(clears);
     const uint32_t plane = COLOUR[dut->show_plane];
     size_t bad = 0;

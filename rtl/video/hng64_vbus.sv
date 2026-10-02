@@ -88,8 +88,9 @@ module hng64_vbus (
     // ---- sprite RAM: the CPU's copy, and the engine's --------------------------------------------------
     logic [31:0] spr_cpu_q, spr_copy_q;
     logic [13:0] copy_rd;
-    logic [13:0] copy_wr;
-    logic        copy_run, copy_wr_en;
+    logic [13:0] copy_wr, copy_wr2;
+    logic        copy_run, copy_wr_en, copy_wr_en2;
+    logic [31:0] copy_d;                // the word read, registered: RAM to RAM missed clk2x by 1.6 ns
 
     // Each is a hng64_bram, an explicit altsyncram in synthesis: the CPU's copy is written and read
     // by the CPU on clk1x and read by the vblank copy on clk2x.
@@ -99,14 +100,17 @@ module hng64_vbus (
         .b_clk(clk2x), .b_addr(copy_rd), .b_rdata(spr_copy_q));
 
     hng64_bram #(.AW(14), .DW(32), .WORDS(12288)) u_spr_eng (
-        .a_clk(clk2x), .a_addr(copy_wr), .a_be({4{copy_wr_en}}), .a_wdata(spr_copy_q),
+        .a_clk(clk2x), .a_addr(copy_wr2), .a_be({4{copy_wr_en2}}), .a_wdata(copy_d),
         .a_rdata(),
         .b_clk(clk2x), .b_addr(sram_addr), .b_rdata(sram_data));
 
-    // the vblank copy: read a clock ahead of the write
+    // the vblank copy: read two clocks ahead of the write
     always_ff @(posedge clk2x) begin
         snapshot_done <= 1'b0;
         copy_wr_en <= 1'b0;
+        copy_wr_en2 <= copy_wr_en;
+        copy_wr2    <= copy_wr;
+        copy_d      <= spr_copy_q;
         if (reset) begin
             copy_run <= 1'b0;
         end else if (snapshot && !copy_run) begin
@@ -118,8 +122,8 @@ module hng64_vbus (
             if (copy_rd == 14'd12287) copy_run <= 1'b0;
             else copy_rd <= copy_rd + 14'd1;
         end
-        // the last write lands the clock after the last read
-        if (copy_wr_en && copy_wr == 14'd12287) snapshot_done <= 1'b1;
+        // the last write lands two clocks after the last read
+        if (copy_wr_en2 && copy_wr2 == 14'd12287) snapshot_done <= 1'b1;
     end
 
     // ---- palette ------------------------------------------------------------------------------------

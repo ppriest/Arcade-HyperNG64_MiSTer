@@ -7,6 +7,7 @@
 module tb_g3d (
     input  logic         clk1x,
     input  logic         clk2x,
+    input  logic         clk3d,
     input  logic         reset,
 
     input  logic         dl_we,
@@ -65,7 +66,7 @@ module tb_g3d (
     logic        w_valid, w_urgent, w_ready;
 
     hng64_3d u_3d (
-        .clk1x(clk1x), .clk2x(clk2x), .reset(reset),
+        .clk1x(clk1x), .clk2x(clk2x), .clk3d(clk3d), .reset(reset),
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
         .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full), .texwrap(wrap),
         .vblank(vblank), .clear_en(clear_en),
@@ -82,7 +83,7 @@ module tb_g3d (
         .w_urgent(w_urgent), .w_ready(w_ready),
         .dbg_state(state), .dbg_queued(queued));
 
-    hng64_ddram #(.N(3)) u_ddr (
+    hng64_ddram #(.N(3), .ORD(3'b111)) u_ddr (
         .clk(clk2x), .reset(reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),

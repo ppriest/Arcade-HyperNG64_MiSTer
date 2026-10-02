@@ -60,6 +60,15 @@ module hng64_dma (
     logic [31:0] dword;
     logic        waiting;               // a request is out and its answer has not come back
 
+    // is_store of the two addresses, registered: through the range compares into the data select
+    // missed clk2x by 1.65 ns. D_READ waits a clock (settle) after s moves, for s_ok to follow;
+    // D_WRITE comes at least a clock after that, so d_ok has followed d.
+    logic        s_ok, d_ok, settle;
+    always_ff @(posedge clk) begin
+        s_ok <= is_store(s);
+        d_ok <= is_store(d);
+    end
+
     assign active   = (st != D_IDLE);
     assign st_beats = 3'd1;
 
@@ -77,13 +86,16 @@ module hng64_dma (
                     d <= dst;
                     left <= count;
                     waiting <= 1'b0;
+                    settle <= 1'b1;
                     st <= (count == 32'd0) ? D_IDLE : D_READ;
                     if (count == 32'd0) done <= go;
                 end
 
                 D_READ: begin
-                    if (!waiting) begin
-                        if (is_store(s)) begin
+                    if (settle) begin
+                        settle <= 1'b0;
+                    end else if (!waiting) begin
+                        if (s_ok) begin
                             st_req  <= 1'b1;
                             st_we   <= 1'b0;
                             st_addr <= {s[31:3], 3'b000};
@@ -102,7 +114,7 @@ module hng64_dma (
 
                 default: begin                  // D_WRITE
                     if (!waiting) begin
-                        if (is_store(d)) begin
+                        if (d_ok) begin
                             st_req   <= 1'b1;
                             st_we    <= 1'b1;
                             st_addr  <= {d[31:3], 3'b000};
@@ -114,8 +126,9 @@ module hng64_dma (
                             waiting <= 1'b1;    // nothing to wait for: fall through below
                         end
                     end
-                    if ((waiting && st_wdone) || (waiting && !is_store(d))) begin
+                    if ((waiting && st_wdone) || (waiting && !d_ok)) begin
                         waiting <= 1'b0;
+                        settle  <= 1'b1;
                         s <= s + 32'd4;
                         d <= d + 32'd4;
                         left <= left - 32'd1;

@@ -23,6 +23,7 @@ module hng64_core #(
 ) (
     input  logic        clk1x,
     input  logic        clk2x,
+    input  logic        clk3d,          // the 3D's own (hng64_3d)
     input  logic        reset,          // the framework's reset, clk1x
     input  logic        sdram_init,     // PLL not locked yet
 
@@ -100,7 +101,7 @@ module hng64_core #(
     output logic  [7:0] dbg_load,       // {dl0_seen, cfg_valid, ldr_pending, ldr_done,
                                         //  ldr_active, rom_loaded, mem_reset, game_reset}
     output logic [15:0] dbg_mcu_pc,
-    output logic        dbg_mcu_fetch,  // one clk2x clock per MCU instruction
+    output logic        dbg_mcu_fetch,  // one clk1x clock per MCU instruction
     output logic [31:0] dbg_irq_pending,
     output logic  [4:0] dbg_irq_level,
     output logic  [7:0] dbg_ddr_inflight,
@@ -110,7 +111,8 @@ module hng64_core #(
     output logic        dbg_mcu_int0,   // the IO MCU's INT0 line (hng64_io, from 0x1f7021c4)
     // clk2x: {w_urgent, w_valid, c_ready[7:0], c_rd[7:0], vtiming {late now, frame_pend, pend},
     //         video busy[7:0], vbusy, line_start, frame_start}
-    output logic [31:0] dbg_vid
+    output logic [31:0] dbg_vid,
+    output logic [48:0] dbg_spr         // the sprite engine's state (hng64_sprite dbg_q)
 );
 
     // declared ahead of the instances that share them
@@ -299,7 +301,7 @@ module hng64_core #(
     end
 
     // the tile ROM, sprite ROM and 3D line fetch feed a line that must be ready when it is shown
-    hng64_ddram #(.N(NDDR), .PRIO(8'b1000_0011)) u_ddr (
+    hng64_ddram #(.N(NDDR), .PRIO(8'b1000_0011), .ORD(8'b0111_0000)) u_ddr (
         .clk(clk2x), .reset(mem_reset),
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
@@ -317,7 +319,7 @@ module hng64_core #(
     logic [31:0] v_wdata, v_rdata;
     logic [31:0] raster_pos;
     logic        vblank_irq, raster_irq, net_irq, vblank_level;
-    logic        mcu_int0, mcu_irq_2x, mcu_irq;
+    logic        mcu_int0, mcu_irq;
     logic [10:0] dp_addr;
     logic        dp_we;
     logic  [7:0] dp_wdata, dp_rdata;
@@ -354,36 +356,31 @@ module hng64_core #(
         .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full),
         .dbg_mcu_en_0c(), .dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level));
 
-    // ---- the IO MCU: 8 MHz from 125, as an accumulator (8/125 exactly) ----------------------------------
+    // ---- the IO MCU, on clk1x: 8 MHz from 62.5, as an accumulator (16/125 exactly) -------------------
+    // 7.8 clocks a tick; sim/iomcu_tb matches MAME with no overrun at 5 (+cediv=5)
     logic [6:0] mcu_acc;
     logic       mcu_ce;
-    logic [1:0] mcu_irq_hold;
     logic       mcu_unimpl, mcu_overrun;
 
-    always_ff @(posedge clk2x) begin
+    always_ff @(posedge clk1x) begin
         if (game_reset) begin
             mcu_acc <= 7'd0;
             mcu_ce  <= 1'b0;
-            mcu_irq_hold <= 2'd0;
         end else begin
-            if (mcu_acc >= 7'd117) begin mcu_acc <= mcu_acc - 7'd117; mcu_ce <= 1'b1; end
-            else                   begin mcu_acc <= mcu_acc + 7'd8;   mcu_ce <= 1'b0; end
-            // a one-clock clk2x pulse, held two so clk1x sees it once
-            if (mcu_irq_2x) mcu_irq_hold <= 2'd2;
-            else if (mcu_irq_hold != 2'd0) mcu_irq_hold <= mcu_irq_hold - 2'd1;
+            if (mcu_acc >= 7'd109) begin mcu_acc <= mcu_acc - 7'd109; mcu_ce <= 1'b1; end
+            else                   begin mcu_acc <= mcu_acc + 7'd16;  mcu_ce <= 1'b0; end
         end
     end
-    assign mcu_irq = (mcu_irq_hold != 2'd0);
 
     // the MCU ROM through the byte path: file offsets 0x4000-0x7fff arrive as index 2, 0-0x3fff
     wire mcu_rom_we = ioctl_download && ioctl_index == 16'd2 && ioctl_wr && ioctl_addr < 27'h4000;
 
     hng64_iomcu u_mcu (
-        .clk(clk2x), .reset(game_reset), .ce(mcu_ce),
+        .clk(clk1x), .reset(game_reset), .ce(mcu_ce),
         .rom_we(mcu_rom_we), .rom_addr(ioctl_addr[13:0]), .rom_data(ioctl_dout),
         .inputs(inputs), .analog('{8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff}),
         .int0(mcu_int0),
-        .lamp_we(lamp_we), .lamp_addr(lamp_addr), .lamp_data(lamp_data), .mips_irq(mcu_irq_2x),
+        .lamp_we(lamp_we), .lamp_addr(lamp_addr), .lamp_data(lamp_data), .mips_irq(mcu_irq),
         .dp_clk(clk1x), .dp_addr(dp_addr), .dp_we(dp_we), .dp_wdata(dp_wdata),
         .dp_rdata(dp_rdata),
         .dbg_fetch(dbg_mcu_fetch), .dbg_pc(dbg_mcu_pc), .dbg_op(), .dbg_op1(), .dbg_unimpl(mcu_unimpl),
@@ -443,7 +440,7 @@ module hng64_core #(
         .d3_addr(f3_addr), .d3_rd(f3_rd), .d3_ready(c_ready[7]), .d3_data(ddr_data),
         .d3_valid(c_valid[7]),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
-        .dbg_busy(vid_busy), .dbg_we(), .dbg_x(), .dbg_pix());
+        .dbg_busy(vid_busy), .dbg_spr(dbg_spr), .dbg_we(), .dbg_x(), .dbg_pix());
 
     hng64_vtiming u_timing (
         .clk(clk2x), .reset(game_reset), .flip(flip),
@@ -462,7 +459,7 @@ module hng64_core #(
     assign plane_base[1] = D3_COL1;
 
     hng64_3d u_3d (
-        .clk1x(clk1x), .clk2x(clk2x), .reset(game_reset),
+        .clk1x(clk1x), .clk2x(clk2x), .clk3d(clk3d), .reset(game_reset),
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
         .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full), .texwrap(texwrap),
         .vblank(vblank_level), .clear_en(tcram[20][16]),

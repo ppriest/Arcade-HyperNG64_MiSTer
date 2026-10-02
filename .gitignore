@@ -39,6 +39,7 @@ c5_pin_model_dump.txt
 
 # Staged-build worktree (scripts/build_staged.py) and its logs
 build/
+/build_*/
 quartus_*.log
 q_*.log
 sta*.log

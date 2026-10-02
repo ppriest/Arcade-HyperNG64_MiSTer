@@ -53,9 +53,10 @@ Phase 0 so far:
 - **Criterion 4 measured** (`rtl/synth_check/`, HARDWARE_NOTES): CPU + bridge = 9,227 ALMs (22%),
   26 M10K (5%), 9 DSP (8%). 62.5 and 125 MHz close; the 93.75 MHz CPU clock misses by 2.613 ns
   (~75 MHz as placed, ~79 MHz on the best of four seeds), and every worst path is inside the
-  vendored CPU. Closed by user decision: if 93.75 MHz does not close in the full design, the
-  CPU clock is lowered and the game runs slow. No experiment compiling the N64 core, and no work
-  on the vendored pipeline, for this.
+  vendored CPU. Decided first that a CPU that did not close would be clocked down; replaced by a
+  later user decision: the vendored pipeline is changed to close 93.75 MHz, because a lower CPU
+  clock tightens its crossings into clk1x (the 3:2 ratio is the only one besides 1:1 that keeps
+  them inside a clk1x period). Each change is in rtl/cpu/vr4300/PROVENANCE.md.
 - Phase 0 criteria 1, 2, 3 and 5 met; criterion 4 measured, and its clock question closed by that
   decision.
 - **Phase 1 started.** `scripts/render_model.py` reproduces MAME's 2D video pixel-exactly on
@@ -412,10 +413,16 @@ running the dumped ROM (user decision). No stand-in.
 
 **Does the BIOS run without a sound CPU?** Unknown. Closed by Phase 0 criterion 2.
 
-**Does the CPU close 93.75 MHz?** Standalone it misses by 2.613 ns (criterion 4). Closed (user
-decision): the full design is compiled at 93.75 MHz, and if it does not close the CPU clock comes
-down to what does, with the game running correspondingly slow. The vendored pipeline is not
-touched for this.
+**Does the CPU close 93.75 MHz?** Standalone it misses by 2.613 ns (criterion 4). Decided (user):
+the vendored pipeline is changed until it closes, rather than lowering the CPU clock. A lower
+clock was the first decision; it was replaced because any ratio other than 3:2 or 1:1 to clk1x
+shortens the crossing paths, which already miss at 3:2 (build f9bb4cc, -0.131 ns).
+
+**CPU clock at runtime.** Decided (user): after clk2x closes at 125 MHz, the CPU's crossings into
+clk1x become clock-domain FIFOs and the CPU gets its own PLL output, reconfigurable from the OSD.
+The CPU is then constrained at a frequency that closes, and higher settings (the board's 100 MHz)
+are offered as an overclock that timing analysis does not cover. clk2x stays fixed: the 25 MHz pixel
+clock and the video's line budget need it.
 
 **What does 93.75 MHz cost?** Decided to run at 93.75 MHz. Game logic timed by the CPU runs up
 to 6% slow; a MAME run at 93.75 MHz shows whether any of it is visible. Overclocking is a later
@@ -454,5 +461,18 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
 
 ## Next steps
 
-1. User review and approval of this roadmap.
-2. Phase 0: vendor the N64 CPU and its `PROVENANCE.md`.
+1. Timing closure at full speed (user decision: clk2x 125, clk3d 100, CPU on its own PLL). Left
+   after `36de823`: sys's scaler on clk2x (CLK_VIDEO) and the SDRAM read pins, about -1.5 to
+   -1.8 ns; clk3d about -0.7 ns, with geometry fixes since.
+2. Sprite engine throughput (user decision, approved). buriki f2500 needs up to 8,438 clocks a
+   line at a 60-clock ROM latency against 3,840 (`sprite_tb +prof=1`): drawing 3,486, row waits
+   1,018, fetch 865, per-sprite setup ~670, z-buffer clear 512. Late passes show as stale lines
+   (the top-of-screen corruption on hardware, probe V). In order, each checked by sprite_tb
+   against the model:
+   a. z-buffer entries tagged with their line, cleared once a frame in vblank: no per-line clear.
+   b. sprite setup and tile fetch run ahead of the draw loop, so they and the row waits overlap
+      drawing.
+   c. two pixels a clock, the z-buffer in even and odd x banks; the sprite line buffer in video
+      takes two writes a clock.
+3. sams64: grey untextured 3D and no 2D title on hardware; buriki textures correctly.
+4. An intermittent video hang (every line the same); probe V on the stp build to find the unit.

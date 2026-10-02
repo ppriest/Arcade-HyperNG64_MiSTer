@@ -2,5 +2,7 @@ rtl/common/hng64_bram.sv
 rtl/memory/hng64_ddram.sv
 rtl/3d/hng64_geo.v
 rtl/3d/hng64_raster.v
+rtl/common/hng64_afifo.sv
+rtl/hng64_3d_bridge.sv
 rtl/hng64_3d.sv
 sim/g3d_tb/tb_g3d.sv

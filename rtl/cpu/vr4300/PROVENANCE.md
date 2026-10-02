@@ -57,10 +57,32 @@ The N64 project assigns no library, and Quartus resolves `mem` to `work`. ModelS
 - `cpu.vhd`: a `debug_pc` output, the fetch PC's low 32 bits, read by the `HyperNG64_stp`
   revision's ISSP probe P. No logic changes.
 
+- `cpu_cop0.vhd`: a `debug_regs` output, BadVAddr, Status, Cause and EPC (low words, MIPS
+  layout); `cpu.vhd` passes it out as `debug_cop0`, for the stp revision's probe P. (The upstream
+  `cop0_export` is simulation-only.)
 - `cpu.vhd`: a `mem_idle` output, high when the write FIFO is empty and the memory port is idle,
   used by `rtl/cpu/hng64_cpu.vhd` to hold the interrupt line off while a store is pending
   (docs/HACKS.md); and an `irqHold` input, which keeps the decode stage from taking an
   interrupt (`irqTrigger` and `blockIRQ` as before, and `irqHold` low). Cause is unchanged.
+
+- `cpu.vhd`: the instruction fetch's region check (`TLB_instrMapped`) is computed for each of the
+  two candidate fetch addresses (`TLB_instrMapped1`/`2`), each candidate's tag-compare address
+  takes its own, and the selected one is a mux of the two. Upstream derives it from the selected
+  `FetchAddr`, which puts the branch decision in front of both tag compares. Same function;
+  for timing at 93.75 MHz (user decision, docs/ROADMAP.md).
+
+- `cpu_cop0.vhd`: an exception's address (BadVAddr, EntryHi's VPN and region, Context's and
+  XContext's BadVPN) is written a clock after the exception is found, through `excQ_we`/`excQ_addr`.
+  The exception flushes the pipeline, so the handler reads them clocks later. For timing at
+  93.75 MHz (user decision). The boot bench takes no address or TLB exception in its 20,000
+  instructions, so this is checked only by inspection so far.
+
+- `cpu.vhd`: the branch compares (`cmpEqual`, `cmpZero`) are worked out for every pair of the
+  operands' sources (execute's result, writeback's, the decoded value) and selected by the same
+  forward flags that build `value1`/`value2`, instead of comparing after the forward mux. Same
+  function; for timing at 93.75 MHz (user decision).
+- `cpu_cop0.vhd`: the TLB search passes over an entry whose valid bit for the page is clear, as
+  MAME's vtlb does, instead of stopping at it with TLB invalid (docs/MAME_KLUDGES.md).
 
 Each modified file has its unmodified copy beside it as `*_upstream_reference.vhd`.
 

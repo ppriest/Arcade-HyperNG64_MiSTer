@@ -25,7 +25,7 @@ case class TriangleSetup(c: RasterConfig) extends Component {
   val F = c.xyFrac
   val half = 1 << (F - 1)
 
-  object S extends SpinalEnum { val Idle, Prep, Prep2, Mul, Done = newElement() }
+  object S extends SpinalEnum { val Idle, Prep0, Prep, Prep2, Mul, Done = newElement() }
   val state = RegInit(S.Idle)
   // the triangle is read where the gradient unit holds it, and let go when this one's output is
   // taken: no copy (the units run one triangle at a time; the engine is the frame's bottleneck)
@@ -37,7 +37,7 @@ case class TriangleSetup(c: RasterConfig) extends Component {
   io.o.payload := out
 
   when(state === S.Idle && io.i.valid) {
-    state := S.Prep
+    state := S.Prep0
   }
 
   // ---- Prep: bounding box, edges, pixel-centre offsets ---------------------------------------------
@@ -47,8 +47,27 @@ case class TriangleSetup(c: RasterConfig) extends Component {
   def ceilPix(v: SInt) = ((v.resize(c.xyBits + 1 bits) + ((1 << F) - 1)) >> F).resize(c.pixBits bits)
   def roundHalfDownPix(v: SInt) = ((v.resize(c.xyBits + 1 bits) + (half - 1)) >> F).resize(c.pixBits bits)
 
-  val xmin = Seq(vx(0), vx(1), vx(2)).reduce((p, q) => Mux(p < q, p, q))
-  val xmax = Seq(vx(0), vx(1), vx(2)).reduce((p, q) => Mux(p > q, p, q))
+  // Prep0 registers the x range and the raw edge differences, Prep the rest from them: from the
+  // input through two compare-selects and a rounding add, or a subtract, a negate and the
+  // top-left compares, in one clock missed clk2x by 3.0 ns
+  val xmin = Reg(SInt(t.v(0)(0).getWidth bits))
+  val xmax = Reg(SInt(t.v(0)(0).getWidth bits))
+  val arR = Reg(Vec(SInt(c.diffBits bits), 3))
+  val brR = Reg(Vec(SInt(c.diffBits bits), 3))
+  when(state === S.Prep0) {
+    // three compares side by side, then one select each (two compare-selects in series missed
+    // clk2x by 4.0 ns)
+    val l01 = vx(0) < vx(1)
+    val l02 = vx(0) < vx(2)
+    val l12 = vx(1) < vx(2)
+    xmin := (l01 && l02) ? vx(0) | ((!l01 && l12) ? vx(1) | vx(2))
+    xmax := (!l01 && !l02) ? vx(0) | ((l01 && !l12) ? vx(1) | vx(2))
+    for (((i0, i1), n) <- Seq((0, 1), (1, 2), (2, 0)).zipWithIndex) {
+      arR(n) := vy(i0).resize(c.diffBits bits) - vy(i1).resize(c.diffBits bits)
+      brR(n) := vx(i1).resize(c.diffBits bits) - vx(i0).resize(c.diffBits bits)
+    }
+    state := S.Prep
+  }
   // Prep: the box and the edges; Prep2: the first pixel centre (in vertex units) less each vertex
   val x0Reg, y0Reg = Reg(SInt(c.pixBits bits))
   val xc = ((x0Reg.resize(c.diffBits bits) |<< F) + half).resize(c.diffBits bits)
@@ -61,11 +80,9 @@ case class TriangleSetup(c: RasterConfig) extends Component {
   val offY = Reg(Vec(SInt(c.diffBits bits), 3))
 
   when(state === S.Prep) {
-    for (((i0, i1), n) <- Seq((0, 1), (1, 2), (2, 0)).zipWithIndex) {
-      val ar = vy(i0).resize(c.diffBits bits) - vy(i1).resize(c.diffBits bits)
-      val br = vx(i1).resize(c.diffBits bits) - vx(i0).resize(c.diffBits bits)
-      val an = Mux(t.neg, -ar, ar)
-      val bn = Mux(t.neg, -br, br)
+    for (n <- 0 until 3) {
+      val an = Mux(t.neg, -arR(n), arR(n))
+      val bn = Mux(t.neg, -brR(n), brR(n))
       a(n) := an
       b(n) := bn
       bias(n) := !(an > 0 || (an === 0 && bn > 0))   // not a top or left edge

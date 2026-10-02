@@ -1,6 +1,6 @@
 // Generator : SpinalHDL v1.13.0    git head : d9d72474863badf47d8585d187f3e04ae4749c59
 // Component : hng64_geo
-// Git hash  : 6cd6f47916acdd7a8a7b304fca2ec6306930a837
+// Git hash  : f340fdde47bec12049793283fb04a5a60294ecc8
 
 `timescale 1ns/1ps
 
@@ -102,16 +102,6 @@ module hng64_geo (
   wire       [47:0]   _zz_b_1;
   wire       [47:0]   _zz_alu;
   wire       [47:0]   _zz_alu_1;
-  wire       [5:0]    _zz_alu_2;
-  wire       [15:0]   _zz_alu_3;
-  wire       [5:0]    _zz_alu_4;
-  wire       [15:0]   _zz_alu_5;
-  wire       [47:0]   _zz_alu_6;
-  wire       [15:0]   _zz_alu_7;
-  wire       [47:0]   _zz_alu_8;
-  reg        [7:0]    _zz_alu_9;
-  wire       [4:0]    _zz_alu_10;
-  wire       [47:0]   _zz_alu_11;
   wire       [47:0]   _zz_xAddr;
   wire       [47:0]   _zz_xAddr_1;
   wire                _zz_rfX_port;
@@ -123,63 +113,84 @@ module hng64_geo (
   wire                _zz_rcpRom_port;
   wire                _zz_rcpV_1;
   wire       [47:0]   _zz_io_dlAddr;
+  wire                _zz_isMc;
+  wire                _zz_isMc_1;
+  wire       [5:0]    _zz_isMc_2;
   wire       [7:0]    _zz_slowB;
   wire       [7:0]    _zz_slowB_1;
-  wire       [47:0]   _zz_mcVal_105;
-  wire       [5:0]    _zz_mcVal_106;
-  wire       [7:0]    _zz_mcVal_107;
-  wire       [47:0]   _zz_mcVal_108;
-  wire       [5:0]    _zz_mcVal_109;
-  wire       [7:0]    _zz_mcVal_110;
-  wire       [7:0]    _zz_mcVal_111;
-  wire       [47:0]   _zz__zz_mcVal_3;
-  wire                _zz__zz_mcVal_46;
-  wire                _zz__zz_mcVal_47;
-  wire                _zz__zz_mcVal_48;
-  wire                _zz__zz_mcVal_49;
-  wire       [47:0]   _zz_mcVal_112;
-  wire       [47:0]   _zz_mcVal_113;
-  wire       [5:0]    _zz_mcVal_114;
-  wire       [47:0]   _zz__zz_mcVal_55;
-  wire                _zz__zz_mcVal_98;
-  wire                _zz__zz_mcVal_99;
-  wire                _zz__zz_mcVal_100;
-  wire                _zz__zz_mcVal_101;
-  wire       [7:0]    _zz__zz_mcVal_104;
-  wire       [7:0]    _zz__zz_mcVal_104_1;
-  wire       [5:0]    _zz__zz_mcVal_104_2;
-  wire       [47:0]   _zz_mcVal_115;
-  wire       [5:0]    _zz_mcVal_116;
-  wire       [7:0]    _zz_mcVal_117;
-  wire       [47:0]   _zz_mcVal_118;
-  wire       [5:0]    _zz_mcVal_119;
-  wire       [7:0]    _zz_mcVal_120;
-  wire       [7:0]    _zz_mcVal_121;
-  wire       [47:0]   _zz_mcVal_122;
-  wire       [47:0]   _zz_mcVal_123;
-  wire       [47:0]   _zz_mcVal_124;
-  wire       [15:0]   _zz_mcVal_125;
-  wire       [47:0]   _zz_mcVal_126;
-  wire       [15:0]   _zz_mcVal_127;
-  wire       [47:0]   _zz_mcVal_128;
-  wire       [47:0]   _zz_mcVal_129;
-  wire       [15:0]   _zz_mcVal_130;
+  wire       [47:0]   _zz__zz_slowTop_3;
+  wire                _zz__zz_slowTop_46;
+  wire                _zz__zz_slowTop_47;
+  wire                _zz__zz_slowTop_48;
+  wire                _zz__zz_slowTop_49;
+  wire       [47:0]   _zz__zz_slowSh_3;
+  wire                _zz__zz_slowSh_46;
+  wire                _zz__zz_slowSh_47;
+  wire                _zz__zz_slowSh_48;
+  wire                _zz__zz_slowSh_49;
+  wire       [7:0]    _zz_slowSh_52;
+  wire       [7:0]    _zz_slowSh_53;
+  wire       [7:0]    _zz_slowSh_54;
+  wire       [5:0]    _zz_slowSh_55;
+  wire       [47:0]   _zz_slowR;
+  wire       [47:0]   _zz_slowR_1;
+  wire       [47:0]   _zz_slowR_2;
+  wire       [5:0]    _zz_slowR_3;
+  wire       [7:0]    _zz_slowR_4;
+  wire       [47:0]   _zz_slowR_5;
+  wire       [5:0]    _zz_slowR_6;
+  wire       [7:0]    _zz_slowR_7;
+  wire       [7:0]    _zz_slowR_8;
+  wire       [7:0]    _zz_stSh;
+  wire       [47:0]   _zz_stSh_1;
+  wire       [47:0]   _zz_stSh_2;
+  wire       [7:0]    _zz_stSh_3;
+  wire       [71:0]   _zz_stRound;
+  wire       [71:0]   _zz_stRound_1;
+  wire       [6:0]    _zz_stRound_2;
+  wire       [7:0]    _zz_stRound_3;
+  wire       [7:0]    _zz_stRound_4;
+  wire       [71:0]   _zz_mcVal;
+  wire       [71:0]   _zz_mcVal_1;
+  wire       [6:0]    _zz_mcVal_2;
+  wire       [7:0]    _zz_mcVal_3;
+  wire       [71:0]   _zz_mcVal_4;
+  wire       [6:0]    _zz_mcVal_5;
+  wire       [7:0]    _zz_mcVal_6;
+  wire       [7:0]    _zz_mcVal_7;
+  wire       [5:0]    _zz_slowR_9;
+  wire       [15:0]   _zz_slowR_10;
+  wire       [5:0]    _zz_slowR_11;
+  wire       [15:0]   _zz_slowR_12;
+  wire       [47:0]   _zz_slowR_13;
+  wire       [15:0]   _zz_slowR_14;
+  wire       [47:0]   _zz_slowR_15;
+  reg        [7:0]    _zz_slowR_16;
+  wire       [4:0]    _zz_slowR_17;
+  wire       [47:0]   _zz_slowR_18;
+  wire       [47:0]   _zz_mcVal_8;
+  wire       [47:0]   _zz_mcVal_9;
+  wire       [47:0]   _zz_mcVal_10;
+  wire       [15:0]   _zz_mcVal_11;
+  wire       [47:0]   _zz_mcVal_12;
+  wire       [15:0]   _zz_mcVal_13;
+  wire       [47:0]   _zz_mcVal_14;
+  wire       [47:0]   _zz_mcVal_15;
+  wire       [15:0]   _zz_mcVal_16;
+  wire       [71:0]   _zz_divRem;
   wire       [71:0]   _zz_divRem_1;
   wire       [71:0]   _zz_divRem_2;
-  wire       [71:0]   _zz_divRem_3;
-  wire       [0:0]    _zz_divRem_4;
+  wire       [0:0]    _zz_divRem_3;
   wire       [47:0]   _zz_divDen;
   wire       [47:0]   _zz_divDen_1;
   wire       [47:0]   _zz_divDen_2;
   wire       [0:0]    _zz_divDen_3;
   wire       [15:0]   _zz_divLeft;
-  wire       [47:0]   _zz_mcVal_131;
-  wire       [47:0]   _zz_mcVal_132;
-  wire       [47:0]   _zz_mcVal_133;
-  wire       [71:0]   _zz_when_GeoEngine_l274;
-  wire       [71:0]   _zz_when_GeoEngine_l274_1;
-  wire       [71:0]   _zz_divRem_5;
-  wire       [71:0]   _zz_divRem_6;
+  wire       [109:0]  _zz_divD;
+  wire       [5:0]    _zz_divD_1;
+  wire       [47:0]   _zz_slowR_19;
+  wire       [47:0]   _zz_slowR_20;
+  wire       [47:0]   _zz_slowR_21;
   wire       [47:0]   _zz_divQ;
   wire       [47:0]   _zz_divQ_1;
   wire       [0:0]    _zz_divQ_2;
@@ -214,19 +225,6 @@ module hng64_geo (
   wire       [6:0]    _zz_acc_4;
   wire       [7:0]    _zz_acc_5;
   wire       [7:0]    _zz_acc_6;
-  wire       [71:0]   _zz_half;
-  wire       [6:0]    _zz_half_1;
-  wire       [7:0]    _zz_half_2;
-  wire       [7:0]    _zz_half_3;
-  wire       [71:0]   _zz_rounded;
-  wire       [71:0]   _zz_stVal;
-  wire       [6:0]    _zz_stVal_1;
-  wire       [7:0]    _zz_stVal_2;
-  wire       [71:0]   _zz_stVal_3;
-  wire       [6:0]    _zz_stVal_4;
-  wire       [7:0]    _zz_stVal_5;
-  wire       [7:0]    _zz_stVal_6;
-  wire       [47:0]   _zz_mOut;
   wire       [47:0]   _zz_wrData;
   wire       [0:0]    _zz_wrData_1;
   wire       [47:0]   _zz_wrData_2;
@@ -234,8 +232,8 @@ module hng64_geo (
   wire       [47:0]   _zz_rfB_port_1;
   wire       [47:0]   _zz_rfX_port_1;
   wire       [4:0]    _zz_room;
-  wire       [27:0]   _zz_io_vRd_payload;
-  wire       [26:0]   _zz_io_vRd_payload_1;
+  wire       [27:0]   _zz_vRdS_payload;
+  wire       [26:0]   _zz_vRdS_payload_1;
   wire       [5:0]    _zz_vOut;
   wire       [5:0]    _zz_vOut_1;
   wire       [0:0]    _zz_vOut_2;
@@ -304,7 +302,7 @@ module hng64_geo (
   reg                 mcDone;
   reg        [8:0]    xAddr;
   wire       [47:0]   rdXraw;
-  reg        [8:0]    xAddrPrev;
+  reg                 bypX;
   wire       [47:0]   rdX;
   wire       [7:0]    _zz_rsqV;
   wire       [16:0]   rsqV;
@@ -318,6 +316,7 @@ module hng64_geo (
   reg        [47:0]   divQ;
   reg                 divNeg;
   reg        [5:0]    divLeft;
+  reg        [109:0]  divD;
   reg                 attr_flat;
   reg                 attr_blend;
   reg                 attr_tex4bpp;
@@ -356,132 +355,149 @@ module hng64_geo (
   reg        [4:0]    emitCount;
   reg                 triValid;
   wire                slowAlu;
+  wire                stOp;
+  wire                alu2;
+  reg        [47:0]   alu2B;
+  reg        [15:0]   alu2I;
+  wire                accLd;
   wire                isMc;
   wire                mcWrites;
+  reg        [7:0]    stSh;
+  reg        [71:0]   stRound;
   reg        [47:0]   slowA;
   reg        [7:0]    slowB;
+  reg        [5:0]    slowTop;
+  reg        [47:0]   slowR;
+  reg        [7:0]    slowSh;
   reg                 stxWrite;
   wire                mcGo;
-  wire                when_GeoEngine_l219;
-  wire                when_GeoEngine_l223;
-  wire                when_GeoEngine_l226;
-  wire       [47:0]   _zz_mcVal;
-  reg        [47:0]   _zz_mcVal_1;
-  wire       [47:0]   _zz_mcVal_2;
-  wire       [47:0]   _zz_mcVal_3;
-  reg        [47:0]   _zz_mcVal_4;
-  wire                _zz_mcVal_5;
-  wire                _zz_mcVal_6;
-  wire                _zz_mcVal_7;
-  wire                _zz_mcVal_8;
-  wire                _zz_mcVal_9;
-  wire                _zz_mcVal_10;
-  wire                _zz_mcVal_11;
-  wire                _zz_mcVal_12;
-  wire                _zz_mcVal_13;
-  wire                _zz_mcVal_14;
-  wire                _zz_mcVal_15;
-  wire                _zz_mcVal_16;
-  wire                _zz_mcVal_17;
-  wire                _zz_mcVal_18;
-  wire                _zz_mcVal_19;
-  wire                _zz_mcVal_20;
-  wire                _zz_mcVal_21;
-  wire                _zz_mcVal_22;
-  wire                _zz_mcVal_23;
-  wire                _zz_mcVal_24;
-  wire                _zz_mcVal_25;
-  wire                _zz_mcVal_26;
-  wire                _zz_mcVal_27;
-  wire                _zz_mcVal_28;
-  wire                _zz_mcVal_29;
-  wire                _zz_mcVal_30;
-  wire                _zz_mcVal_31;
-  wire                _zz_mcVal_32;
-  wire                _zz_mcVal_33;
-  wire                _zz_mcVal_34;
-  wire                _zz_mcVal_35;
-  wire                _zz_mcVal_36;
-  wire                _zz_mcVal_37;
-  wire                _zz_mcVal_38;
-  wire                _zz_mcVal_39;
-  wire                _zz_mcVal_40;
-  wire                _zz_mcVal_41;
-  wire                _zz_mcVal_42;
-  wire                _zz_mcVal_43;
-  wire                _zz_mcVal_44;
-  wire                _zz_mcVal_45;
-  wire                _zz_mcVal_46;
-  wire                _zz_mcVal_47;
-  wire                _zz_mcVal_48;
-  wire                _zz_mcVal_49;
-  wire                _zz_mcVal_50;
-  wire                _zz_mcVal_51;
-  wire       [47:0]   _zz_mcVal_52;
-  reg        [47:0]   _zz_mcVal_53;
-  wire       [47:0]   _zz_mcVal_54;
-  wire       [47:0]   _zz_mcVal_55;
-  reg        [47:0]   _zz_mcVal_56;
-  wire                _zz_mcVal_57;
-  wire                _zz_mcVal_58;
-  wire                _zz_mcVal_59;
-  wire                _zz_mcVal_60;
-  wire                _zz_mcVal_61;
-  wire                _zz_mcVal_62;
-  wire                _zz_mcVal_63;
-  wire                _zz_mcVal_64;
-  wire                _zz_mcVal_65;
-  wire                _zz_mcVal_66;
-  wire                _zz_mcVal_67;
-  wire                _zz_mcVal_68;
-  wire                _zz_mcVal_69;
-  wire                _zz_mcVal_70;
-  wire                _zz_mcVal_71;
-  wire                _zz_mcVal_72;
-  wire                _zz_mcVal_73;
-  wire                _zz_mcVal_74;
-  wire                _zz_mcVal_75;
-  wire                _zz_mcVal_76;
-  wire                _zz_mcVal_77;
-  wire                _zz_mcVal_78;
-  wire                _zz_mcVal_79;
-  wire                _zz_mcVal_80;
-  wire                _zz_mcVal_81;
-  wire                _zz_mcVal_82;
-  wire                _zz_mcVal_83;
-  wire                _zz_mcVal_84;
-  wire                _zz_mcVal_85;
-  wire                _zz_mcVal_86;
-  wire                _zz_mcVal_87;
-  wire                _zz_mcVal_88;
-  wire                _zz_mcVal_89;
-  wire                _zz_mcVal_90;
-  wire                _zz_mcVal_91;
-  wire                _zz_mcVal_92;
-  wire                _zz_mcVal_93;
-  wire                _zz_mcVal_94;
-  wire                _zz_mcVal_95;
-  wire                _zz_mcVal_96;
-  wire                _zz_mcVal_97;
-  wire                _zz_mcVal_98;
-  wire                _zz_mcVal_99;
-  wire                _zz_mcVal_100;
-  wire                _zz_mcVal_101;
-  wire                _zz_mcVal_102;
-  wire                _zz_mcVal_103;
-  wire       [7:0]    _zz_mcVal_104;
+  wire                when_GeoEngine_l236;
   wire                when_GeoEngine_l240;
   wire                when_GeoEngine_l243;
-  wire                when_GeoEngine_l246;
-  wire                when_GeoEngine_l260;
-  wire       [5:0]    _zz_divRem;
-  wire                when_GeoEngine_l274;
+  wire       [47:0]   _zz_slowTop;
+  reg        [47:0]   _zz_slowTop_1;
+  wire       [47:0]   _zz_slowTop_2;
+  wire       [47:0]   _zz_slowTop_3;
+  reg        [47:0]   _zz_slowTop_4;
+  wire                _zz_slowTop_5;
+  wire                _zz_slowTop_6;
+  wire                _zz_slowTop_7;
+  wire                _zz_slowTop_8;
+  wire                _zz_slowTop_9;
+  wire                _zz_slowTop_10;
+  wire                _zz_slowTop_11;
+  wire                _zz_slowTop_12;
+  wire                _zz_slowTop_13;
+  wire                _zz_slowTop_14;
+  wire                _zz_slowTop_15;
+  wire                _zz_slowTop_16;
+  wire                _zz_slowTop_17;
+  wire                _zz_slowTop_18;
+  wire                _zz_slowTop_19;
+  wire                _zz_slowTop_20;
+  wire                _zz_slowTop_21;
+  wire                _zz_slowTop_22;
+  wire                _zz_slowTop_23;
+  wire                _zz_slowTop_24;
+  wire                _zz_slowTop_25;
+  wire                _zz_slowTop_26;
+  wire                _zz_slowTop_27;
+  wire                _zz_slowTop_28;
+  wire                _zz_slowTop_29;
+  wire                _zz_slowTop_30;
+  wire                _zz_slowTop_31;
+  wire                _zz_slowTop_32;
+  wire                _zz_slowTop_33;
+  wire                _zz_slowTop_34;
+  wire                _zz_slowTop_35;
+  wire                _zz_slowTop_36;
+  wire                _zz_slowTop_37;
+  wire                _zz_slowTop_38;
+  wire                _zz_slowTop_39;
+  wire                _zz_slowTop_40;
+  wire                _zz_slowTop_41;
+  wire                _zz_slowTop_42;
+  wire                _zz_slowTop_43;
+  wire                _zz_slowTop_44;
+  wire                _zz_slowTop_45;
+  wire                _zz_slowTop_46;
+  wire                _zz_slowTop_47;
+  wire                _zz_slowTop_48;
+  wire                _zz_slowTop_49;
+  wire                _zz_slowTop_50;
+  wire                _zz_slowTop_51;
+  wire       [47:0]   _zz_slowSh;
+  reg        [47:0]   _zz_slowSh_1;
+  wire       [47:0]   _zz_slowSh_2;
+  wire       [47:0]   _zz_slowSh_3;
+  reg        [47:0]   _zz_slowSh_4;
+  wire                _zz_slowSh_5;
+  wire                _zz_slowSh_6;
+  wire                _zz_slowSh_7;
+  wire                _zz_slowSh_8;
+  wire                _zz_slowSh_9;
+  wire                _zz_slowSh_10;
+  wire                _zz_slowSh_11;
+  wire                _zz_slowSh_12;
+  wire                _zz_slowSh_13;
+  wire                _zz_slowSh_14;
+  wire                _zz_slowSh_15;
+  wire                _zz_slowSh_16;
+  wire                _zz_slowSh_17;
+  wire                _zz_slowSh_18;
+  wire                _zz_slowSh_19;
+  wire                _zz_slowSh_20;
+  wire                _zz_slowSh_21;
+  wire                _zz_slowSh_22;
+  wire                _zz_slowSh_23;
+  wire                _zz_slowSh_24;
+  wire                _zz_slowSh_25;
+  wire                _zz_slowSh_26;
+  wire                _zz_slowSh_27;
+  wire                _zz_slowSh_28;
+  wire                _zz_slowSh_29;
+  wire                _zz_slowSh_30;
+  wire                _zz_slowSh_31;
+  wire                _zz_slowSh_32;
+  wire                _zz_slowSh_33;
+  wire                _zz_slowSh_34;
+  wire                _zz_slowSh_35;
+  wire                _zz_slowSh_36;
+  wire                _zz_slowSh_37;
+  wire                _zz_slowSh_38;
+  wire                _zz_slowSh_39;
+  wire                _zz_slowSh_40;
+  wire                _zz_slowSh_41;
+  wire                _zz_slowSh_42;
+  wire                _zz_slowSh_43;
+  wire                _zz_slowSh_44;
+  wire                _zz_slowSh_45;
+  wire                _zz_slowSh_46;
+  wire                _zz_slowSh_47;
+  wire                _zz_slowSh_48;
+  wire                _zz_slowSh_49;
+  wire                _zz_slowSh_50;
+  wire                _zz_slowSh_51;
+  wire                when_GeoEngine_l247;
+  wire                when_GeoEngine_l251;
+  wire                when_GeoEngine_l264;
   wire                when_GeoEngine_l267;
+  wire                when_GeoEngine_l277;
   wire                when_GeoEngine_l282;
-  wire                when_GeoEngine_l283;
-  wire                when_GeoEngine_l286;
-  wire       [4:0]    switch_GeoEngine_l290;
-  wire                when_GeoEngine_l298;
+  wire                when_GeoEngine_l300;
+  wire                when_GeoEngine_l308;
+  wire                when_GeoEngine_l311;
+  wire                when_GeoEngine_l314;
+  wire                when_GeoEngine_l328;
+  wire                when_GeoEngine_l351;
+  wire                when_GeoEngine_l335;
+  wire                when_GeoEngine_l341;
+  wire                when_GeoEngine_l344;
+  wire                when_GeoEngine_l360;
+  wire                when_GeoEngine_l361;
+  wire                when_GeoEngine_l364;
+  wire       [4:0]    switch_GeoEngine_l368;
+  wire                when_GeoEngine_l376;
   wire                eGo;
   reg                 taken;
   reg        [10:0]   retStack_0;
@@ -491,27 +507,23 @@ module hng64_geo (
   reg        [1:0]    retSp;
   wire       [3:0]    _zz_7;
   wire       [10:0]   _zz_retStack_0;
-  wire       [3:0]    switch_GeoEngine_l343;
-  wire                when_GeoEngine_l363;
+  wire       [3:0]    switch_GeoEngine_l421;
   wire                isSt;
-  wire       [5:0]    mo;
-  wire       [71:0]   half;
-  wire       [71:0]   rounded;
-  wire       [71:0]   stVal;
-  wire       [47:0]   mOut;
   wire       [8:0]    mDst;
   reg                 wrEn;
   reg        [8:0]    wrAddr;
   reg        [47:0]   wrData;
-  wire                when_GeoEngine_l419;
-  wire                when_GeoEngine_l424;
-  wire                mNext;
-  wire                when_GeoEngine_l447;
-  wire                when_GeoEngine_l455;
+  wire                when_GeoEngine_l494;
+  wire                when_GeoEngine_l499;
+  wire                mNextGo;
+  wire       [8:0]    _zz_selMA;
+  wire       [8:0]    _zz_selMB;
+  wire                when_GeoEngine_l527;
+  wire                when_GeoEngine_l535;
   reg        [10:0]   _zz_pcSeq;
-  wire                when_GeoEngine_l463;
-  wire                when_GeoEngine_l465;
-  wire                when_GeoEngine_l466;
+  wire                when_GeoEngine_l543;
+  wire                when_GeoEngine_l545;
+  wire                when_GeoEngine_l546;
   reg                 seeked;
   reg        [25:0]   vReq;
   reg        [5:0]    vDrop;
@@ -519,8 +531,17 @@ module hng64_geo (
   reg        [1:0]    vSkip;
   wire                seek;
   wire                room;
-  wire                io_vRd_fire;
-  wire                when_GeoEngine_l483;
+  wire                vRdS_valid;
+  reg                 vRdS_ready;
+  wire       [27:0]   vRdS_payload;
+  wire                vRdS_m2sPipe_valid;
+  wire                vRdS_m2sPipe_ready;
+  wire       [27:0]   vRdS_m2sPipe_payload;
+  reg                 vRdS_rValid;
+  reg        [27:0]   vRdS_rData;
+  wire                when_Stream_l477;
+  wire                vRdS_fire;
+  wire                when_GeoEngine_l568;
   wire                vWord_fire;
   wire       [25:0]   _zz_vReq;
   wire                io_tri_fire;
@@ -537,15 +558,6 @@ module hng64_geo (
   assign _zz_b_1 = (selWB ? wVal : rdB);
   assign _zz_alu = {{32{imm[15]}}, imm};
   assign _zz_alu_1 = {{32{imm[15]}}, imm};
-  assign _zz_alu_3 = imm;
-  assign _zz_alu_2 = _zz_alu_3[5:0];
-  assign _zz_alu_5 = imm;
-  assign _zz_alu_4 = _zz_alu_5[5:0];
-  assign _zz_alu_6 = (- a);
-  assign _zz_alu_7 = a[15 : 0];
-  assign _zz_alu_8 = {40'd0, _zz_alu_9};
-  assign _zz_alu_11 = a;
-  assign _zz_alu_10 = _zz_alu_11[4:0];
   assign _zz_xAddr = _zz_xAddr_1;
   assign _zz_xAddr_1 = ($signed(a) + $signed(b));
   assign _zz__zz_rsqV = a;
@@ -553,55 +565,72 @@ module hng64_geo (
   assign _zz_io_dlAddr = a;
   assign _zz_slowB = b[7:0];
   assign _zz_slowB_1 = imm[7:0];
-  assign _zz_mcVal_105 = ($signed(slowA) <<< _zz_mcVal_106);
-  assign _zz_mcVal_107 = slowB;
-  assign _zz_mcVal_106 = _zz_mcVal_107[5:0];
-  assign _zz_mcVal_108 = ($signed(slowA) >>> _zz_mcVal_109);
-  assign _zz_mcVal_110 = _zz_mcVal_111;
-  assign _zz_mcVal_109 = _zz_mcVal_110[5:0];
-  assign _zz_mcVal_111 = (- slowB);
-  assign _zz__zz_mcVal_3 = (_zz_mcVal_1 - 48'h000000000001);
-  assign _zz_mcVal_112 = _zz_mcVal_113;
-  assign _zz_mcVal_114 = {_zz_mcVal_51,{_zz_mcVal_50,{_zz_mcVal_49,{_zz_mcVal_48,{_zz_mcVal_47,_zz_mcVal_46}}}}};
-  assign _zz_mcVal_113 = {42'd0, _zz_mcVal_114};
-  assign _zz__zz_mcVal_55 = (_zz_mcVal_53 - 48'h000000000001);
-  assign _zz__zz_mcVal_104 = _zz__zz_mcVal_104_1;
-  assign _zz__zz_mcVal_104_2 = {_zz_mcVal_103,{_zz_mcVal_102,{_zz_mcVal_101,{_zz_mcVal_100,{_zz_mcVal_99,_zz_mcVal_98}}}}};
-  assign _zz__zz_mcVal_104_1 = {2'd0, _zz__zz_mcVal_104_2};
-  assign _zz_mcVal_115 = ($signed(slowA) <<< _zz_mcVal_116);
-  assign _zz_mcVal_117 = _zz_mcVal_104;
-  assign _zz_mcVal_116 = _zz_mcVal_117[5:0];
-  assign _zz_mcVal_118 = ($signed(slowA) >>> _zz_mcVal_119);
-  assign _zz_mcVal_120 = _zz_mcVal_121;
-  assign _zz_mcVal_119 = _zz_mcVal_120[5:0];
-  assign _zz_mcVal_121 = (- _zz_mcVal_104);
-  assign _zz_mcVal_122 = {31'd0, rsqV};
-  assign _zz_mcVal_123 = {36'd0, rcpV};
-  assign _zz_mcVal_125 = io_dlData;
-  assign _zz_mcVal_124 = {32'd0, _zz_mcVal_125};
-  assign _zz_mcVal_127 = vWord_payload;
-  assign _zz_mcVal_126 = {{32{_zz_mcVal_127[15]}}, _zz_mcVal_127};
-  assign _zz_mcVal_128 = _zz_mcVal_129;
-  assign _zz_mcVal_130 = vWord_payload;
-  assign _zz_mcVal_129 = {32'd0, _zz_mcVal_130};
-  assign _zz_divRem_1 = (acc[71] ? _zz_divRem_2 : acc);
-  assign _zz_divRem_2 = (~ acc);
-  assign _zz_divRem_4 = acc[71];
-  assign _zz_divRem_3 = {71'd0, _zz_divRem_4};
+  assign _zz__zz_slowTop_3 = (_zz_slowTop_1 - 48'h000000000001);
+  assign _zz__zz_slowSh_3 = (_zz_slowSh_1 - 48'h000000000001);
+  assign _zz_slowSh_52 = ($signed(slowB) - $signed(_zz_slowSh_53));
+  assign _zz_slowSh_53 = _zz_slowSh_54;
+  assign _zz_slowSh_55 = {_zz_slowSh_51,{_zz_slowSh_50,{_zz_slowSh_49,{_zz_slowSh_48,{_zz_slowSh_47,_zz_slowSh_46}}}}};
+  assign _zz_slowSh_54 = {2'd0, _zz_slowSh_55};
+  assign _zz_slowR = _zz_slowR_1;
+  assign _zz_slowR_1 = {42'd0, slowTop};
+  assign _zz_slowR_2 = ($signed(slowA) <<< _zz_slowR_3);
+  assign _zz_slowR_4 = slowSh;
+  assign _zz_slowR_3 = _zz_slowR_4[5:0];
+  assign _zz_slowR_5 = ($signed(slowA) >>> _zz_slowR_6);
+  assign _zz_slowR_7 = _zz_slowR_8;
+  assign _zz_slowR_6 = _zz_slowR_7[5:0];
+  assign _zz_slowR_8 = (- slowSh);
+  assign _zz_stSh_1 = ($signed(b) + $signed(_zz_stSh_2));
+  assign _zz_stSh = _zz_stSh_1[7:0];
+  assign _zz_stSh_2 = {{32{imm[15]}}, imm};
+  assign _zz_stSh_3 = imm[7:0];
+  assign _zz_stRound = ((($signed(8'h0) < $signed(stSh)) && (o != 6'h09)) ? _zz_stRound_1 : 72'h0);
+  assign _zz_stRound_1 = ($signed(72'h000000000000000001) <<< _zz_stRound_2);
+  assign _zz_stRound_3 = _zz_stRound_4;
+  assign _zz_stRound_2 = _zz_stRound_3[6:0];
+  assign _zz_stRound_4 = ($signed(stSh) - $signed(8'h01));
+  assign _zz_mcVal = (($signed(8'h0) <= $signed(stSh)) ? _zz_mcVal_1 : _zz_mcVal_4);
+  assign _zz_mcVal_1 = ($signed(stRound) >>> _zz_mcVal_2);
+  assign _zz_mcVal_3 = stSh;
+  assign _zz_mcVal_2 = _zz_mcVal_3[6:0];
+  assign _zz_mcVal_4 = ($signed(stRound) <<< _zz_mcVal_5);
+  assign _zz_mcVal_6 = _zz_mcVal_7;
+  assign _zz_mcVal_5 = _zz_mcVal_6[6:0];
+  assign _zz_mcVal_7 = (- stSh);
+  assign _zz_slowR_10 = alu2I;
+  assign _zz_slowR_9 = _zz_slowR_10[5:0];
+  assign _zz_slowR_12 = alu2I;
+  assign _zz_slowR_11 = _zz_slowR_12[5:0];
+  assign _zz_slowR_13 = (- slowA);
+  assign _zz_slowR_14 = slowA[15 : 0];
+  assign _zz_slowR_15 = {40'd0, _zz_slowR_16};
+  assign _zz_slowR_18 = slowA;
+  assign _zz_slowR_17 = _zz_slowR_18[4:0];
+  assign _zz_mcVal_8 = {31'd0, rsqV};
+  assign _zz_mcVal_9 = {36'd0, rcpV};
+  assign _zz_mcVal_11 = io_dlData;
+  assign _zz_mcVal_10 = {32'd0, _zz_mcVal_11};
+  assign _zz_mcVal_13 = vWord_payload;
+  assign _zz_mcVal_12 = {{32{_zz_mcVal_13[15]}}, _zz_mcVal_13};
+  assign _zz_mcVal_14 = _zz_mcVal_15;
+  assign _zz_mcVal_16 = vWord_payload;
+  assign _zz_mcVal_15 = {32'd0, _zz_mcVal_16};
+  assign _zz_divRem = (acc[71] ? _zz_divRem_1 : acc);
+  assign _zz_divRem_1 = (~ acc);
+  assign _zz_divRem_3 = acc[71];
+  assign _zz_divRem_2 = {71'd0, _zz_divRem_3};
   assign _zz_divDen = (b[47] ? _zz_divDen_1 : b);
   assign _zz_divDen_1 = (~ b);
   assign _zz_divDen_3 = b[47];
   assign _zz_divDen_2 = {47'd0, _zz_divDen_3};
   assign _zz_divLeft = imm;
-  assign _zz_mcVal_131 = (- _zz_mcVal_132);
-  assign _zz_mcVal_132 = divQ;
-  assign _zz_mcVal_133 = divQ;
-  assign _zz_when_GeoEngine_l274 = {24'd0, divDen};
-  assign _zz_when_GeoEngine_l274_1 = (divRem >>> _zz_divRem);
-  assign _zz_divRem_5 = (_zz_divRem_6 <<< _zz_divRem);
-  assign _zz_divRem_6 = {24'd0, divDen};
+  assign _zz_divD = {62'd0, divDen};
+  assign _zz_divD_1 = (divLeft - 6'h01);
+  assign _zz_slowR_19 = (- _zz_slowR_20);
+  assign _zz_slowR_20 = divQ;
+  assign _zz_slowR_21 = divQ;
   assign _zz_divQ = (divQ <<< 1);
-  assign _zz_divQ_2 = when_GeoEngine_l274;
+  assign _zz_divQ_2 = when_GeoEngine_l351;
   assign _zz_divQ_1 = {47'd0, _zz_divQ_2};
   assign _zz_xAddr_2 = {4'd0, emitCount};
   assign _zz_target = imm;
@@ -617,10 +646,10 @@ module hng64_geo (
   assign _zz_attr_wrapY = a;
   assign _zz_prod = a[35:0];
   assign _zz_prod_1 = b[35:0];
-  assign _zz_accVal = {{24{a[47]}}, a};
-  assign _zz_accVal_2 = b;
+  assign _zz_accVal = {{24{slowA[47]}}, slowA};
+  assign _zz_accVal_2 = alu2B;
   assign _zz_accVal_1 = _zz_accVal_2[6:0];
-  assign _zz_accVal_4 = imm;
+  assign _zz_accVal_4 = alu2I;
   assign _zz_accVal_3 = _zz_accVal_4[6:0];
   assign _zz_mSh_1 = ($signed(b) + $signed(_zz_mSh_2));
   assign _zz_mSh = _zz_mSh_1[7:0];
@@ -633,27 +662,14 @@ module hng64_geo (
   assign _zz_acc_5 = _zz_acc_6;
   assign _zz_acc_4 = _zz_acc_5[6:0];
   assign _zz_acc_6 = (- mSh);
-  assign _zz_half = ($signed(72'h000000000000000001) <<< _zz_half_1);
-  assign _zz_half_2 = _zz_half_3;
-  assign _zz_half_1 = _zz_half_2[6:0];
-  assign _zz_half_3 = ($signed(mSh) - $signed(8'h01));
-  assign _zz_rounded = ((mo == 6'h09) ? 72'h0 : half);
-  assign _zz_stVal = ($signed(rounded) >>> _zz_stVal_1);
-  assign _zz_stVal_2 = mSh;
-  assign _zz_stVal_1 = _zz_stVal_2[6:0];
-  assign _zz_stVal_3 = ($signed(acc) <<< _zz_stVal_4);
-  assign _zz_stVal_5 = _zz_stVal_6;
-  assign _zz_stVal_4 = _zz_stVal_5[6:0];
-  assign _zz_stVal_6 = (- mSh);
-  assign _zz_mOut = stVal[47:0];
   assign _zz_wrData_1 = io_samsho;
   assign _zz_wrData = {47'd0, _zz_wrData_1};
   assign _zz_wrData_2 = {24'd0, io_vlen};
   assign _zz_room = vOut[4:0];
-  assign _zz_io_vRd_payload_1 = {vReq[25 : 2],3'b000};
-  assign _zz_io_vRd_payload = {1'd0, _zz_io_vRd_payload_1};
+  assign _zz_vRdS_payload_1 = {vReq[25 : 2],3'b000};
+  assign _zz_vRdS_payload = {1'd0, _zz_vRdS_payload_1};
   assign _zz_vOut = (vOut + _zz_vOut_1);
-  assign _zz_vOut_2 = io_vRd_fire;
+  assign _zz_vOut_2 = vRdS_fire;
   assign _zz_vOut_1 = {5'd0, _zz_vOut_2};
   assign _zz_vOut_4 = io_vData_valid;
   assign _zz_vOut_3 = {5'd0, _zz_vOut_4};
@@ -668,14 +684,17 @@ module hng64_geo (
   assign _zz_rfB_port_1 = wrData;
   assign _zz_rdXraw = 1'b1;
   assign _zz_rfX_port_1 = wrData;
-  assign _zz__zz_mcVal_46 = (((((((_zz_mcVal_2[1] || _zz_mcVal_5) || _zz_mcVal_6) || _zz_mcVal_8) || _zz_mcVal_9) || _zz_mcVal_11) || _zz_mcVal_13) || _zz_mcVal_15);
-  assign _zz__zz_mcVal_47 = (((((((_zz_mcVal_2[2] || _zz_mcVal_5) || _zz_mcVal_7) || _zz_mcVal_8) || _zz_mcVal_10) || _zz_mcVal_11) || _zz_mcVal_14) || _zz_mcVal_15);
-  assign _zz__zz_mcVal_48 = (((((((_zz_mcVal_2[4] || _zz_mcVal_6) || _zz_mcVal_7) || _zz_mcVal_8) || _zz_mcVal_12) || _zz_mcVal_13) || _zz_mcVal_14) || _zz_mcVal_15);
-  assign _zz__zz_mcVal_49 = (((((((_zz_mcVal_2[8] || _zz_mcVal_9) || _zz_mcVal_10) || _zz_mcVal_11) || _zz_mcVal_12) || _zz_mcVal_13) || _zz_mcVal_14) || _zz_mcVal_15);
-  assign _zz__zz_mcVal_98 = (((((((_zz_mcVal_54[1] || _zz_mcVal_57) || _zz_mcVal_58) || _zz_mcVal_60) || _zz_mcVal_61) || _zz_mcVal_63) || _zz_mcVal_65) || _zz_mcVal_67);
-  assign _zz__zz_mcVal_99 = (((((((_zz_mcVal_54[2] || _zz_mcVal_57) || _zz_mcVal_59) || _zz_mcVal_60) || _zz_mcVal_62) || _zz_mcVal_63) || _zz_mcVal_66) || _zz_mcVal_67);
-  assign _zz__zz_mcVal_100 = (((((((_zz_mcVal_54[4] || _zz_mcVal_58) || _zz_mcVal_59) || _zz_mcVal_60) || _zz_mcVal_64) || _zz_mcVal_65) || _zz_mcVal_66) || _zz_mcVal_67);
-  assign _zz__zz_mcVal_101 = (((((((_zz_mcVal_54[8] || _zz_mcVal_61) || _zz_mcVal_62) || _zz_mcVal_63) || _zz_mcVal_64) || _zz_mcVal_65) || _zz_mcVal_66) || _zz_mcVal_67);
+  assign _zz_isMc = (o == 6'h1d);
+  assign _zz_isMc_1 = (o == 6'h1e);
+  assign _zz_isMc_2 = 6'h1f;
+  assign _zz__zz_slowTop_46 = (((((((_zz_slowTop_2[1] || _zz_slowTop_5) || _zz_slowTop_6) || _zz_slowTop_8) || _zz_slowTop_9) || _zz_slowTop_11) || _zz_slowTop_13) || _zz_slowTop_15);
+  assign _zz__zz_slowTop_47 = (((((((_zz_slowTop_2[2] || _zz_slowTop_5) || _zz_slowTop_7) || _zz_slowTop_8) || _zz_slowTop_10) || _zz_slowTop_11) || _zz_slowTop_14) || _zz_slowTop_15);
+  assign _zz__zz_slowTop_48 = (((((((_zz_slowTop_2[4] || _zz_slowTop_6) || _zz_slowTop_7) || _zz_slowTop_8) || _zz_slowTop_12) || _zz_slowTop_13) || _zz_slowTop_14) || _zz_slowTop_15);
+  assign _zz__zz_slowTop_49 = (((((((_zz_slowTop_2[8] || _zz_slowTop_9) || _zz_slowTop_10) || _zz_slowTop_11) || _zz_slowTop_12) || _zz_slowTop_13) || _zz_slowTop_14) || _zz_slowTop_15);
+  assign _zz__zz_slowSh_46 = (((((((_zz_slowSh_2[1] || _zz_slowSh_5) || _zz_slowSh_6) || _zz_slowSh_8) || _zz_slowSh_9) || _zz_slowSh_11) || _zz_slowSh_13) || _zz_slowSh_15);
+  assign _zz__zz_slowSh_47 = (((((((_zz_slowSh_2[2] || _zz_slowSh_5) || _zz_slowSh_7) || _zz_slowSh_8) || _zz_slowSh_10) || _zz_slowSh_11) || _zz_slowSh_14) || _zz_slowSh_15);
+  assign _zz__zz_slowSh_48 = (((((((_zz_slowSh_2[4] || _zz_slowSh_6) || _zz_slowSh_7) || _zz_slowSh_8) || _zz_slowSh_12) || _zz_slowSh_13) || _zz_slowSh_14) || _zz_slowSh_15);
+  assign _zz__zz_slowSh_49 = (((((((_zz_slowSh_2[8] || _zz_slowSh_9) || _zz_slowSh_10) || _zz_slowSh_11) || _zz_slowSh_12) || _zz_slowSh_13) || _zz_slowSh_14) || _zz_slowSh_15);
   initial begin
     rom[0] = 49'b0101110000000010000000000000000000000000000000001;
     rom[1] = 49'b0101111110101010000000000000000000000000000000001;
@@ -4078,39 +4097,39 @@ module hng64_geo (
     .reset           (reset                     )  //i
   );
   always @(*) begin
-    case(_zz_alu_10)
-      5'b00000 : _zz_alu_9 = io_wrap_0;
-      5'b00001 : _zz_alu_9 = io_wrap_1;
-      5'b00010 : _zz_alu_9 = io_wrap_2;
-      5'b00011 : _zz_alu_9 = io_wrap_3;
-      5'b00100 : _zz_alu_9 = io_wrap_4;
-      5'b00101 : _zz_alu_9 = io_wrap_5;
-      5'b00110 : _zz_alu_9 = io_wrap_6;
-      5'b00111 : _zz_alu_9 = io_wrap_7;
-      5'b01000 : _zz_alu_9 = io_wrap_8;
-      5'b01001 : _zz_alu_9 = io_wrap_9;
-      5'b01010 : _zz_alu_9 = io_wrap_10;
-      5'b01011 : _zz_alu_9 = io_wrap_11;
-      5'b01100 : _zz_alu_9 = io_wrap_12;
-      5'b01101 : _zz_alu_9 = io_wrap_13;
-      5'b01110 : _zz_alu_9 = io_wrap_14;
-      5'b01111 : _zz_alu_9 = io_wrap_15;
-      5'b10000 : _zz_alu_9 = io_wrap_16;
-      5'b10001 : _zz_alu_9 = io_wrap_17;
-      5'b10010 : _zz_alu_9 = io_wrap_18;
-      5'b10011 : _zz_alu_9 = io_wrap_19;
-      5'b10100 : _zz_alu_9 = io_wrap_20;
-      5'b10101 : _zz_alu_9 = io_wrap_21;
-      5'b10110 : _zz_alu_9 = io_wrap_22;
-      5'b10111 : _zz_alu_9 = io_wrap_23;
-      5'b11000 : _zz_alu_9 = io_wrap_24;
-      5'b11001 : _zz_alu_9 = io_wrap_25;
-      5'b11010 : _zz_alu_9 = io_wrap_26;
-      5'b11011 : _zz_alu_9 = io_wrap_27;
-      5'b11100 : _zz_alu_9 = io_wrap_28;
-      5'b11101 : _zz_alu_9 = io_wrap_29;
-      5'b11110 : _zz_alu_9 = io_wrap_30;
-      default : _zz_alu_9 = io_wrap_31;
+    case(_zz_slowR_17)
+      5'b00000 : _zz_slowR_16 = io_wrap_0;
+      5'b00001 : _zz_slowR_16 = io_wrap_1;
+      5'b00010 : _zz_slowR_16 = io_wrap_2;
+      5'b00011 : _zz_slowR_16 = io_wrap_3;
+      5'b00100 : _zz_slowR_16 = io_wrap_4;
+      5'b00101 : _zz_slowR_16 = io_wrap_5;
+      5'b00110 : _zz_slowR_16 = io_wrap_6;
+      5'b00111 : _zz_slowR_16 = io_wrap_7;
+      5'b01000 : _zz_slowR_16 = io_wrap_8;
+      5'b01001 : _zz_slowR_16 = io_wrap_9;
+      5'b01010 : _zz_slowR_16 = io_wrap_10;
+      5'b01011 : _zz_slowR_16 = io_wrap_11;
+      5'b01100 : _zz_slowR_16 = io_wrap_12;
+      5'b01101 : _zz_slowR_16 = io_wrap_13;
+      5'b01110 : _zz_slowR_16 = io_wrap_14;
+      5'b01111 : _zz_slowR_16 = io_wrap_15;
+      5'b10000 : _zz_slowR_16 = io_wrap_16;
+      5'b10001 : _zz_slowR_16 = io_wrap_17;
+      5'b10010 : _zz_slowR_16 = io_wrap_18;
+      5'b10011 : _zz_slowR_16 = io_wrap_19;
+      5'b10100 : _zz_slowR_16 = io_wrap_20;
+      5'b10101 : _zz_slowR_16 = io_wrap_21;
+      5'b10110 : _zz_slowR_16 = io_wrap_22;
+      5'b10111 : _zz_slowR_16 = io_wrap_23;
+      5'b11000 : _zz_slowR_16 = io_wrap_24;
+      5'b11001 : _zz_slowR_16 = io_wrap_25;
+      5'b11010 : _zz_slowR_16 = io_wrap_26;
+      5'b11011 : _zz_slowR_16 = io_wrap_27;
+      5'b11100 : _zz_slowR_16 = io_wrap_28;
+      5'b11101 : _zz_slowR_16 = io_wrap_29;
+      5'b11110 : _zz_slowR_16 = io_wrap_30;
+      default : _zz_slowR_16 = io_wrap_31;
     endcase
   end
 
@@ -4158,12 +4177,6 @@ module hng64_geo (
       6'h0d : begin
         alu = ($signed(a) - $signed(b));
       end
-      6'h0e : begin
-        alu = (($signed(a) < $signed(b)) ? a : b);
-      end
-      6'h0f : begin
-        alu = (($signed(b) < $signed(a)) ? a : b);
-      end
       6'h10 : begin
         alu = (a | b);
       end
@@ -4176,26 +4189,8 @@ module hng64_geo (
       6'h13 : begin
         alu = (a & _zz_alu_1);
       end
-      6'h14 : begin
-        alu = ($signed(a) <<< _zz_alu_2);
-      end
-      6'h15 : begin
-        alu = ($signed(a) >>> _zz_alu_4);
-      end
       6'h17 : begin
         alu = {{32{imm[15]}}, imm};
-      end
-      6'h18 : begin
-        alu = (- a);
-      end
-      6'h19 : begin
-        alu = (($signed(a) < $signed(48'h0)) ? _zz_alu_6 : a);
-      end
-      6'h1a : begin
-        alu = {{32{_zz_alu_7[15]}}, _zz_alu_7};
-      end
-      6'h21 : begin
-        alu = _zz_alu_8;
       end
       default : begin
       end
@@ -4211,12 +4206,6 @@ module hng64_geo (
       6'h0d : begin
         aluWrites = 1'b1;
       end
-      6'h0e : begin
-        aluWrites = 1'b1;
-      end
-      6'h0f : begin
-        aluWrites = 1'b1;
-      end
       6'h10 : begin
         aluWrites = 1'b1;
       end
@@ -4229,25 +4218,7 @@ module hng64_geo (
       6'h13 : begin
         aluWrites = 1'b1;
       end
-      6'h14 : begin
-        aluWrites = 1'b1;
-      end
-      6'h15 : begin
-        aluWrites = 1'b1;
-      end
       6'h17 : begin
-        aluWrites = 1'b1;
-      end
-      6'h18 : begin
-        aluWrites = 1'b1;
-      end
-      6'h19 : begin
-        aluWrites = 1'b1;
-      end
-      6'h1a : begin
-        aluWrites = 1'b1;
-      end
-      6'h21 : begin
         aluWrites = 1'b1;
       end
       default : begin
@@ -4260,49 +4231,59 @@ module hng64_geo (
     if(mcGo) begin
       case(o)
         6'h1d : begin
-          if(!when_GeoEngine_l219) begin
+          if(!when_GeoEngine_l236) begin
             mcVal = rdX;
           end
         end
         6'h16, 6'h1b, 6'h1c : begin
-          if(!when_GeoEngine_l226) begin
-            case(o)
-              6'h16 : begin
-                mcVal = (($signed(8'h0) <= $signed(slowB)) ? _zz_mcVal_105 : _zz_mcVal_108);
+          if(!when_GeoEngine_l243) begin
+            if(!when_GeoEngine_l247) begin
+              if(!when_GeoEngine_l251) begin
+                mcVal = slowR;
               end
-              6'h1b : begin
-                mcVal = (($signed(48'h0) < $signed(slowA)) ? _zz_mcVal_112 : 48'hffffffffffff);
-              end
-              default : begin
-                mcVal = (($signed(8'h0) <= $signed(_zz_mcVal_104)) ? _zz_mcVal_115 : _zz_mcVal_118);
-              end
-            endcase
+            end
+          end
+        end
+        6'h08, 6'h09, 6'h0a, 6'h38 : begin
+          if(!when_GeoEngine_l264) begin
+            if(!when_GeoEngine_l267) begin
+              mcVal = _zz_mcVal[47:0];
+            end
+          end
+        end
+        6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
+          if(!when_GeoEngine_l277) begin
+            if(!when_GeoEngine_l282) begin
+              mcVal = slowR;
+            end
           end
         end
         6'h1f : begin
-          if(!when_GeoEngine_l240) begin
-            mcVal = _zz_mcVal_122;
+          if(!when_GeoEngine_l308) begin
+            mcVal = _zz_mcVal_8;
           end
         end
         6'h20 : begin
-          if(!when_GeoEngine_l243) begin
-            mcVal = _zz_mcVal_123;
+          if(!when_GeoEngine_l311) begin
+            mcVal = _zz_mcVal_9;
           end
         end
         6'h22 : begin
-          if(!when_GeoEngine_l246) begin
-            mcVal = _zz_mcVal_124;
+          if(!when_GeoEngine_l314) begin
+            mcVal = _zz_mcVal_10;
           end
         end
         6'h24, 6'h25 : begin
           if(vWord_valid) begin
-            mcVal = ((o == 6'h25) ? _zz_mcVal_126 : _zz_mcVal_128);
+            mcVal = ((o == 6'h25) ? _zz_mcVal_12 : _zz_mcVal_14);
           end
         end
         6'h0b : begin
-          if(!when_GeoEngine_l260) begin
-            if(when_GeoEngine_l267) begin
-              mcVal = (divNeg ? _zz_mcVal_131 : _zz_mcVal_133);
+          if(!when_GeoEngine_l328) begin
+            if(!when_GeoEngine_l335) begin
+              if(when_GeoEngine_l341) begin
+                mcVal = slowR;
+              end
             end
           end
         end
@@ -4317,32 +4298,55 @@ module hng64_geo (
     if(mcGo) begin
       case(o)
         6'h1d : begin
-          if(!when_GeoEngine_l219) begin
+          if(!when_GeoEngine_l236) begin
             mcDone = 1'b1;
           end
         end
         6'h1e : begin
-          if(!when_GeoEngine_l223) begin
-            mcDone = 1'b1;
-          end
-        end
-        6'h16, 6'h1b, 6'h1c : begin
-          if(!when_GeoEngine_l226) begin
-            mcDone = 1'b1;
-          end
-        end
-        6'h1f : begin
           if(!when_GeoEngine_l240) begin
             mcDone = 1'b1;
           end
         end
-        6'h20 : begin
+        6'h16, 6'h1b, 6'h1c : begin
           if(!when_GeoEngine_l243) begin
+            if(!when_GeoEngine_l247) begin
+              if(!when_GeoEngine_l251) begin
+                mcDone = 1'b1;
+              end
+            end
+          end
+        end
+        6'h08, 6'h09, 6'h0a, 6'h38 : begin
+          if(!when_GeoEngine_l264) begin
+            if(!when_GeoEngine_l267) begin
+              mcDone = 1'b1;
+            end
+          end
+        end
+        6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
+          if(!when_GeoEngine_l277) begin
+            if(!when_GeoEngine_l282) begin
+              mcDone = 1'b1;
+            end
+          end
+        end
+        6'h04, 6'h05, 6'h06 : begin
+          if(!when_GeoEngine_l300) begin
+            mcDone = 1'b1;
+          end
+        end
+        6'h1f : begin
+          if(!when_GeoEngine_l308) begin
+            mcDone = 1'b1;
+          end
+        end
+        6'h20 : begin
+          if(!when_GeoEngine_l311) begin
             mcDone = 1'b1;
           end
         end
         6'h22 : begin
-          if(!when_GeoEngine_l246) begin
+          if(!when_GeoEngine_l314) begin
             mcDone = 1'b1;
           end
         end
@@ -4352,15 +4356,17 @@ module hng64_geo (
           end
         end
         6'h0b : begin
-          if(!when_GeoEngine_l260) begin
-            if(when_GeoEngine_l267) begin
-              mcDone = 1'b1;
+          if(!when_GeoEngine_l328) begin
+            if(!when_GeoEngine_l335) begin
+              if(when_GeoEngine_l341) begin
+                mcDone = 1'b1;
+              end
             end
           end
         end
         6'h28 : begin
-          if(!when_GeoEngine_l282) begin
-            if(when_GeoEngine_l298) begin
+          if(!when_GeoEngine_l360) begin
+            if(when_GeoEngine_l376) begin
               mcDone = 1'b1;
             end
           end
@@ -4376,12 +4382,12 @@ module hng64_geo (
     if(mcGo) begin
       case(o)
         6'h1e : begin
-          if(when_GeoEngine_l223) begin
+          if(when_GeoEngine_l240) begin
             xAddr = d;
           end
         end
         6'h28 : begin
-          if(!when_GeoEngine_l282) begin
+          if(!when_GeoEngine_l360) begin
             xAddr = (ra + _zz_xAddr_2);
           end
         end
@@ -4392,7 +4398,7 @@ module hng64_geo (
   end
 
   assign rdXraw = rfX_spinal_port0;
-  assign rdX = (((wValid && (wReg == xAddrPrev)) && (xAddrPrev != 9'h0)) ? wVal : rdXraw);
+  assign rdX = (bypX ? wVal : rdXraw);
   assign _zz_rsqV = _zz__zz_rsqV[7:0];
   assign rsqV = rsqRom_spinal_port0;
   assign _zz_rcpV = _zz__zz_rcpV[9:0];
@@ -4414,14 +4420,17 @@ module hng64_geo (
   end
 
   assign slowAlu = (((o == 6'h16) || (o == 6'h1b)) || (o == 6'h1c));
-  assign isMc = ((((((((((o == 6'h1d) || (o == 6'h1e)) || (o == 6'h1f)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || (o == 6'h28)) || slowAlu);
-  assign mcWrites = ((((((((o == 6'h1d) || (o == 6'h1f)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || slowAlu);
+  assign stOp = ((((o == 6'h08) || (o == 6'h09)) || (o == 6'h0a)) || (o == 6'h38));
+  assign alu2 = ((((((((o == 6'h0e) || (o == 6'h0f)) || (o == 6'h14)) || (o == 6'h15)) || (o == 6'h18)) || (o == 6'h19)) || (o == 6'h1a)) || (o == 6'h21));
+  assign accLd = (((o == 6'h04) || (o == 6'h05)) || (o == 6'h06));
+  assign isMc = ((((((((((((_zz_isMc || _zz_isMc_1) || (o == _zz_isMc_2)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || (o == 6'h28)) || slowAlu) || stOp) || alu2) || accLd);
+  assign mcWrites = ((((((((((o == 6'h1d) || (o == 6'h1f)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || slowAlu) || stOp) || alu2);
   always @(*) begin
     stxWrite = 1'b0;
     if(mcGo) begin
       case(o)
         6'h1e : begin
-          if(!when_GeoEngine_l223) begin
+          if(!when_GeoEngine_l240) begin
             stxWrite = 1'b1;
           end
         end
@@ -4432,326 +4441,333 @@ module hng64_geo (
   end
 
   assign mcGo = (((eLive && isMc) && (! stHazard)) && (! accBranchHazard));
-  assign when_GeoEngine_l219 = (mcStep == 2'b00);
-  assign when_GeoEngine_l223 = (mcStep == 2'b00);
-  assign when_GeoEngine_l226 = (mcStep == 2'b00);
-  assign _zz_mcVal = slowA;
-  always @(*) begin
-    _zz_mcVal_1[0] = _zz_mcVal[47];
-    _zz_mcVal_1[1] = _zz_mcVal[46];
-    _zz_mcVal_1[2] = _zz_mcVal[45];
-    _zz_mcVal_1[3] = _zz_mcVal[44];
-    _zz_mcVal_1[4] = _zz_mcVal[43];
-    _zz_mcVal_1[5] = _zz_mcVal[42];
-    _zz_mcVal_1[6] = _zz_mcVal[41];
-    _zz_mcVal_1[7] = _zz_mcVal[40];
-    _zz_mcVal_1[8] = _zz_mcVal[39];
-    _zz_mcVal_1[9] = _zz_mcVal[38];
-    _zz_mcVal_1[10] = _zz_mcVal[37];
-    _zz_mcVal_1[11] = _zz_mcVal[36];
-    _zz_mcVal_1[12] = _zz_mcVal[35];
-    _zz_mcVal_1[13] = _zz_mcVal[34];
-    _zz_mcVal_1[14] = _zz_mcVal[33];
-    _zz_mcVal_1[15] = _zz_mcVal[32];
-    _zz_mcVal_1[16] = _zz_mcVal[31];
-    _zz_mcVal_1[17] = _zz_mcVal[30];
-    _zz_mcVal_1[18] = _zz_mcVal[29];
-    _zz_mcVal_1[19] = _zz_mcVal[28];
-    _zz_mcVal_1[20] = _zz_mcVal[27];
-    _zz_mcVal_1[21] = _zz_mcVal[26];
-    _zz_mcVal_1[22] = _zz_mcVal[25];
-    _zz_mcVal_1[23] = _zz_mcVal[24];
-    _zz_mcVal_1[24] = _zz_mcVal[23];
-    _zz_mcVal_1[25] = _zz_mcVal[22];
-    _zz_mcVal_1[26] = _zz_mcVal[21];
-    _zz_mcVal_1[27] = _zz_mcVal[20];
-    _zz_mcVal_1[28] = _zz_mcVal[19];
-    _zz_mcVal_1[29] = _zz_mcVal[18];
-    _zz_mcVal_1[30] = _zz_mcVal[17];
-    _zz_mcVal_1[31] = _zz_mcVal[16];
-    _zz_mcVal_1[32] = _zz_mcVal[15];
-    _zz_mcVal_1[33] = _zz_mcVal[14];
-    _zz_mcVal_1[34] = _zz_mcVal[13];
-    _zz_mcVal_1[35] = _zz_mcVal[12];
-    _zz_mcVal_1[36] = _zz_mcVal[11];
-    _zz_mcVal_1[37] = _zz_mcVal[10];
-    _zz_mcVal_1[38] = _zz_mcVal[9];
-    _zz_mcVal_1[39] = _zz_mcVal[8];
-    _zz_mcVal_1[40] = _zz_mcVal[7];
-    _zz_mcVal_1[41] = _zz_mcVal[6];
-    _zz_mcVal_1[42] = _zz_mcVal[5];
-    _zz_mcVal_1[43] = _zz_mcVal[4];
-    _zz_mcVal_1[44] = _zz_mcVal[3];
-    _zz_mcVal_1[45] = _zz_mcVal[2];
-    _zz_mcVal_1[46] = _zz_mcVal[1];
-    _zz_mcVal_1[47] = _zz_mcVal[0];
-  end
-
-  assign _zz_mcVal_3 = (_zz_mcVal_1 & (~ _zz__zz_mcVal_3));
-  always @(*) begin
-    _zz_mcVal_4[0] = _zz_mcVal_3[47];
-    _zz_mcVal_4[1] = _zz_mcVal_3[46];
-    _zz_mcVal_4[2] = _zz_mcVal_3[45];
-    _zz_mcVal_4[3] = _zz_mcVal_3[44];
-    _zz_mcVal_4[4] = _zz_mcVal_3[43];
-    _zz_mcVal_4[5] = _zz_mcVal_3[42];
-    _zz_mcVal_4[6] = _zz_mcVal_3[41];
-    _zz_mcVal_4[7] = _zz_mcVal_3[40];
-    _zz_mcVal_4[8] = _zz_mcVal_3[39];
-    _zz_mcVal_4[9] = _zz_mcVal_3[38];
-    _zz_mcVal_4[10] = _zz_mcVal_3[37];
-    _zz_mcVal_4[11] = _zz_mcVal_3[36];
-    _zz_mcVal_4[12] = _zz_mcVal_3[35];
-    _zz_mcVal_4[13] = _zz_mcVal_3[34];
-    _zz_mcVal_4[14] = _zz_mcVal_3[33];
-    _zz_mcVal_4[15] = _zz_mcVal_3[32];
-    _zz_mcVal_4[16] = _zz_mcVal_3[31];
-    _zz_mcVal_4[17] = _zz_mcVal_3[30];
-    _zz_mcVal_4[18] = _zz_mcVal_3[29];
-    _zz_mcVal_4[19] = _zz_mcVal_3[28];
-    _zz_mcVal_4[20] = _zz_mcVal_3[27];
-    _zz_mcVal_4[21] = _zz_mcVal_3[26];
-    _zz_mcVal_4[22] = _zz_mcVal_3[25];
-    _zz_mcVal_4[23] = _zz_mcVal_3[24];
-    _zz_mcVal_4[24] = _zz_mcVal_3[23];
-    _zz_mcVal_4[25] = _zz_mcVal_3[22];
-    _zz_mcVal_4[26] = _zz_mcVal_3[21];
-    _zz_mcVal_4[27] = _zz_mcVal_3[20];
-    _zz_mcVal_4[28] = _zz_mcVal_3[19];
-    _zz_mcVal_4[29] = _zz_mcVal_3[18];
-    _zz_mcVal_4[30] = _zz_mcVal_3[17];
-    _zz_mcVal_4[31] = _zz_mcVal_3[16];
-    _zz_mcVal_4[32] = _zz_mcVal_3[15];
-    _zz_mcVal_4[33] = _zz_mcVal_3[14];
-    _zz_mcVal_4[34] = _zz_mcVal_3[13];
-    _zz_mcVal_4[35] = _zz_mcVal_3[12];
-    _zz_mcVal_4[36] = _zz_mcVal_3[11];
-    _zz_mcVal_4[37] = _zz_mcVal_3[10];
-    _zz_mcVal_4[38] = _zz_mcVal_3[9];
-    _zz_mcVal_4[39] = _zz_mcVal_3[8];
-    _zz_mcVal_4[40] = _zz_mcVal_3[7];
-    _zz_mcVal_4[41] = _zz_mcVal_3[6];
-    _zz_mcVal_4[42] = _zz_mcVal_3[5];
-    _zz_mcVal_4[43] = _zz_mcVal_3[4];
-    _zz_mcVal_4[44] = _zz_mcVal_3[3];
-    _zz_mcVal_4[45] = _zz_mcVal_3[2];
-    _zz_mcVal_4[46] = _zz_mcVal_3[1];
-    _zz_mcVal_4[47] = _zz_mcVal_3[0];
-  end
-
-  assign _zz_mcVal_2 = _zz_mcVal_4;
-  assign _zz_mcVal_5 = _zz_mcVal_2[3];
-  assign _zz_mcVal_6 = _zz_mcVal_2[5];
-  assign _zz_mcVal_7 = _zz_mcVal_2[6];
-  assign _zz_mcVal_8 = _zz_mcVal_2[7];
-  assign _zz_mcVal_9 = _zz_mcVal_2[9];
-  assign _zz_mcVal_10 = _zz_mcVal_2[10];
-  assign _zz_mcVal_11 = _zz_mcVal_2[11];
-  assign _zz_mcVal_12 = _zz_mcVal_2[12];
-  assign _zz_mcVal_13 = _zz_mcVal_2[13];
-  assign _zz_mcVal_14 = _zz_mcVal_2[14];
-  assign _zz_mcVal_15 = _zz_mcVal_2[15];
-  assign _zz_mcVal_16 = _zz_mcVal_2[17];
-  assign _zz_mcVal_17 = _zz_mcVal_2[18];
-  assign _zz_mcVal_18 = _zz_mcVal_2[19];
-  assign _zz_mcVal_19 = _zz_mcVal_2[20];
-  assign _zz_mcVal_20 = _zz_mcVal_2[21];
-  assign _zz_mcVal_21 = _zz_mcVal_2[22];
-  assign _zz_mcVal_22 = _zz_mcVal_2[23];
-  assign _zz_mcVal_23 = _zz_mcVal_2[24];
-  assign _zz_mcVal_24 = _zz_mcVal_2[25];
-  assign _zz_mcVal_25 = _zz_mcVal_2[26];
-  assign _zz_mcVal_26 = _zz_mcVal_2[27];
-  assign _zz_mcVal_27 = _zz_mcVal_2[28];
-  assign _zz_mcVal_28 = _zz_mcVal_2[29];
-  assign _zz_mcVal_29 = _zz_mcVal_2[30];
-  assign _zz_mcVal_30 = _zz_mcVal_2[31];
-  assign _zz_mcVal_31 = _zz_mcVal_2[33];
-  assign _zz_mcVal_32 = _zz_mcVal_2[34];
-  assign _zz_mcVal_33 = _zz_mcVal_2[35];
-  assign _zz_mcVal_34 = _zz_mcVal_2[36];
-  assign _zz_mcVal_35 = _zz_mcVal_2[37];
-  assign _zz_mcVal_36 = _zz_mcVal_2[38];
-  assign _zz_mcVal_37 = _zz_mcVal_2[39];
-  assign _zz_mcVal_38 = _zz_mcVal_2[40];
-  assign _zz_mcVal_39 = _zz_mcVal_2[41];
-  assign _zz_mcVal_40 = _zz_mcVal_2[42];
-  assign _zz_mcVal_41 = _zz_mcVal_2[43];
-  assign _zz_mcVal_42 = _zz_mcVal_2[44];
-  assign _zz_mcVal_43 = _zz_mcVal_2[45];
-  assign _zz_mcVal_44 = _zz_mcVal_2[46];
-  assign _zz_mcVal_45 = _zz_mcVal_2[47];
-  assign _zz_mcVal_46 = ((((((((((((((((_zz__zz_mcVal_46 || _zz_mcVal_16) || _zz_mcVal_18) || _zz_mcVal_20) || _zz_mcVal_22) || _zz_mcVal_24) || _zz_mcVal_26) || _zz_mcVal_28) || _zz_mcVal_30) || _zz_mcVal_31) || _zz_mcVal_33) || _zz_mcVal_35) || _zz_mcVal_37) || _zz_mcVal_39) || _zz_mcVal_41) || _zz_mcVal_43) || _zz_mcVal_45);
-  assign _zz_mcVal_47 = ((((((((((((((((_zz__zz_mcVal_47 || _zz_mcVal_17) || _zz_mcVal_18) || _zz_mcVal_21) || _zz_mcVal_22) || _zz_mcVal_25) || _zz_mcVal_26) || _zz_mcVal_29) || _zz_mcVal_30) || _zz_mcVal_32) || _zz_mcVal_33) || _zz_mcVal_36) || _zz_mcVal_37) || _zz_mcVal_40) || _zz_mcVal_41) || _zz_mcVal_44) || _zz_mcVal_45);
-  assign _zz_mcVal_48 = ((((((((((((((((_zz__zz_mcVal_48 || _zz_mcVal_19) || _zz_mcVal_20) || _zz_mcVal_21) || _zz_mcVal_22) || _zz_mcVal_27) || _zz_mcVal_28) || _zz_mcVal_29) || _zz_mcVal_30) || _zz_mcVal_34) || _zz_mcVal_35) || _zz_mcVal_36) || _zz_mcVal_37) || _zz_mcVal_42) || _zz_mcVal_43) || _zz_mcVal_44) || _zz_mcVal_45);
-  assign _zz_mcVal_49 = ((((((((((((((((_zz__zz_mcVal_49 || _zz_mcVal_23) || _zz_mcVal_24) || _zz_mcVal_25) || _zz_mcVal_26) || _zz_mcVal_27) || _zz_mcVal_28) || _zz_mcVal_29) || _zz_mcVal_30) || _zz_mcVal_38) || _zz_mcVal_39) || _zz_mcVal_40) || _zz_mcVal_41) || _zz_mcVal_42) || _zz_mcVal_43) || _zz_mcVal_44) || _zz_mcVal_45);
-  assign _zz_mcVal_50 = (((((((((((((((_zz_mcVal_2[16] || _zz_mcVal_16) || _zz_mcVal_17) || _zz_mcVal_18) || _zz_mcVal_19) || _zz_mcVal_20) || _zz_mcVal_21) || _zz_mcVal_22) || _zz_mcVal_23) || _zz_mcVal_24) || _zz_mcVal_25) || _zz_mcVal_26) || _zz_mcVal_27) || _zz_mcVal_28) || _zz_mcVal_29) || _zz_mcVal_30);
-  assign _zz_mcVal_51 = (((((((((((((((_zz_mcVal_2[32] || _zz_mcVal_31) || _zz_mcVal_32) || _zz_mcVal_33) || _zz_mcVal_34) || _zz_mcVal_35) || _zz_mcVal_36) || _zz_mcVal_37) || _zz_mcVal_38) || _zz_mcVal_39) || _zz_mcVal_40) || _zz_mcVal_41) || _zz_mcVal_42) || _zz_mcVal_43) || _zz_mcVal_44) || _zz_mcVal_45);
-  assign _zz_mcVal_52 = slowA;
-  always @(*) begin
-    _zz_mcVal_53[0] = _zz_mcVal_52[47];
-    _zz_mcVal_53[1] = _zz_mcVal_52[46];
-    _zz_mcVal_53[2] = _zz_mcVal_52[45];
-    _zz_mcVal_53[3] = _zz_mcVal_52[44];
-    _zz_mcVal_53[4] = _zz_mcVal_52[43];
-    _zz_mcVal_53[5] = _zz_mcVal_52[42];
-    _zz_mcVal_53[6] = _zz_mcVal_52[41];
-    _zz_mcVal_53[7] = _zz_mcVal_52[40];
-    _zz_mcVal_53[8] = _zz_mcVal_52[39];
-    _zz_mcVal_53[9] = _zz_mcVal_52[38];
-    _zz_mcVal_53[10] = _zz_mcVal_52[37];
-    _zz_mcVal_53[11] = _zz_mcVal_52[36];
-    _zz_mcVal_53[12] = _zz_mcVal_52[35];
-    _zz_mcVal_53[13] = _zz_mcVal_52[34];
-    _zz_mcVal_53[14] = _zz_mcVal_52[33];
-    _zz_mcVal_53[15] = _zz_mcVal_52[32];
-    _zz_mcVal_53[16] = _zz_mcVal_52[31];
-    _zz_mcVal_53[17] = _zz_mcVal_52[30];
-    _zz_mcVal_53[18] = _zz_mcVal_52[29];
-    _zz_mcVal_53[19] = _zz_mcVal_52[28];
-    _zz_mcVal_53[20] = _zz_mcVal_52[27];
-    _zz_mcVal_53[21] = _zz_mcVal_52[26];
-    _zz_mcVal_53[22] = _zz_mcVal_52[25];
-    _zz_mcVal_53[23] = _zz_mcVal_52[24];
-    _zz_mcVal_53[24] = _zz_mcVal_52[23];
-    _zz_mcVal_53[25] = _zz_mcVal_52[22];
-    _zz_mcVal_53[26] = _zz_mcVal_52[21];
-    _zz_mcVal_53[27] = _zz_mcVal_52[20];
-    _zz_mcVal_53[28] = _zz_mcVal_52[19];
-    _zz_mcVal_53[29] = _zz_mcVal_52[18];
-    _zz_mcVal_53[30] = _zz_mcVal_52[17];
-    _zz_mcVal_53[31] = _zz_mcVal_52[16];
-    _zz_mcVal_53[32] = _zz_mcVal_52[15];
-    _zz_mcVal_53[33] = _zz_mcVal_52[14];
-    _zz_mcVal_53[34] = _zz_mcVal_52[13];
-    _zz_mcVal_53[35] = _zz_mcVal_52[12];
-    _zz_mcVal_53[36] = _zz_mcVal_52[11];
-    _zz_mcVal_53[37] = _zz_mcVal_52[10];
-    _zz_mcVal_53[38] = _zz_mcVal_52[9];
-    _zz_mcVal_53[39] = _zz_mcVal_52[8];
-    _zz_mcVal_53[40] = _zz_mcVal_52[7];
-    _zz_mcVal_53[41] = _zz_mcVal_52[6];
-    _zz_mcVal_53[42] = _zz_mcVal_52[5];
-    _zz_mcVal_53[43] = _zz_mcVal_52[4];
-    _zz_mcVal_53[44] = _zz_mcVal_52[3];
-    _zz_mcVal_53[45] = _zz_mcVal_52[2];
-    _zz_mcVal_53[46] = _zz_mcVal_52[1];
-    _zz_mcVal_53[47] = _zz_mcVal_52[0];
-  end
-
-  assign _zz_mcVal_55 = (_zz_mcVal_53 & (~ _zz__zz_mcVal_55));
-  always @(*) begin
-    _zz_mcVal_56[0] = _zz_mcVal_55[47];
-    _zz_mcVal_56[1] = _zz_mcVal_55[46];
-    _zz_mcVal_56[2] = _zz_mcVal_55[45];
-    _zz_mcVal_56[3] = _zz_mcVal_55[44];
-    _zz_mcVal_56[4] = _zz_mcVal_55[43];
-    _zz_mcVal_56[5] = _zz_mcVal_55[42];
-    _zz_mcVal_56[6] = _zz_mcVal_55[41];
-    _zz_mcVal_56[7] = _zz_mcVal_55[40];
-    _zz_mcVal_56[8] = _zz_mcVal_55[39];
-    _zz_mcVal_56[9] = _zz_mcVal_55[38];
-    _zz_mcVal_56[10] = _zz_mcVal_55[37];
-    _zz_mcVal_56[11] = _zz_mcVal_55[36];
-    _zz_mcVal_56[12] = _zz_mcVal_55[35];
-    _zz_mcVal_56[13] = _zz_mcVal_55[34];
-    _zz_mcVal_56[14] = _zz_mcVal_55[33];
-    _zz_mcVal_56[15] = _zz_mcVal_55[32];
-    _zz_mcVal_56[16] = _zz_mcVal_55[31];
-    _zz_mcVal_56[17] = _zz_mcVal_55[30];
-    _zz_mcVal_56[18] = _zz_mcVal_55[29];
-    _zz_mcVal_56[19] = _zz_mcVal_55[28];
-    _zz_mcVal_56[20] = _zz_mcVal_55[27];
-    _zz_mcVal_56[21] = _zz_mcVal_55[26];
-    _zz_mcVal_56[22] = _zz_mcVal_55[25];
-    _zz_mcVal_56[23] = _zz_mcVal_55[24];
-    _zz_mcVal_56[24] = _zz_mcVal_55[23];
-    _zz_mcVal_56[25] = _zz_mcVal_55[22];
-    _zz_mcVal_56[26] = _zz_mcVal_55[21];
-    _zz_mcVal_56[27] = _zz_mcVal_55[20];
-    _zz_mcVal_56[28] = _zz_mcVal_55[19];
-    _zz_mcVal_56[29] = _zz_mcVal_55[18];
-    _zz_mcVal_56[30] = _zz_mcVal_55[17];
-    _zz_mcVal_56[31] = _zz_mcVal_55[16];
-    _zz_mcVal_56[32] = _zz_mcVal_55[15];
-    _zz_mcVal_56[33] = _zz_mcVal_55[14];
-    _zz_mcVal_56[34] = _zz_mcVal_55[13];
-    _zz_mcVal_56[35] = _zz_mcVal_55[12];
-    _zz_mcVal_56[36] = _zz_mcVal_55[11];
-    _zz_mcVal_56[37] = _zz_mcVal_55[10];
-    _zz_mcVal_56[38] = _zz_mcVal_55[9];
-    _zz_mcVal_56[39] = _zz_mcVal_55[8];
-    _zz_mcVal_56[40] = _zz_mcVal_55[7];
-    _zz_mcVal_56[41] = _zz_mcVal_55[6];
-    _zz_mcVal_56[42] = _zz_mcVal_55[5];
-    _zz_mcVal_56[43] = _zz_mcVal_55[4];
-    _zz_mcVal_56[44] = _zz_mcVal_55[3];
-    _zz_mcVal_56[45] = _zz_mcVal_55[2];
-    _zz_mcVal_56[46] = _zz_mcVal_55[1];
-    _zz_mcVal_56[47] = _zz_mcVal_55[0];
-  end
-
-  assign _zz_mcVal_54 = _zz_mcVal_56;
-  assign _zz_mcVal_57 = _zz_mcVal_54[3];
-  assign _zz_mcVal_58 = _zz_mcVal_54[5];
-  assign _zz_mcVal_59 = _zz_mcVal_54[6];
-  assign _zz_mcVal_60 = _zz_mcVal_54[7];
-  assign _zz_mcVal_61 = _zz_mcVal_54[9];
-  assign _zz_mcVal_62 = _zz_mcVal_54[10];
-  assign _zz_mcVal_63 = _zz_mcVal_54[11];
-  assign _zz_mcVal_64 = _zz_mcVal_54[12];
-  assign _zz_mcVal_65 = _zz_mcVal_54[13];
-  assign _zz_mcVal_66 = _zz_mcVal_54[14];
-  assign _zz_mcVal_67 = _zz_mcVal_54[15];
-  assign _zz_mcVal_68 = _zz_mcVal_54[17];
-  assign _zz_mcVal_69 = _zz_mcVal_54[18];
-  assign _zz_mcVal_70 = _zz_mcVal_54[19];
-  assign _zz_mcVal_71 = _zz_mcVal_54[20];
-  assign _zz_mcVal_72 = _zz_mcVal_54[21];
-  assign _zz_mcVal_73 = _zz_mcVal_54[22];
-  assign _zz_mcVal_74 = _zz_mcVal_54[23];
-  assign _zz_mcVal_75 = _zz_mcVal_54[24];
-  assign _zz_mcVal_76 = _zz_mcVal_54[25];
-  assign _zz_mcVal_77 = _zz_mcVal_54[26];
-  assign _zz_mcVal_78 = _zz_mcVal_54[27];
-  assign _zz_mcVal_79 = _zz_mcVal_54[28];
-  assign _zz_mcVal_80 = _zz_mcVal_54[29];
-  assign _zz_mcVal_81 = _zz_mcVal_54[30];
-  assign _zz_mcVal_82 = _zz_mcVal_54[31];
-  assign _zz_mcVal_83 = _zz_mcVal_54[33];
-  assign _zz_mcVal_84 = _zz_mcVal_54[34];
-  assign _zz_mcVal_85 = _zz_mcVal_54[35];
-  assign _zz_mcVal_86 = _zz_mcVal_54[36];
-  assign _zz_mcVal_87 = _zz_mcVal_54[37];
-  assign _zz_mcVal_88 = _zz_mcVal_54[38];
-  assign _zz_mcVal_89 = _zz_mcVal_54[39];
-  assign _zz_mcVal_90 = _zz_mcVal_54[40];
-  assign _zz_mcVal_91 = _zz_mcVal_54[41];
-  assign _zz_mcVal_92 = _zz_mcVal_54[42];
-  assign _zz_mcVal_93 = _zz_mcVal_54[43];
-  assign _zz_mcVal_94 = _zz_mcVal_54[44];
-  assign _zz_mcVal_95 = _zz_mcVal_54[45];
-  assign _zz_mcVal_96 = _zz_mcVal_54[46];
-  assign _zz_mcVal_97 = _zz_mcVal_54[47];
-  assign _zz_mcVal_98 = ((((((((((((((((_zz__zz_mcVal_98 || _zz_mcVal_68) || _zz_mcVal_70) || _zz_mcVal_72) || _zz_mcVal_74) || _zz_mcVal_76) || _zz_mcVal_78) || _zz_mcVal_80) || _zz_mcVal_82) || _zz_mcVal_83) || _zz_mcVal_85) || _zz_mcVal_87) || _zz_mcVal_89) || _zz_mcVal_91) || _zz_mcVal_93) || _zz_mcVal_95) || _zz_mcVal_97);
-  assign _zz_mcVal_99 = ((((((((((((((((_zz__zz_mcVal_99 || _zz_mcVal_69) || _zz_mcVal_70) || _zz_mcVal_73) || _zz_mcVal_74) || _zz_mcVal_77) || _zz_mcVal_78) || _zz_mcVal_81) || _zz_mcVal_82) || _zz_mcVal_84) || _zz_mcVal_85) || _zz_mcVal_88) || _zz_mcVal_89) || _zz_mcVal_92) || _zz_mcVal_93) || _zz_mcVal_96) || _zz_mcVal_97);
-  assign _zz_mcVal_100 = ((((((((((((((((_zz__zz_mcVal_100 || _zz_mcVal_71) || _zz_mcVal_72) || _zz_mcVal_73) || _zz_mcVal_74) || _zz_mcVal_79) || _zz_mcVal_80) || _zz_mcVal_81) || _zz_mcVal_82) || _zz_mcVal_86) || _zz_mcVal_87) || _zz_mcVal_88) || _zz_mcVal_89) || _zz_mcVal_94) || _zz_mcVal_95) || _zz_mcVal_96) || _zz_mcVal_97);
-  assign _zz_mcVal_101 = ((((((((((((((((_zz__zz_mcVal_101 || _zz_mcVal_75) || _zz_mcVal_76) || _zz_mcVal_77) || _zz_mcVal_78) || _zz_mcVal_79) || _zz_mcVal_80) || _zz_mcVal_81) || _zz_mcVal_82) || _zz_mcVal_90) || _zz_mcVal_91) || _zz_mcVal_92) || _zz_mcVal_93) || _zz_mcVal_94) || _zz_mcVal_95) || _zz_mcVal_96) || _zz_mcVal_97);
-  assign _zz_mcVal_102 = (((((((((((((((_zz_mcVal_54[16] || _zz_mcVal_68) || _zz_mcVal_69) || _zz_mcVal_70) || _zz_mcVal_71) || _zz_mcVal_72) || _zz_mcVal_73) || _zz_mcVal_74) || _zz_mcVal_75) || _zz_mcVal_76) || _zz_mcVal_77) || _zz_mcVal_78) || _zz_mcVal_79) || _zz_mcVal_80) || _zz_mcVal_81) || _zz_mcVal_82);
-  assign _zz_mcVal_103 = (((((((((((((((_zz_mcVal_54[32] || _zz_mcVal_83) || _zz_mcVal_84) || _zz_mcVal_85) || _zz_mcVal_86) || _zz_mcVal_87) || _zz_mcVal_88) || _zz_mcVal_89) || _zz_mcVal_90) || _zz_mcVal_91) || _zz_mcVal_92) || _zz_mcVal_93) || _zz_mcVal_94) || _zz_mcVal_95) || _zz_mcVal_96) || _zz_mcVal_97);
-  assign _zz_mcVal_104 = ($signed(slowB) - $signed(_zz__zz_mcVal_104));
+  assign when_GeoEngine_l236 = (mcStep == 2'b00);
   assign when_GeoEngine_l240 = (mcStep == 2'b00);
   assign when_GeoEngine_l243 = (mcStep == 2'b00);
-  assign when_GeoEngine_l246 = (mcStep == 2'b00);
-  assign when_GeoEngine_l260 = (mcStep == 2'b00);
-  assign _zz_divRem = (divLeft - 6'h01);
-  assign when_GeoEngine_l274 = (_zz_when_GeoEngine_l274 <= _zz_when_GeoEngine_l274_1);
-  assign when_GeoEngine_l267 = (divLeft == 6'h0);
-  assign when_GeoEngine_l282 = (mcStep == 2'b00);
-  assign when_GeoEngine_l283 = (! triValid);
-  assign when_GeoEngine_l286 = (emitCount != 5'h0);
-  assign switch_GeoEngine_l290 = (emitCount - 5'h01);
-  assign when_GeoEngine_l298 = (emitCount == 5'h16);
+  assign _zz_slowTop = slowA;
+  always @(*) begin
+    _zz_slowTop_1[0] = _zz_slowTop[47];
+    _zz_slowTop_1[1] = _zz_slowTop[46];
+    _zz_slowTop_1[2] = _zz_slowTop[45];
+    _zz_slowTop_1[3] = _zz_slowTop[44];
+    _zz_slowTop_1[4] = _zz_slowTop[43];
+    _zz_slowTop_1[5] = _zz_slowTop[42];
+    _zz_slowTop_1[6] = _zz_slowTop[41];
+    _zz_slowTop_1[7] = _zz_slowTop[40];
+    _zz_slowTop_1[8] = _zz_slowTop[39];
+    _zz_slowTop_1[9] = _zz_slowTop[38];
+    _zz_slowTop_1[10] = _zz_slowTop[37];
+    _zz_slowTop_1[11] = _zz_slowTop[36];
+    _zz_slowTop_1[12] = _zz_slowTop[35];
+    _zz_slowTop_1[13] = _zz_slowTop[34];
+    _zz_slowTop_1[14] = _zz_slowTop[33];
+    _zz_slowTop_1[15] = _zz_slowTop[32];
+    _zz_slowTop_1[16] = _zz_slowTop[31];
+    _zz_slowTop_1[17] = _zz_slowTop[30];
+    _zz_slowTop_1[18] = _zz_slowTop[29];
+    _zz_slowTop_1[19] = _zz_slowTop[28];
+    _zz_slowTop_1[20] = _zz_slowTop[27];
+    _zz_slowTop_1[21] = _zz_slowTop[26];
+    _zz_slowTop_1[22] = _zz_slowTop[25];
+    _zz_slowTop_1[23] = _zz_slowTop[24];
+    _zz_slowTop_1[24] = _zz_slowTop[23];
+    _zz_slowTop_1[25] = _zz_slowTop[22];
+    _zz_slowTop_1[26] = _zz_slowTop[21];
+    _zz_slowTop_1[27] = _zz_slowTop[20];
+    _zz_slowTop_1[28] = _zz_slowTop[19];
+    _zz_slowTop_1[29] = _zz_slowTop[18];
+    _zz_slowTop_1[30] = _zz_slowTop[17];
+    _zz_slowTop_1[31] = _zz_slowTop[16];
+    _zz_slowTop_1[32] = _zz_slowTop[15];
+    _zz_slowTop_1[33] = _zz_slowTop[14];
+    _zz_slowTop_1[34] = _zz_slowTop[13];
+    _zz_slowTop_1[35] = _zz_slowTop[12];
+    _zz_slowTop_1[36] = _zz_slowTop[11];
+    _zz_slowTop_1[37] = _zz_slowTop[10];
+    _zz_slowTop_1[38] = _zz_slowTop[9];
+    _zz_slowTop_1[39] = _zz_slowTop[8];
+    _zz_slowTop_1[40] = _zz_slowTop[7];
+    _zz_slowTop_1[41] = _zz_slowTop[6];
+    _zz_slowTop_1[42] = _zz_slowTop[5];
+    _zz_slowTop_1[43] = _zz_slowTop[4];
+    _zz_slowTop_1[44] = _zz_slowTop[3];
+    _zz_slowTop_1[45] = _zz_slowTop[2];
+    _zz_slowTop_1[46] = _zz_slowTop[1];
+    _zz_slowTop_1[47] = _zz_slowTop[0];
+  end
+
+  assign _zz_slowTop_3 = (_zz_slowTop_1 & (~ _zz__zz_slowTop_3));
+  always @(*) begin
+    _zz_slowTop_4[0] = _zz_slowTop_3[47];
+    _zz_slowTop_4[1] = _zz_slowTop_3[46];
+    _zz_slowTop_4[2] = _zz_slowTop_3[45];
+    _zz_slowTop_4[3] = _zz_slowTop_3[44];
+    _zz_slowTop_4[4] = _zz_slowTop_3[43];
+    _zz_slowTop_4[5] = _zz_slowTop_3[42];
+    _zz_slowTop_4[6] = _zz_slowTop_3[41];
+    _zz_slowTop_4[7] = _zz_slowTop_3[40];
+    _zz_slowTop_4[8] = _zz_slowTop_3[39];
+    _zz_slowTop_4[9] = _zz_slowTop_3[38];
+    _zz_slowTop_4[10] = _zz_slowTop_3[37];
+    _zz_slowTop_4[11] = _zz_slowTop_3[36];
+    _zz_slowTop_4[12] = _zz_slowTop_3[35];
+    _zz_slowTop_4[13] = _zz_slowTop_3[34];
+    _zz_slowTop_4[14] = _zz_slowTop_3[33];
+    _zz_slowTop_4[15] = _zz_slowTop_3[32];
+    _zz_slowTop_4[16] = _zz_slowTop_3[31];
+    _zz_slowTop_4[17] = _zz_slowTop_3[30];
+    _zz_slowTop_4[18] = _zz_slowTop_3[29];
+    _zz_slowTop_4[19] = _zz_slowTop_3[28];
+    _zz_slowTop_4[20] = _zz_slowTop_3[27];
+    _zz_slowTop_4[21] = _zz_slowTop_3[26];
+    _zz_slowTop_4[22] = _zz_slowTop_3[25];
+    _zz_slowTop_4[23] = _zz_slowTop_3[24];
+    _zz_slowTop_4[24] = _zz_slowTop_3[23];
+    _zz_slowTop_4[25] = _zz_slowTop_3[22];
+    _zz_slowTop_4[26] = _zz_slowTop_3[21];
+    _zz_slowTop_4[27] = _zz_slowTop_3[20];
+    _zz_slowTop_4[28] = _zz_slowTop_3[19];
+    _zz_slowTop_4[29] = _zz_slowTop_3[18];
+    _zz_slowTop_4[30] = _zz_slowTop_3[17];
+    _zz_slowTop_4[31] = _zz_slowTop_3[16];
+    _zz_slowTop_4[32] = _zz_slowTop_3[15];
+    _zz_slowTop_4[33] = _zz_slowTop_3[14];
+    _zz_slowTop_4[34] = _zz_slowTop_3[13];
+    _zz_slowTop_4[35] = _zz_slowTop_3[12];
+    _zz_slowTop_4[36] = _zz_slowTop_3[11];
+    _zz_slowTop_4[37] = _zz_slowTop_3[10];
+    _zz_slowTop_4[38] = _zz_slowTop_3[9];
+    _zz_slowTop_4[39] = _zz_slowTop_3[8];
+    _zz_slowTop_4[40] = _zz_slowTop_3[7];
+    _zz_slowTop_4[41] = _zz_slowTop_3[6];
+    _zz_slowTop_4[42] = _zz_slowTop_3[5];
+    _zz_slowTop_4[43] = _zz_slowTop_3[4];
+    _zz_slowTop_4[44] = _zz_slowTop_3[3];
+    _zz_slowTop_4[45] = _zz_slowTop_3[2];
+    _zz_slowTop_4[46] = _zz_slowTop_3[1];
+    _zz_slowTop_4[47] = _zz_slowTop_3[0];
+  end
+
+  assign _zz_slowTop_2 = _zz_slowTop_4;
+  assign _zz_slowTop_5 = _zz_slowTop_2[3];
+  assign _zz_slowTop_6 = _zz_slowTop_2[5];
+  assign _zz_slowTop_7 = _zz_slowTop_2[6];
+  assign _zz_slowTop_8 = _zz_slowTop_2[7];
+  assign _zz_slowTop_9 = _zz_slowTop_2[9];
+  assign _zz_slowTop_10 = _zz_slowTop_2[10];
+  assign _zz_slowTop_11 = _zz_slowTop_2[11];
+  assign _zz_slowTop_12 = _zz_slowTop_2[12];
+  assign _zz_slowTop_13 = _zz_slowTop_2[13];
+  assign _zz_slowTop_14 = _zz_slowTop_2[14];
+  assign _zz_slowTop_15 = _zz_slowTop_2[15];
+  assign _zz_slowTop_16 = _zz_slowTop_2[17];
+  assign _zz_slowTop_17 = _zz_slowTop_2[18];
+  assign _zz_slowTop_18 = _zz_slowTop_2[19];
+  assign _zz_slowTop_19 = _zz_slowTop_2[20];
+  assign _zz_slowTop_20 = _zz_slowTop_2[21];
+  assign _zz_slowTop_21 = _zz_slowTop_2[22];
+  assign _zz_slowTop_22 = _zz_slowTop_2[23];
+  assign _zz_slowTop_23 = _zz_slowTop_2[24];
+  assign _zz_slowTop_24 = _zz_slowTop_2[25];
+  assign _zz_slowTop_25 = _zz_slowTop_2[26];
+  assign _zz_slowTop_26 = _zz_slowTop_2[27];
+  assign _zz_slowTop_27 = _zz_slowTop_2[28];
+  assign _zz_slowTop_28 = _zz_slowTop_2[29];
+  assign _zz_slowTop_29 = _zz_slowTop_2[30];
+  assign _zz_slowTop_30 = _zz_slowTop_2[31];
+  assign _zz_slowTop_31 = _zz_slowTop_2[33];
+  assign _zz_slowTop_32 = _zz_slowTop_2[34];
+  assign _zz_slowTop_33 = _zz_slowTop_2[35];
+  assign _zz_slowTop_34 = _zz_slowTop_2[36];
+  assign _zz_slowTop_35 = _zz_slowTop_2[37];
+  assign _zz_slowTop_36 = _zz_slowTop_2[38];
+  assign _zz_slowTop_37 = _zz_slowTop_2[39];
+  assign _zz_slowTop_38 = _zz_slowTop_2[40];
+  assign _zz_slowTop_39 = _zz_slowTop_2[41];
+  assign _zz_slowTop_40 = _zz_slowTop_2[42];
+  assign _zz_slowTop_41 = _zz_slowTop_2[43];
+  assign _zz_slowTop_42 = _zz_slowTop_2[44];
+  assign _zz_slowTop_43 = _zz_slowTop_2[45];
+  assign _zz_slowTop_44 = _zz_slowTop_2[46];
+  assign _zz_slowTop_45 = _zz_slowTop_2[47];
+  assign _zz_slowTop_46 = ((((((((((((((((_zz__zz_slowTop_46 || _zz_slowTop_16) || _zz_slowTop_18) || _zz_slowTop_20) || _zz_slowTop_22) || _zz_slowTop_24) || _zz_slowTop_26) || _zz_slowTop_28) || _zz_slowTop_30) || _zz_slowTop_31) || _zz_slowTop_33) || _zz_slowTop_35) || _zz_slowTop_37) || _zz_slowTop_39) || _zz_slowTop_41) || _zz_slowTop_43) || _zz_slowTop_45);
+  assign _zz_slowTop_47 = ((((((((((((((((_zz__zz_slowTop_47 || _zz_slowTop_17) || _zz_slowTop_18) || _zz_slowTop_21) || _zz_slowTop_22) || _zz_slowTop_25) || _zz_slowTop_26) || _zz_slowTop_29) || _zz_slowTop_30) || _zz_slowTop_32) || _zz_slowTop_33) || _zz_slowTop_36) || _zz_slowTop_37) || _zz_slowTop_40) || _zz_slowTop_41) || _zz_slowTop_44) || _zz_slowTop_45);
+  assign _zz_slowTop_48 = ((((((((((((((((_zz__zz_slowTop_48 || _zz_slowTop_19) || _zz_slowTop_20) || _zz_slowTop_21) || _zz_slowTop_22) || _zz_slowTop_27) || _zz_slowTop_28) || _zz_slowTop_29) || _zz_slowTop_30) || _zz_slowTop_34) || _zz_slowTop_35) || _zz_slowTop_36) || _zz_slowTop_37) || _zz_slowTop_42) || _zz_slowTop_43) || _zz_slowTop_44) || _zz_slowTop_45);
+  assign _zz_slowTop_49 = ((((((((((((((((_zz__zz_slowTop_49 || _zz_slowTop_23) || _zz_slowTop_24) || _zz_slowTop_25) || _zz_slowTop_26) || _zz_slowTop_27) || _zz_slowTop_28) || _zz_slowTop_29) || _zz_slowTop_30) || _zz_slowTop_38) || _zz_slowTop_39) || _zz_slowTop_40) || _zz_slowTop_41) || _zz_slowTop_42) || _zz_slowTop_43) || _zz_slowTop_44) || _zz_slowTop_45);
+  assign _zz_slowTop_50 = (((((((((((((((_zz_slowTop_2[16] || _zz_slowTop_16) || _zz_slowTop_17) || _zz_slowTop_18) || _zz_slowTop_19) || _zz_slowTop_20) || _zz_slowTop_21) || _zz_slowTop_22) || _zz_slowTop_23) || _zz_slowTop_24) || _zz_slowTop_25) || _zz_slowTop_26) || _zz_slowTop_27) || _zz_slowTop_28) || _zz_slowTop_29) || _zz_slowTop_30);
+  assign _zz_slowTop_51 = (((((((((((((((_zz_slowTop_2[32] || _zz_slowTop_31) || _zz_slowTop_32) || _zz_slowTop_33) || _zz_slowTop_34) || _zz_slowTop_35) || _zz_slowTop_36) || _zz_slowTop_37) || _zz_slowTop_38) || _zz_slowTop_39) || _zz_slowTop_40) || _zz_slowTop_41) || _zz_slowTop_42) || _zz_slowTop_43) || _zz_slowTop_44) || _zz_slowTop_45);
+  assign _zz_slowSh = slowA;
+  always @(*) begin
+    _zz_slowSh_1[0] = _zz_slowSh[47];
+    _zz_slowSh_1[1] = _zz_slowSh[46];
+    _zz_slowSh_1[2] = _zz_slowSh[45];
+    _zz_slowSh_1[3] = _zz_slowSh[44];
+    _zz_slowSh_1[4] = _zz_slowSh[43];
+    _zz_slowSh_1[5] = _zz_slowSh[42];
+    _zz_slowSh_1[6] = _zz_slowSh[41];
+    _zz_slowSh_1[7] = _zz_slowSh[40];
+    _zz_slowSh_1[8] = _zz_slowSh[39];
+    _zz_slowSh_1[9] = _zz_slowSh[38];
+    _zz_slowSh_1[10] = _zz_slowSh[37];
+    _zz_slowSh_1[11] = _zz_slowSh[36];
+    _zz_slowSh_1[12] = _zz_slowSh[35];
+    _zz_slowSh_1[13] = _zz_slowSh[34];
+    _zz_slowSh_1[14] = _zz_slowSh[33];
+    _zz_slowSh_1[15] = _zz_slowSh[32];
+    _zz_slowSh_1[16] = _zz_slowSh[31];
+    _zz_slowSh_1[17] = _zz_slowSh[30];
+    _zz_slowSh_1[18] = _zz_slowSh[29];
+    _zz_slowSh_1[19] = _zz_slowSh[28];
+    _zz_slowSh_1[20] = _zz_slowSh[27];
+    _zz_slowSh_1[21] = _zz_slowSh[26];
+    _zz_slowSh_1[22] = _zz_slowSh[25];
+    _zz_slowSh_1[23] = _zz_slowSh[24];
+    _zz_slowSh_1[24] = _zz_slowSh[23];
+    _zz_slowSh_1[25] = _zz_slowSh[22];
+    _zz_slowSh_1[26] = _zz_slowSh[21];
+    _zz_slowSh_1[27] = _zz_slowSh[20];
+    _zz_slowSh_1[28] = _zz_slowSh[19];
+    _zz_slowSh_1[29] = _zz_slowSh[18];
+    _zz_slowSh_1[30] = _zz_slowSh[17];
+    _zz_slowSh_1[31] = _zz_slowSh[16];
+    _zz_slowSh_1[32] = _zz_slowSh[15];
+    _zz_slowSh_1[33] = _zz_slowSh[14];
+    _zz_slowSh_1[34] = _zz_slowSh[13];
+    _zz_slowSh_1[35] = _zz_slowSh[12];
+    _zz_slowSh_1[36] = _zz_slowSh[11];
+    _zz_slowSh_1[37] = _zz_slowSh[10];
+    _zz_slowSh_1[38] = _zz_slowSh[9];
+    _zz_slowSh_1[39] = _zz_slowSh[8];
+    _zz_slowSh_1[40] = _zz_slowSh[7];
+    _zz_slowSh_1[41] = _zz_slowSh[6];
+    _zz_slowSh_1[42] = _zz_slowSh[5];
+    _zz_slowSh_1[43] = _zz_slowSh[4];
+    _zz_slowSh_1[44] = _zz_slowSh[3];
+    _zz_slowSh_1[45] = _zz_slowSh[2];
+    _zz_slowSh_1[46] = _zz_slowSh[1];
+    _zz_slowSh_1[47] = _zz_slowSh[0];
+  end
+
+  assign _zz_slowSh_3 = (_zz_slowSh_1 & (~ _zz__zz_slowSh_3));
+  always @(*) begin
+    _zz_slowSh_4[0] = _zz_slowSh_3[47];
+    _zz_slowSh_4[1] = _zz_slowSh_3[46];
+    _zz_slowSh_4[2] = _zz_slowSh_3[45];
+    _zz_slowSh_4[3] = _zz_slowSh_3[44];
+    _zz_slowSh_4[4] = _zz_slowSh_3[43];
+    _zz_slowSh_4[5] = _zz_slowSh_3[42];
+    _zz_slowSh_4[6] = _zz_slowSh_3[41];
+    _zz_slowSh_4[7] = _zz_slowSh_3[40];
+    _zz_slowSh_4[8] = _zz_slowSh_3[39];
+    _zz_slowSh_4[9] = _zz_slowSh_3[38];
+    _zz_slowSh_4[10] = _zz_slowSh_3[37];
+    _zz_slowSh_4[11] = _zz_slowSh_3[36];
+    _zz_slowSh_4[12] = _zz_slowSh_3[35];
+    _zz_slowSh_4[13] = _zz_slowSh_3[34];
+    _zz_slowSh_4[14] = _zz_slowSh_3[33];
+    _zz_slowSh_4[15] = _zz_slowSh_3[32];
+    _zz_slowSh_4[16] = _zz_slowSh_3[31];
+    _zz_slowSh_4[17] = _zz_slowSh_3[30];
+    _zz_slowSh_4[18] = _zz_slowSh_3[29];
+    _zz_slowSh_4[19] = _zz_slowSh_3[28];
+    _zz_slowSh_4[20] = _zz_slowSh_3[27];
+    _zz_slowSh_4[21] = _zz_slowSh_3[26];
+    _zz_slowSh_4[22] = _zz_slowSh_3[25];
+    _zz_slowSh_4[23] = _zz_slowSh_3[24];
+    _zz_slowSh_4[24] = _zz_slowSh_3[23];
+    _zz_slowSh_4[25] = _zz_slowSh_3[22];
+    _zz_slowSh_4[26] = _zz_slowSh_3[21];
+    _zz_slowSh_4[27] = _zz_slowSh_3[20];
+    _zz_slowSh_4[28] = _zz_slowSh_3[19];
+    _zz_slowSh_4[29] = _zz_slowSh_3[18];
+    _zz_slowSh_4[30] = _zz_slowSh_3[17];
+    _zz_slowSh_4[31] = _zz_slowSh_3[16];
+    _zz_slowSh_4[32] = _zz_slowSh_3[15];
+    _zz_slowSh_4[33] = _zz_slowSh_3[14];
+    _zz_slowSh_4[34] = _zz_slowSh_3[13];
+    _zz_slowSh_4[35] = _zz_slowSh_3[12];
+    _zz_slowSh_4[36] = _zz_slowSh_3[11];
+    _zz_slowSh_4[37] = _zz_slowSh_3[10];
+    _zz_slowSh_4[38] = _zz_slowSh_3[9];
+    _zz_slowSh_4[39] = _zz_slowSh_3[8];
+    _zz_slowSh_4[40] = _zz_slowSh_3[7];
+    _zz_slowSh_4[41] = _zz_slowSh_3[6];
+    _zz_slowSh_4[42] = _zz_slowSh_3[5];
+    _zz_slowSh_4[43] = _zz_slowSh_3[4];
+    _zz_slowSh_4[44] = _zz_slowSh_3[3];
+    _zz_slowSh_4[45] = _zz_slowSh_3[2];
+    _zz_slowSh_4[46] = _zz_slowSh_3[1];
+    _zz_slowSh_4[47] = _zz_slowSh_3[0];
+  end
+
+  assign _zz_slowSh_2 = _zz_slowSh_4;
+  assign _zz_slowSh_5 = _zz_slowSh_2[3];
+  assign _zz_slowSh_6 = _zz_slowSh_2[5];
+  assign _zz_slowSh_7 = _zz_slowSh_2[6];
+  assign _zz_slowSh_8 = _zz_slowSh_2[7];
+  assign _zz_slowSh_9 = _zz_slowSh_2[9];
+  assign _zz_slowSh_10 = _zz_slowSh_2[10];
+  assign _zz_slowSh_11 = _zz_slowSh_2[11];
+  assign _zz_slowSh_12 = _zz_slowSh_2[12];
+  assign _zz_slowSh_13 = _zz_slowSh_2[13];
+  assign _zz_slowSh_14 = _zz_slowSh_2[14];
+  assign _zz_slowSh_15 = _zz_slowSh_2[15];
+  assign _zz_slowSh_16 = _zz_slowSh_2[17];
+  assign _zz_slowSh_17 = _zz_slowSh_2[18];
+  assign _zz_slowSh_18 = _zz_slowSh_2[19];
+  assign _zz_slowSh_19 = _zz_slowSh_2[20];
+  assign _zz_slowSh_20 = _zz_slowSh_2[21];
+  assign _zz_slowSh_21 = _zz_slowSh_2[22];
+  assign _zz_slowSh_22 = _zz_slowSh_2[23];
+  assign _zz_slowSh_23 = _zz_slowSh_2[24];
+  assign _zz_slowSh_24 = _zz_slowSh_2[25];
+  assign _zz_slowSh_25 = _zz_slowSh_2[26];
+  assign _zz_slowSh_26 = _zz_slowSh_2[27];
+  assign _zz_slowSh_27 = _zz_slowSh_2[28];
+  assign _zz_slowSh_28 = _zz_slowSh_2[29];
+  assign _zz_slowSh_29 = _zz_slowSh_2[30];
+  assign _zz_slowSh_30 = _zz_slowSh_2[31];
+  assign _zz_slowSh_31 = _zz_slowSh_2[33];
+  assign _zz_slowSh_32 = _zz_slowSh_2[34];
+  assign _zz_slowSh_33 = _zz_slowSh_2[35];
+  assign _zz_slowSh_34 = _zz_slowSh_2[36];
+  assign _zz_slowSh_35 = _zz_slowSh_2[37];
+  assign _zz_slowSh_36 = _zz_slowSh_2[38];
+  assign _zz_slowSh_37 = _zz_slowSh_2[39];
+  assign _zz_slowSh_38 = _zz_slowSh_2[40];
+  assign _zz_slowSh_39 = _zz_slowSh_2[41];
+  assign _zz_slowSh_40 = _zz_slowSh_2[42];
+  assign _zz_slowSh_41 = _zz_slowSh_2[43];
+  assign _zz_slowSh_42 = _zz_slowSh_2[44];
+  assign _zz_slowSh_43 = _zz_slowSh_2[45];
+  assign _zz_slowSh_44 = _zz_slowSh_2[46];
+  assign _zz_slowSh_45 = _zz_slowSh_2[47];
+  assign _zz_slowSh_46 = ((((((((((((((((_zz__zz_slowSh_46 || _zz_slowSh_16) || _zz_slowSh_18) || _zz_slowSh_20) || _zz_slowSh_22) || _zz_slowSh_24) || _zz_slowSh_26) || _zz_slowSh_28) || _zz_slowSh_30) || _zz_slowSh_31) || _zz_slowSh_33) || _zz_slowSh_35) || _zz_slowSh_37) || _zz_slowSh_39) || _zz_slowSh_41) || _zz_slowSh_43) || _zz_slowSh_45);
+  assign _zz_slowSh_47 = ((((((((((((((((_zz__zz_slowSh_47 || _zz_slowSh_17) || _zz_slowSh_18) || _zz_slowSh_21) || _zz_slowSh_22) || _zz_slowSh_25) || _zz_slowSh_26) || _zz_slowSh_29) || _zz_slowSh_30) || _zz_slowSh_32) || _zz_slowSh_33) || _zz_slowSh_36) || _zz_slowSh_37) || _zz_slowSh_40) || _zz_slowSh_41) || _zz_slowSh_44) || _zz_slowSh_45);
+  assign _zz_slowSh_48 = ((((((((((((((((_zz__zz_slowSh_48 || _zz_slowSh_19) || _zz_slowSh_20) || _zz_slowSh_21) || _zz_slowSh_22) || _zz_slowSh_27) || _zz_slowSh_28) || _zz_slowSh_29) || _zz_slowSh_30) || _zz_slowSh_34) || _zz_slowSh_35) || _zz_slowSh_36) || _zz_slowSh_37) || _zz_slowSh_42) || _zz_slowSh_43) || _zz_slowSh_44) || _zz_slowSh_45);
+  assign _zz_slowSh_49 = ((((((((((((((((_zz__zz_slowSh_49 || _zz_slowSh_23) || _zz_slowSh_24) || _zz_slowSh_25) || _zz_slowSh_26) || _zz_slowSh_27) || _zz_slowSh_28) || _zz_slowSh_29) || _zz_slowSh_30) || _zz_slowSh_38) || _zz_slowSh_39) || _zz_slowSh_40) || _zz_slowSh_41) || _zz_slowSh_42) || _zz_slowSh_43) || _zz_slowSh_44) || _zz_slowSh_45);
+  assign _zz_slowSh_50 = (((((((((((((((_zz_slowSh_2[16] || _zz_slowSh_16) || _zz_slowSh_17) || _zz_slowSh_18) || _zz_slowSh_19) || _zz_slowSh_20) || _zz_slowSh_21) || _zz_slowSh_22) || _zz_slowSh_23) || _zz_slowSh_24) || _zz_slowSh_25) || _zz_slowSh_26) || _zz_slowSh_27) || _zz_slowSh_28) || _zz_slowSh_29) || _zz_slowSh_30);
+  assign _zz_slowSh_51 = (((((((((((((((_zz_slowSh_2[32] || _zz_slowSh_31) || _zz_slowSh_32) || _zz_slowSh_33) || _zz_slowSh_34) || _zz_slowSh_35) || _zz_slowSh_36) || _zz_slowSh_37) || _zz_slowSh_38) || _zz_slowSh_39) || _zz_slowSh_40) || _zz_slowSh_41) || _zz_slowSh_42) || _zz_slowSh_43) || _zz_slowSh_44) || _zz_slowSh_45);
+  assign when_GeoEngine_l247 = (mcStep == 2'b01);
+  assign when_GeoEngine_l251 = (mcStep == 2'b10);
+  assign when_GeoEngine_l264 = (mcStep == 2'b00);
+  assign when_GeoEngine_l267 = (mcStep == 2'b01);
+  assign when_GeoEngine_l277 = (mcStep == 2'b00);
+  assign when_GeoEngine_l282 = (mcStep == 2'b01);
+  assign when_GeoEngine_l300 = (mcStep == 2'b00);
+  assign when_GeoEngine_l308 = (mcStep == 2'b00);
+  assign when_GeoEngine_l311 = (mcStep == 2'b00);
+  assign when_GeoEngine_l314 = (mcStep == 2'b00);
+  assign when_GeoEngine_l328 = (mcStep == 2'b00);
+  assign when_GeoEngine_l351 = ((divD[109 : 72] == 38'h0) && (divD[71 : 0] <= divRem));
+  assign when_GeoEngine_l335 = (mcStep == 2'b01);
+  assign when_GeoEngine_l341 = (mcStep == 2'b11);
+  assign when_GeoEngine_l344 = (divLeft == 6'h0);
+  assign when_GeoEngine_l360 = (mcStep == 2'b00);
+  assign when_GeoEngine_l361 = (! triValid);
+  assign when_GeoEngine_l364 = (emitCount != 5'h0);
+  assign switch_GeoEngine_l368 = (emitCount - 5'h01);
+  assign when_GeoEngine_l376 = (emitCount == 5'h16);
   assign stall = ((eLive && ((stHazard || accBranchHazard) || (isMc && (! mcDone)))) || (cfgStep != 2'b00));
   assign eGo = (eLive && (! stall));
   always @(*) begin
@@ -4827,25 +4843,19 @@ module hng64_geo (
 
   assign _zz_7 = ({3'd0,1'b1} <<< retSp);
   assign _zz_retStack_0 = (pcE + 11'h001);
-  assign switch_GeoEngine_l343 = d[3:0];
+  assign switch_GeoEngine_l421 = d[3:0];
   assign flush = taken;
-  assign when_GeoEngine_l363 = (eGo && taken);
-  assign isSt = ((((o == 6'h08) || (o == 6'h09)) || (o == 6'h0a)) || (o == 6'h38));
-  assign mo = mInstr[48 : 43];
-  assign half = (($signed(8'h0) < $signed(mSh)) ? _zz_half : 72'h0);
-  assign rounded = ($signed(acc) + $signed(_zz_rounded));
-  assign stVal = (($signed(8'h0) <= $signed(mSh)) ? _zz_stVal : _zz_stVal_3);
-  assign mOut = (mIsSt ? _zz_mOut : mVal);
+  assign isSt = 1'b0;
   assign mDst = mInstr[42 : 34];
   always @(*) begin
     wrEn = ((mValid && mWrites) && (mDst != 9'h0));
     if(stxWrite) begin
       wrEn = 1'b1;
     end
-    if(when_GeoEngine_l419) begin
+    if(when_GeoEngine_l494) begin
       wrEn = 1'b1;
     end
-    if(when_GeoEngine_l424) begin
+    if(when_GeoEngine_l499) begin
       wrEn = 1'b1;
     end
   end
@@ -4855,34 +4865,36 @@ module hng64_geo (
     if(stxWrite) begin
       wrAddr = xAddr;
     end
-    if(when_GeoEngine_l419) begin
+    if(when_GeoEngine_l494) begin
       wrAddr = 9'h00d;
     end
-    if(when_GeoEngine_l424) begin
+    if(when_GeoEngine_l499) begin
       wrAddr = 9'h00e;
     end
   end
 
   always @(*) begin
-    wrData = mOut;
+    wrData = mVal;
     if(stxWrite) begin
       wrData = ((d == 9'h0) ? 48'h0 : rdX);
     end
-    if(when_GeoEngine_l419) begin
+    if(when_GeoEngine_l494) begin
       wrData = _zz_wrData;
     end
-    if(when_GeoEngine_l424) begin
+    if(when_GeoEngine_l499) begin
       wrData = _zz_wrData_2;
     end
   end
 
-  assign when_GeoEngine_l419 = (cfgStep == 2'b01);
-  assign when_GeoEngine_l424 = (cfgStep == 2'b10);
+  assign when_GeoEngine_l494 = (cfgStep == 2'b01);
+  assign when_GeoEngine_l499 = (cfgStep == 2'b10);
   assign rdAddrA = (stall ? ra : instrD[33 : 25]);
   assign rdAddrB = (stall ? rb : instrD[24 : 16]);
-  assign mNext = ((eGo && (aluWrites || mcWrites)) && (! isSt));
-  assign when_GeoEngine_l447 = (! stall);
-  assign when_GeoEngine_l455 = ((io_start && (! running)) && (cfgStep == 2'b00));
+  assign mNextGo = ((eLive && (aluWrites || mcWrites)) && (! isSt));
+  assign _zz_selMA = instrD[33 : 25];
+  assign _zz_selMB = instrD[24 : 16];
+  assign when_GeoEngine_l527 = (! stall);
+  assign when_GeoEngine_l535 = ((io_start && (! running)) && (cfgStep == 2'b00));
   always @(*) begin
     case(io_entry)
       2'b00 : begin
@@ -4897,16 +4909,29 @@ module hng64_geo (
     endcase
   end
 
-  assign when_GeoEngine_l463 = (io_entry == 2'b00);
-  assign when_GeoEngine_l465 = (cfgStep == 2'b01);
-  assign when_GeoEngine_l466 = (cfgStep == 2'b10);
+  assign when_GeoEngine_l543 = (io_entry == 2'b00);
+  assign when_GeoEngine_l545 = (cfgStep == 2'b01);
+  assign when_GeoEngine_l546 = (cfgStep == 2'b10);
   assign seek = (eGo && (o == 6'h23));
   assign room = (_zz_room < vFifo_io_availability);
-  assign io_vRd_valid = ((seeked && room) && (! seek));
-  assign io_vRd_payload = (io_vBase + _zz_io_vRd_payload);
-  assign io_vRd_fire = (io_vRd_valid && io_vRd_ready);
+  assign vRdS_valid = ((seeked && room) && (! seek));
+  assign vRdS_payload = (io_vBase + _zz_vRdS_payload);
+  always @(*) begin
+    vRdS_ready = vRdS_m2sPipe_ready;
+    if(when_Stream_l477) begin
+      vRdS_ready = 1'b1;
+    end
+  end
+
+  assign when_Stream_l477 = (! vRdS_m2sPipe_valid);
+  assign vRdS_m2sPipe_valid = vRdS_rValid;
+  assign vRdS_m2sPipe_payload = vRdS_rData;
+  assign io_vRd_valid = vRdS_m2sPipe_valid;
+  assign vRdS_m2sPipe_ready = io_vRd_ready;
+  assign io_vRd_payload = vRdS_m2sPipe_payload;
+  assign vRdS_fire = (vRdS_valid && vRdS_ready);
   assign vFifo_io_push_valid = ((io_vData_valid && (vDrop == 6'h0)) && (! seek));
-  assign when_GeoEngine_l483 = (io_vData_valid && (vDrop != 6'h0));
+  assign when_GeoEngine_l568 = (io_vData_valid && (vDrop != 6'h0));
   assign vWord_valid = vFifo_io_pop_valid;
   assign vWord_payload = _zz_vWord_payload;
   assign vWord_fire = (vWord_valid && vWord_ready);
@@ -4962,57 +4987,100 @@ module hng64_geo (
       zeroA <= 1'b0;
       zeroB <= 1'b0;
       mcStep <= 2'b00;
+      bypX <= 1'b0;
       triValid <= 1'b0;
       retSp <= 2'b00;
       seeked <= 1'b0;
       vDrop <= 6'h0;
       vOut <= 6'h0;
       vSkip <= 2'b00;
+      vRdS_rValid <= 1'b0;
     end else begin
       if(mcGo) begin
         case(o)
           6'h1d : begin
-            if(when_GeoEngine_l219) begin
+            if(when_GeoEngine_l236) begin
               mcStep <= 2'b01;
             end
           end
           6'h1e : begin
-            if(when_GeoEngine_l223) begin
-              mcStep <= 2'b01;
-            end
-          end
-          6'h16, 6'h1b, 6'h1c : begin
-            if(when_GeoEngine_l226) begin
-              mcStep <= 2'b01;
-            end
-          end
-          6'h1f : begin
             if(when_GeoEngine_l240) begin
               mcStep <= 2'b01;
             end
           end
-          6'h20 : begin
+          6'h16, 6'h1b, 6'h1c : begin
             if(when_GeoEngine_l243) begin
+              mcStep <= 2'b01;
+            end else begin
+              if(when_GeoEngine_l247) begin
+                mcStep <= 2'b10;
+              end else begin
+                if(when_GeoEngine_l251) begin
+                  mcStep <= 2'b11;
+                end
+              end
+            end
+          end
+          6'h08, 6'h09, 6'h0a, 6'h38 : begin
+            if(when_GeoEngine_l264) begin
+              mcStep <= 2'b01;
+            end else begin
+              if(when_GeoEngine_l267) begin
+                mcStep <= 2'b10;
+              end
+            end
+          end
+          6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
+            if(when_GeoEngine_l277) begin
+              mcStep <= 2'b01;
+            end else begin
+              if(when_GeoEngine_l282) begin
+                mcStep <= 2'b10;
+              end
+            end
+          end
+          6'h04, 6'h05, 6'h06 : begin
+            if(when_GeoEngine_l300) begin
+              mcStep <= 2'b01;
+            end
+          end
+          6'h1f : begin
+            if(when_GeoEngine_l308) begin
+              mcStep <= 2'b01;
+            end
+          end
+          6'h20 : begin
+            if(when_GeoEngine_l311) begin
               mcStep <= 2'b01;
             end
           end
           6'h22 : begin
-            if(when_GeoEngine_l246) begin
+            if(when_GeoEngine_l314) begin
               mcStep <= 2'b01;
             end
           end
           6'h0b : begin
-            if(when_GeoEngine_l260) begin
+            if(when_GeoEngine_l328) begin
               mcStep <= 2'b01;
+            end else begin
+              if(when_GeoEngine_l335) begin
+                mcStep <= 2'b10;
+              end else begin
+                if(!when_GeoEngine_l341) begin
+                  if(when_GeoEngine_l344) begin
+                    mcStep <= 2'b11;
+                  end
+                end
+              end
             end
           end
           6'h28 : begin
-            if(when_GeoEngine_l282) begin
-              if(when_GeoEngine_l283) begin
+            if(when_GeoEngine_l360) begin
+              if(when_GeoEngine_l361) begin
                 mcStep <= 2'b01;
               end
             end else begin
-              if(when_GeoEngine_l298) begin
+              if(when_GeoEngine_l376) begin
                 triValid <= 1'b1;
               end
             end
@@ -5106,36 +5174,40 @@ module hng64_geo (
         end
       endcase
       wValid <= wrEn;
-      selMA <= (mNext && (d == rdAddrA));
-      selWA <= (wrEn && (wrAddr == rdAddrA));
-      zeroA <= (rdAddrA == 9'h0);
-      selMB <= (mNext && (d == rdAddrB));
-      selWB <= (wrEn && (wrAddr == rdAddrB));
-      zeroB <= (rdAddrB == 9'h0);
-      if(when_GeoEngine_l447) begin
+      bypX <= ((wrEn && (wrAddr == xAddr)) && (xAddr != 9'h0));
+      selMA <= ((! stall) && (mNextGo && (d == _zz_selMA)));
+      selWA <= (wrEn && (stall ? (wrAddr == ra) : (wrAddr == _zz_selMA)));
+      zeroA <= (stall ? (ra == 9'h0) : (_zz_selMA == 9'h0));
+      selMB <= ((! stall) && (mNextGo && (d == _zz_selMB)));
+      selWB <= (wrEn && (stall ? (wrAddr == rb) : (wrAddr == _zz_selMB)));
+      zeroB <= (stall ? (rb == 9'h0) : (_zz_selMB == 9'h0));
+      if(when_GeoEngine_l527) begin
         validD <= running;
         pcSeq <= (fetch + 11'h001);
         validE <= (validD && (! brPending));
         instrE <= instrD;
       end
-      if(when_GeoEngine_l455) begin
+      if(when_GeoEngine_l535) begin
         pcSeq <= _zz_pcSeq;
         validD <= 1'b0;
         validE <= 1'b0;
         retSp <= 2'b00;
         running <= 1'b1;
-        if(when_GeoEngine_l463) begin
+        if(when_GeoEngine_l543) begin
           cfgStep <= 2'b01;
         end
       end
-      if(when_GeoEngine_l465) begin
+      if(when_GeoEngine_l545) begin
         cfgStep <= 2'b10;
       end
-      if(when_GeoEngine_l466) begin
+      if(when_GeoEngine_l546) begin
         cfgStep <= 2'b00;
       end
+      if(vRdS_ready) begin
+        vRdS_rValid <= vRdS_valid;
+      end
       vOut <= (_zz_vOut - _zz_vOut_3);
-      if(when_GeoEngine_l483) begin
+      if(when_GeoEngine_l568) begin
         vDrop <= (vDrop - 6'h01);
       end
       if(vWord_fire) begin
@@ -5153,40 +5225,116 @@ module hng64_geo (
   end
 
   always @(posedge clk) begin
-    xAddrPrev <= xAddr;
     if(mcGo) begin
       case(o)
         6'h16, 6'h1b, 6'h1c : begin
-          if(when_GeoEngine_l226) begin
+          if(when_GeoEngine_l243) begin
             slowA <= a;
             slowB <= ((o == 6'h16) ? _zz_slowB : _zz_slowB_1);
+          end else begin
+            if(when_GeoEngine_l247) begin
+              slowTop <= {_zz_slowTop_51,{_zz_slowTop_50,{_zz_slowTop_49,{_zz_slowTop_48,{_zz_slowTop_47,_zz_slowTop_46}}}}};
+              slowSh <= ((o == 6'h16) ? slowB : _zz_slowSh_52);
+            end else begin
+              if(when_GeoEngine_l251) begin
+                case(o)
+                  6'h1b : begin
+                    slowR <= (($signed(48'h0) < $signed(slowA)) ? _zz_slowR : 48'hffffffffffff);
+                  end
+                  default : begin
+                    slowR <= (($signed(8'h0) <= $signed(slowSh)) ? _zz_slowR_2 : _zz_slowR_5);
+                  end
+                endcase
+              end
+            end
+          end
+        end
+        6'h08, 6'h09, 6'h0a, 6'h38 : begin
+          if(when_GeoEngine_l264) begin
+            stSh <= (((o == 6'h0a) || (o == 6'h38)) ? _zz_stSh : _zz_stSh_3);
+          end else begin
+            if(when_GeoEngine_l267) begin
+              stRound <= ($signed(acc) + $signed(_zz_stRound));
+            end
+          end
+        end
+        6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
+          if(when_GeoEngine_l277) begin
+            slowA <= a;
+            alu2B <= b;
+            alu2I <= imm;
+          end else begin
+            if(when_GeoEngine_l282) begin
+              case(o)
+                6'h0e : begin
+                  slowR <= (($signed(slowA) < $signed(alu2B)) ? slowA : alu2B);
+                end
+                6'h0f : begin
+                  slowR <= (($signed(alu2B) < $signed(slowA)) ? slowA : alu2B);
+                end
+                6'h14 : begin
+                  slowR <= ($signed(slowA) <<< _zz_slowR_9);
+                end
+                6'h15 : begin
+                  slowR <= ($signed(slowA) >>> _zz_slowR_11);
+                end
+                6'h18 : begin
+                  slowR <= (- slowA);
+                end
+                6'h19 : begin
+                  slowR <= (($signed(slowA) < $signed(48'h0)) ? _zz_slowR_13 : slowA);
+                end
+                6'h1a : begin
+                  slowR <= {{32{_zz_slowR_14[15]}}, _zz_slowR_14};
+                end
+                default : begin
+                  slowR <= _zz_slowR_15;
+                end
+              endcase
+            end
+          end
+        end
+        6'h04, 6'h05, 6'h06 : begin
+          if(when_GeoEngine_l300) begin
+            slowA <= a;
+            alu2B <= b;
+            alu2I <= imm;
           end
         end
         6'h0b : begin
-          if(when_GeoEngine_l260) begin
-            divRem <= (_zz_divRem_1 + _zz_divRem_3);
+          if(when_GeoEngine_l328) begin
+            divRem <= (_zz_divRem + _zz_divRem_2);
             divDen <= (_zz_divDen + _zz_divDen_2);
             divNeg <= (($signed(acc) < $signed(72'h0)) != ($signed(b) < $signed(48'h0)));
             divQ <= 48'h0;
             divLeft <= _zz_divLeft[5:0];
           end else begin
-            if(!when_GeoEngine_l267) begin
-              if(when_GeoEngine_l274) begin
-                divRem <= (divRem - _zz_divRem_5);
+            if(when_GeoEngine_l335) begin
+              divD <= (_zz_divD <<< _zz_divD_1);
+            end else begin
+              if(!when_GeoEngine_l341) begin
+                if(when_GeoEngine_l344) begin
+                  slowR <= (divNeg ? _zz_slowR_19 : _zz_slowR_21);
+                end else begin
+                  if(when_GeoEngine_l351) begin
+                    divRem <= (divRem - divD[71 : 0]);
+                  end
+                  divQ <= (_zz_divQ | _zz_divQ_1);
+                  divD <= (divD >>> 1);
+                  divLeft <= (divLeft - 6'h01);
+                end
               end
-              divQ <= (_zz_divQ | _zz_divQ_1);
-              divLeft <= _zz_divRem;
             end
           end
         end
         6'h28 : begin
-          if(when_GeoEngine_l282) begin
-            if(when_GeoEngine_l283) begin
+          if(when_GeoEngine_l360) begin
+            if(when_GeoEngine_l361) begin
               emitCount <= 5'h0;
             end
           end else begin
-            if(when_GeoEngine_l286) begin
-              case(switch_GeoEngine_l290)
+            if(when_GeoEngine_l364) begin
+              case(switch_GeoEngine_l368)
                 5'h06 : begin
                   triOut_neg <= rdX[0];
                 end
@@ -5258,7 +5406,7 @@ module hng64_geo (
               endcase
             end
             emitCount <= (emitCount + 5'h01);
-            if(when_GeoEngine_l298) begin
+            if(when_GeoEngine_l376) begin
               triOut_attr <= {attr_wrapY,{attr_wrapX,{attr_scrollY,{attr_scrollX,{attr_pal,{attr_voff,{attr_hoff,{attr_sub,{attr_texIndex,{attr_tex4bpp,{attr_blend,attr_flat}}}}}}}}}}};
             end
           end
@@ -5284,7 +5432,7 @@ module hng64_geo (
           end
         end
         6'h26 : begin
-          case(switch_GeoEngine_l343)
+          case(switch_GeoEngine_l421)
             4'b0000 : begin
               attr_flat <= a[0];
             end
@@ -5329,7 +5477,7 @@ module hng64_geo (
         end
       endcase
     end
-    if(when_GeoEngine_l363) begin
+    if(eGo) begin
       brTarget <= target;
     end
     mVal <= (mcWrites ? mcVal : alu);
@@ -5340,11 +5488,14 @@ module hng64_geo (
     end
     wReg <= wrAddr;
     wVal <= wrData;
-    if(when_GeoEngine_l447) begin
+    if(when_GeoEngine_l527) begin
       pcD <= fetch;
       pcE <= pcD;
     end
-    if(io_vRd_fire) begin
+    if(vRdS_ready) begin
+      vRdS_rData <= vRdS_payload;
+    end
+    if(vRdS_fire) begin
       vReq <= (vReq + 26'h0000004);
     end
     if(seek) begin

@@ -13,6 +13,8 @@ rtl/hng64_bus.sv
 rtl/hng64_io.sv
 rtl/3d/hng64_geo.v
 rtl/3d/hng64_raster.v
+rtl/common/hng64_afifo.sv
+rtl/hng64_3d_bridge.sv
 rtl/hng64_3d.sv
 rtl/video/hng64_mosaic.sv
 rtl/video/hng64_tilemap.sv

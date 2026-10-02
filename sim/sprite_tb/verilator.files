@@ -1,4 +1,5 @@
 rtl/video/hng64_mosaic.sv
 rtl/common/hng64_mlab.sv
+rtl/common/hng64_bram.sv
 rtl/video/hng64_sprite.sv
 sim/sprite_tb/tb_sprite.sv

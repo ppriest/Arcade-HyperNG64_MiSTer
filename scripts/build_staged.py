@@ -17,6 +17,8 @@ The build is exactly HEAD:
     python scripts/build_staged.py                     # compile HEAD, default revision
     python scripts/build_staged.py --rev <project>     # another revision
     python scripts/build_staged.py --seed 12345        # try another placement
+    python scripts/build_staged.py --stage build_s2 --seed 2   # alongside another build
+    python scripts/build_staged.py --set OPTIMIZATION_MODE="AGGRESSIVE PERFORMANCE"
     python scripts/build_staged.py --allow-dirty       # HEAD, ignoring edits
 
 The revision defaults to CORE_REV, else the one .qsf, else the last
@@ -162,6 +164,12 @@ def main():
                     help="override the fitter SEED in the STAGED .qsf "
                          "(placement only; worth trying before restructuring "
                          "RTL for a sub-ns violation)")
+    ap.add_argument("--stage", default="build",
+                    help="stage directory under the core root (default build); "
+                         "another one lets builds run side by side")
+    ap.add_argument("--set", action="append", default=[], metavar="NAME=VALUE",
+                    help="set a global assignment in the STAGED .qsf, like "
+                         "--seed (repeatable)")
     ap.add_argument("--allow-negative-slack", action="store_true",
                     help="do not fail on a build that misses timing; the "
                          "shortfall must then be stated wherever it is used")
@@ -174,7 +182,7 @@ def main():
     here = str(core_root())
     REV = revision(Path(here), args.rev)
     QUARTUS_BIN = str(quartus_bin(Path(here)))
-    stage = os.path.join(here, "build")
+    stage = os.path.join(here, args.stage)
 
     # scripts/hwlock.py: a compile must not start while a JTAG tool is
     # reading the device. The marker is machine-wide, so this also refuses
@@ -229,13 +237,28 @@ def main():
         open(qsf, "w", encoding="utf-8", newline="\n").write(new)
         print("seed:   %d (stage only)" % args.seed)
 
+    for kv in args.set:
+        name, _, value = kv.partition("=")
+        if not name or not value:
+            sys.exit("--set wants NAME=VALUE, got %r" % kv)
+        qsf = os.path.join(stage, "%s.qsf" % REV)
+        text = open(qsf, encoding="utf-8", errors="replace").read()
+        line = "set_global_assignment -name %s %s" % (name, value)
+        new, n = re.subn(r"(?m)^set_global_assignment -name %s .*$" % re.escape(name),
+                         lambda m: line, text)
+        if n == 0:
+            new = text.rstrip("\n") + "\n" + line + "\n"
+        open(qsf, "w", encoding="utf-8", newline="\n").write(new)
+        print("set:    %s (stage only)" % line)
+
     # THE SEED IS PART OF THE BUILD. Two .rbf files from the same commit at
     # different seeds are not interchangeable: one placement with every clock
     # positive has broken games on hardware where another (worse worst slack)
     # ran them all. Record it, or a good build cannot be rebuilt.
-    stamp = "%s  %s  seed=%s\n" % (
+    stamp = "%s  %s  seed=%s%s\n" % (
         head, datetime.datetime.now().isoformat(),
-        args.seed if args.seed is not None else "default")
+        args.seed if args.seed is not None else "default",
+        "".join("  " + kv for kv in args.set))
     open(os.path.join(stage, "BUILT_COMMIT"), "w").write(stamp)
     print("stage:  %s" % stage)
     print("rev:    %s" % REV)

@@ -13,16 +13,29 @@
 
 module tb_boot;
 
-    // clk2x 125 MHz, clk1x 62.5 MHz from it, clk93 93.75 MHz: the N64 core's clocks.
-    logic clk2x = 0, clk1x = 0, clk93 = 0;
+    // The board: clk2x 125 MHz, clk1x 62.5 MHz from it. The CPU on its own clocks, as on its own
+    // PLL (rtl/pll/pll_cpu.v), at a speed not related to the board's so that hng64_cpu_cdc is
+    // exercised: c2x 108.3 MHz, c1x from it, c93 81.25 MHz (the CPU's 4:2:3).
+    logic clk2x = 0, clk1x = 0;
+
+    logic [127:0] cop0;               // BadVAddr, Status, Cause, EPC
     always #4 clk2x = ~clk2x;
     always @(posedge clk2x) clk1x <= ~clk1x;
-    always #5.333 clk93 = ~clk93;
+    logic c2x = 0, c1x = 0, clk93 = 0;
+    always #4.615 c2x = ~c2x;
+    always @(posedge c2x) c1x <= ~c1x;
+    always #6.154 clk93 = ~clk93;
 
     logic reset = 1, ss_reset = 1;
     int   N = 20000;
 
-    // CPU <-> bridge
+    // CPU <-> hng64_cpu_cdc
+    logic        c_request, c_rnw, c_req64, c_done, c_granted, c_dout_ready;
+    logic [31:0] c_address;
+    logic  [2:0] c_size;
+    logic  [7:0] c_writeMask;
+    logic [63:0] c_dataWrite, c_dataRead, c_dout;
+    // hng64_cpu_cdc <-> bridge
     logic        mem_request, mem_rnw, mem_req64, mem_done, granted, dout_ready, cpu_err, bus_err;
     logic [31:0] mem_address;
     logic  [2:0] mem_size;
@@ -44,14 +57,27 @@ module tb_boot;
     logic  [3:0] io_be;
 
     hng64_cpu u_cpu (
-        .clk1x(clk1x), .clk93(clk93), .clk2x(clk2x),
+        .clk1x(c1x), .clk93(clk93), .clk2x(c2x),
         .reset_1x(reset), .reset_93(reset), .ss_reset(ss_reset), .irq(1'b0), .pause(1'b0),
-        .mem_request(mem_request), .mem_rnw(mem_rnw), .mem_address(mem_address),
-        .mem_req64(mem_req64), .mem_size(mem_size), .mem_writeMask(mem_writeMask),
-        .mem_dataWrite(mem_dataWrite), .mem_dataRead(mem_dataRead), .mem_done(mem_done),
-        .rdram_granted2x(granted), .ddr3_DOUT(dout), .ddr3_DOUT_READY(dout_ready),
+        .mem_request(c_request), .mem_rnw(c_rnw), .mem_address(c_address),
+        .mem_req64(c_req64), .mem_size(c_size), .mem_writeMask(c_writeMask),
+        .mem_dataWrite(c_dataWrite), .mem_dataRead(c_dataRead), .mem_done(c_done),
+        .rdram_granted2x(c_granted), .ddr3_DOUT(c_dout), .ddr3_DOUT_READY(c_dout_ready),
+        .dbg_cop0(cop0),
         .error_any(cpu_err),
         .export_new(ex_new), .export_pc(ex_pc), .export_opcode(ex_op), .export_regs(ex_regs));
+
+    hng64_cpu_cdc u_cdc (
+        .c1x(c1x), .c2x(c2x), .c_rst(reset),
+        .c_request(c_request), .c_rnw(c_rnw), .c_address(c_address), .c_req64(c_req64),
+        .c_size(c_size), .c_mask(c_writeMask), .c_wdata(c_dataWrite),
+        .c_dataRead(c_dataRead), .c_done(c_done),
+        .c_granted2x(c_granted), .c_DOUT(c_dout), .c_DOUT_READY(c_dout_ready),
+        .b1x(clk1x), .b2x(clk2x), .b_rst(reset),
+        .b_request(mem_request), .b_rnw(mem_rnw), .b_address(mem_address), .b_req64(mem_req64),
+        .b_size(mem_size), .b_mask(mem_writeMask), .b_wdata(mem_dataWrite),
+        .b_dataRead(mem_dataRead), .b_done(mem_done),
+        .b_granted2x(granted), .b_DOUT(dout), .b_DOUT_READY(dout_ready));
 
     hng64_bus u_bus (
         .clk1x(clk1x), .clk2x(clk2x), .reset(reset),
@@ -184,6 +210,8 @@ module tb_boot;
         retired = retired + 1;
         if (retired >= N) begin
             $display("DONE %0d instructions, %0d I/O reads replayed", retired, rp);
+            $display("COP0 BadVAddr %08x Status %08x Cause %08x EPC %08x",
+                     cop0[127:96], cop0[95:64], cop0[63:32], cop0[31:0]);
             $display("CPI x1000 = %0d over %0d clk93 cycles; %0d%% of them waiting on memory",
                      (cyc93 * 1000) / retired, cyc93, (cyc_stall * 100) / cyc93);
             $finish;
@@ -201,7 +229,7 @@ module tb_boot;
         tr_fd = $fopen("debug/hng64-insn/rtl.tr", "w");
         #1000 ss_reset = 0;
         #1000 reset = 0;
-        #(N * 200) $display("TIMEOUT after %0d instructions", retired);
+        #(N * 500) $display("TIMEOUT after %0d instructions", retired);
         $finish;
     end
 

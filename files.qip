@@ -13,10 +13,15 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_mlab.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_tlcs870_alu.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_tlcs870.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/io/hng64_iomcu.sv
+set_global_assignment -name VERILOG_FILE rtl/pll/pll_cpu.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_pllsel.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/cpu/hng64_cpu_cdc.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hng64_bus.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hng64_io.sv
 set_global_assignment -name VERILOG_FILE rtl/3d/hng64_geo.v
 set_global_assignment -name VERILOG_FILE rtl/3d/hng64_raster.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/common/hng64_afifo.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/hng64_3d_bridge.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hng64_3d.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/hng64_mosaic.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/video/hng64_tilemap.sv

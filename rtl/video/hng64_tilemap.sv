@@ -107,19 +107,34 @@ module hng64_tilemap (
     wire signed [31:0] ymid = roz ? sb_w[3] : zoom_off ? 32'sh0100_0000
                                             : linemode ? ln_w[3] : sb_w[3];
 
+    // xtl/ytl a clock late: the scroll and line words are all in before A_MUL starts, so these
+    // hold the same values when the multiply ends and the start position is added
+    logic signed [31:0] s_xtl, s_ytl;
+    always_ff @(posedge clk) begin
+        s_xtl <= xtl;
+        s_ytl <= ytl;
+    end
+
     // (mid - topleft) / 512 * 2, with C division truncating toward zero
     function automatic signed [31:0] step2(input logic signed [31:0] d);
         step2 = ((d + (d[31] ? 32'sd511 : 32'sd0)) >>> 9) <<< 1;
     endfunction
 
-    wire signed [31:0] w_incxx = step2(xmid - xtl);
-    wire signed [31:0] w_incyy = (linemode && alt_fmt) ? 32'sd0 : step2(ymid - ytl);
-    wire signed [31:0] w_incyx = roz ? step2($signed(sb_w[1]) - xtl) : 32'sd0;
-    wire signed [31:0] w_incxy = roz ? step2($signed(sb_w[6]) - ytl)
-                                     : (linemode && alt_fmt) ? step2(ymid - ytl) : 32'sd0;
+    // A_MUL's first step latches the selected words (q_*); the increments are worked out from
+    // those on the next: from the video registers through the selects, a subtract and a shift in
+    // one clock missed clk2x by 3.1 ns.
+    logic signed [31:0] q_xtl, q_xmid, q_ytl, q_ymid, q_sb1, q_sb6;
+    logic               q_roz, q_lalt;
+    wire signed [31:0] w_incxx = step2(q_xmid - q_xtl);
+    wire signed [31:0] w_incyy = q_lalt ? 32'sd0 : step2(q_ymid - q_ytl);
+    wire signed [31:0] w_incyx = q_roz ? step2(q_sb1 - q_xtl) : 32'sd0;
+    wire signed [31:0] w_incxy = q_roz ? step2(q_sb6 - q_ytl)
+                                       : q_lalt ? step2(q_ymid - q_ytl) : 32'sd0;
     // MAME's optimised loop: no rotation and no wrap, so the line starts at the first in-range
-    // pixel and stops at the first one past the map
-    wire optimised = (w_incxy == 32'sd0) && (w_incyx == 32'sd0) && !wrap;
+    // pixel and stops at the first one past the map. Latched from the registered increments, on
+    // A_MUL's first step: from the scroll words to `stopped` missed clk2x by 3.9 ns, and to a
+    // latch beside the increments by 3.6 ns.
+    logic optimised;
 
     logic signed [31:0] incxx, incxy;
     logic signed [31:0] acc_x, acc_y, add_x, add_y;
@@ -143,7 +158,9 @@ module hng64_tilemap (
                    + {1'b0, tm_index, 14'd0};
     endfunction
 
-    wire [1:0] words_m1 = big ? (eightbpp ? 2'd3 : 2'd1) : (eightbpp ? 2'd1 : 2'd0);
+    // registered: tileregs settle before a start, and the first use is after the multiply
+    logic [1:0] words_m1;
+    always_ff @(posedge clk) words_m1 <= big ? (eightbpp ? 2'd3 : 2'd1) : (eightbpp ? 2'd1 : 2'd0);
 
     // ================= stage A: walk the line, issue tile-word reads ============================
     typedef enum logic [2:0] { A_IDLE, A_MOS, A_SCROLL, A_MUL, A_FIRST, A_WALK, A_DONE } astate_t;
@@ -156,10 +173,10 @@ module hng64_tilemap (
     logic  [3:0] scroll_i;              // scroll words issued
     logic  [3:0] scroll_got;            // scroll words returned
 
-    wire signed [31:0] fnext_cx = fcx + incxx;
-    wire signed [31:0] fnext_cy = fcy + incxy;
-    wire  [8:0] f_ntx = tile_x(fnext_cx), f_nty = tile_y(fnext_cy);
-    wire  [3:0] f_npy = pix_y(fnext_cy);
+    // the next position, a register ahead of fcx/fcy so the tile compare does not follow the add
+    logic signed [31:0] fnx, fny;
+    wire  [8:0] f_ntx = tile_x(fnx), f_nty = tile_y(fny);
+    wire  [3:0] f_npy = pix_y(fny);
     wire        f_newtile = (f_ntx != f_tx) || (f_nty != f_ty) || (f_npy != f_py);
     wire  [3:0] scroll_last = linemode ? 4'd11 : 4'd7;
     wire [16:0] scroll_addr = (scroll_i < 4'd8) ? (base_addr + {13'd0, scroll_i})
@@ -257,7 +274,14 @@ module hng64_tilemap (
     // re-testing would stall the last tile of the line for words that will never come.
     wire tile_ready = (qb_n != 5'd0) && (qw_n > {5'd0, words_m1});
 
-    assign busy = (ast != A_IDLE) || (est != E_IDLE);
+    // E_EMIT picks the pixel (stage 1, s1_*); the next clock adds the tile colour, applies mosaic
+    // and writes (stage 2). Selecting and combining in one clock missed clk2x by 3.35 ns.
+    logic        s1_v, s1_draw, s1_hold;
+    logic  [8:0] s1_x;
+    logic  [7:0] s1_pix;
+    logic [15:0] s1_colour;
+
+    assign busy = (ast != A_IDLE) || (est != E_IDLE) || s1_v;
 
     // Pixel out of the fetched row. Bit offsets are MSB-first across the word, so offset k is
     // word[31-k]: 4bpp xoffsets 24,28,8,12,16,20,0,4 (hng64.cpp:1678) and 8bpp 24,8,16,0.
@@ -285,7 +309,22 @@ module hng64_tilemap (
             endcase
         end
     end
-    wire [15:0] pixel_out = (pix == 8'd0) ? 16'd0 : (colour | {8'd0, pix});
+    wire [15:0] pixel_out = (s1_pix == 8'd0) ? 16'd0 : (s1_colour | {8'd0, s1_pix});
+
+    always_ff @(posedge clk) begin
+        px_we <= s1_v;
+        px_x  <= s1_x;
+        if (s1_v) begin
+            if (!s1_draw) begin
+                px_pix <= 16'd0;
+            end else if (!s1_hold) begin
+                px_pix <= pixel_out;
+                held   <= pixel_out;
+            end else begin
+                px_pix <= held;
+            end
+        end
+    end
 
     // ---- stage A ------------------------------------------------------------------------------
     always_ff @(posedge clk) begin
@@ -336,15 +375,27 @@ module hng64_tilemap (
                 // shift-adds, one line's worth (WORKFLOW 14)
                 A_MUL: begin
                     if (mul_i == 4'd0) begin
+                        q_xtl  <= xtl;
+                        q_xmid <= xmid;
+                        q_ytl  <= ytl;
+                        q_ymid <= ymid;
+                        q_sb1  <= $signed(sb_w[1]);
+                        q_sb6  <= $signed(sb_w[6]);
+                        q_roz  <= roz;
+                        q_lalt <= linemode && alt_fmt;
+                        mul_i  <= 4'd1;
+                    end else if (mul_i == 4'd1) begin
                         incxx <= w_incxx;
                         incxy <= w_incxy;
                         acc_x <= 32'sd0;
                         acc_y <= 32'sd0;
                         add_x <= w_incyx;
                         add_y <= w_incyy;
-                        mul_i <= 4'd1;
-                    end else if (mul_i <= 4'd9) begin
-                        if (src_line[mul_i - 4'd1]) begin
+                        mul_i <= 4'd2;
+                    end else if (mul_i <= 4'd10) begin
+                        // add_x is still w_incyx on the first step
+                        if (mul_i == 4'd2) optimised <= (incxy == 32'sd0) && (add_x == 32'sd0) && !wrap;
+                        if (src_line[mul_i - 4'd2]) begin
                             acc_x <= acc_x + add_x;
                             acc_y <= acc_y + add_y;
                         end
@@ -352,8 +403,8 @@ module hng64_tilemap (
                         add_y <= add_y <<< 1;
                         mul_i <= mul_i + 4'd1;
                     end else begin
-                        fcx <= xtl + acc_x;
-                        fcy <= ytl + acc_y;
+                        fcx <= s_xtl + acc_x;
+                        fcy <= s_ytl + acc_y;
                         fx  <= 10'd0;
                         ast <= A_FIRST;
                     end
@@ -361,6 +412,8 @@ module hng64_tilemap (
 
                 // the first tile of the line: nothing to compare against yet
                 A_FIRST: if (!qa_full) begin
+                    fnx       <= fcx + incxx;
+                    fny       <= fcy + incxy;
                     vram_addr <= tile_index(tile_x(fcx), tile_y(fcy));
                     vram_rd   <= 1'b1;
                     f_tx      <= tile_x(fcx);
@@ -376,8 +429,10 @@ module hng64_tilemap (
                         ast <= A_DONE;
                     end else if (!(f_newtile && qa_full)) begin
                         fx  <= fx + 10'd1;
-                        fcx <= fnext_cx;
-                        fcy <= fnext_cy;
+                        fcx <= fnx;
+                        fcy <= fny;
+                        fnx <= fnx + incxx;
+                        fny <= fny + incxy;
                         if (f_newtile) begin
                             vram_addr <= tile_index(f_ntx, f_nty);
                             vram_rd   <= 1'b1;
@@ -477,16 +532,16 @@ module hng64_tilemap (
 
     // ---- stage E ------------------------------------------------------------------------------
     always_ff @(posedge clk) begin
-        px_we <= 1'b0;
+        s1_v <= 1'b0;
         if (reset) begin
             est  <= E_IDLE;
             qb_r <= 5'd0;
             qw_r <= 7'd0;
         end else begin
             case (est)
-                E_IDLE: if (ast == A_MUL && mul_i > 4'd9) begin
-                    cx      <= xtl + acc_x;
-                    cy      <= ytl + acc_y;
+                E_IDLE: if (ast == A_MUL && mul_i > 4'd10) begin   // the multiply is done
+                    cx      <= s_xtl + acc_x;
+                    cy      <= s_ytl + acc_y;
                     x       <= 9'd0;
                     mos_x   <= 4'd0;
                     started <= 1'b0;
@@ -516,20 +571,16 @@ module hng64_tilemap (
                 end
 
                 E_EMIT: begin
-                    px_we <= 1'b1;
-                    px_x  <= x;
-                    if (!draw_ok) begin
-                        px_pix <= 16'd0;
-                    end else begin
+                    s1_v      <= 1'b1;
+                    s1_x      <= x;
+                    s1_draw   <= draw_ok;
+                    s1_hold   <= mos_x != 4'd0;
+                    s1_pix    <= pix;
+                    s1_colour <= colour;
+                    if (draw_ok) begin
                         started <= 1'b1;
-                        if (mos_x == 4'd0) begin
-                            px_pix <= pixel_out;
-                            held   <= pixel_out;
-                            mos_x  <= mosaic;
-                        end else begin
-                            px_pix <= held;
-                            mos_x  <= mos_x - 4'd1;
-                        end
+                        if (mos_x == 4'd0) mos_x <= mosaic;
+                        else               mos_x <= mos_x - 4'd1;
                     end
                     if (optimised && started && !in_range) stopped <= 1'b1;
                     cx <= next_cx;

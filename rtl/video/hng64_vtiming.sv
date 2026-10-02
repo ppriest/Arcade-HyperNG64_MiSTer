@@ -70,6 +70,15 @@ module hng64_vtiming (
 );
 
     logic late_now;
+    // the video block's busy, registered (from its engines into line_start it missed clk2x by
+    // 1.5 ns). It rises a clock after the block sees a start, so the registered copy is current two
+    // clocks after one: ls_d and fs_d cover the clock between.
+    logic busy_q = 1'b0, ls_d = 1'b0, fs_d = 1'b0;
+    always_ff @(posedge clk) begin
+        busy_q <= busy;
+        ls_d   <= line_start;
+        fs_d   <= frame_start;
+    end
 
     localparam logic [9:0] HTOTAL = 10'd768, HVIS = 10'd512, VTOTAL = 10'd528, VVIS = 10'd448;
     // ours, MAME gives none: centred in the blanking, 96-pixel porches. crt_adjust.sv anchors
@@ -84,6 +93,7 @@ module hng64_vtiming (
 
     // the window, taken once a frame in vblank as flip is
     logic [9:0] wx0 = 10'd0, wy0 = 10'd0, ww = 10'd512, wh = 10'd448;
+    logic [9:0] wx1 = 10'd512, wy1 = 10'd448;   // wx0 + ww, wy0 + wh (10 bits, as the sum was), latched with them
 
     // ---- the pixel clock and the counters ------------------------------------------------------------
     always_ff @(posedge clk) begin
@@ -105,17 +115,24 @@ module hng64_vtiming (
     end
 
     // a line begins on the clock the counters show h = 0 with the pixel strobe about to fire
-    wire line_begin = (div == 3'd4) && (h == HTOTAL - 10'd1);
+    // registered a clock ahead: div == 3 on the last pixel is the clock before div == 4 on it
+    // (decoded in place it missed clk2x by 1.1 ns into the window registers)
+    logic line_begin = 1'b0;
+    always_ff @(posedge clk) line_begin <= !reset && (div == 3'd3) && (h == HTOTAL - 10'd1);
     wire [9:0] v_next = (v == VTOTAL - 10'd1) ? 10'd0 : v + 10'd1;
 
     // ---- render passes -----------------------------------------------------------------------------
     // the pass started as line v_next begins: its L, and whether there is one
+    // registered: v holds for the whole line before line_begin, so they are current when used
+    // (from v through the wrap and compare into pend missed clk2x by 2.6 ns)
     logic [9:0] pass_l;
     logic       pass_due;
-    always_comb begin
-        pass_l   = v_next + 10'd2;
-        if (pass_l >= VTOTAL) pass_l = pass_l - VTOTAL;
-        pass_due = (pass_l <= VVIS);                    // 0..447, and 448 for the flush
+    always_ff @(posedge clk) begin
+        logic [9:0] l;
+        l = v_next + 10'd2;
+        if (l >= VTOTAL) l = l - VTOTAL;
+        pass_l   <= l;
+        pass_due <= (l <= VVIS);                        // 0..447, and 448 for the flush
     end
 
     logic       pend;                                   // a pass is due and has not started
@@ -132,6 +149,8 @@ module hng64_vtiming (
         wy0 <= vis_y0;
         ww <= vis_w;
         wh <= vis_h;
+        wx1 <= vis_x0 + vis_w;
+        wy1 <= vis_y0 + vis_h;
     end
     // flip turns the game's window, not the raster: line y of it shows y0 + y1 - y (fatfurwa's
     // lines 16-447 onto themselves); lines outside the window are not shown, so any line will do
@@ -140,8 +159,8 @@ module hng64_vtiming (
         m = wy0 + wy0 + wh - 10'd1 - {1'b0, l};
         flip_line = ({1'b0, l} >= wy0 && {1'b0, l} < wy0 + wh) ? m[8:0] : l;
     endfunction
-    wire in_x = (h >= wx0) && (h < wx0 + ww) && (h < HVIS);
-    wire in_y = (v >= wy0) && (v < wy0 + wh) && (v < VVIS);
+    wire in_x = (h >= wx0) && (h < wx1) && (h < HVIS);
+    wire in_y = (v >= wy0) && (v < wy1) && (v < VVIS);
 
     always_ff @(posedge clk) begin
         line_start <= 1'b0;
@@ -156,8 +175,8 @@ module hng64_vtiming (
         end else begin
             if (line_begin) begin
                 // the last pass has not started, or has not finished, when the next is due
-                if (pass_due && (pend || busy)) dbg_late <= 1'b1;
-                late_now <= pass_due && (pend || busy);
+                if (pass_due && (pend || busy_q)) dbg_late <= 1'b1;
+                late_now <= pass_due && (pend || busy_q);
                 if (pass_due) begin
                     pend       <= 1'b1;
                     pend_flush <= (pass_l == VVIS);
@@ -165,7 +184,7 @@ module hng64_vtiming (
                 end
                 if (v_next == VVIS) snapshot <= 1'b1;   // vblank begins
             end
-            if (pend && !busy && !line_start && !frame_pend && !frame_start) begin
+            if (pend && !busy_q && !line_start && !ls_d && !frame_pend && !frame_start && !fs_d) begin
                 line_start <= 1'b1;
                 line <= flip_f ? flip_line(pend_line) : pend_line;
                 pend <= 1'b0;
@@ -175,7 +194,7 @@ module hng64_vtiming (
             end
             // the block only takes frame_start when idle
             if (snapshot_done) frame_pend <= 1'b1;
-            if (frame_pend && !busy && !line_start) begin
+            if (frame_pend && !busy_q && !line_start && !ls_d && !fs_d) begin
                 frame_start <= 1'b1;
                 frame_pend  <= 1'b0;
             end
@@ -209,7 +228,9 @@ module hng64_vtiming (
 
     // ---- scanline interrupts -----------------------------------------------------------------------
     logic [1:0] vb_hold, ra_hold, net_hold;
-    wire  [31:0] raster_at = raster_pos + 32'd8;
+    // registered: from the CPU's register through the add and compare it missed clk2x by 1.4 ns
+    logic [31:0] raster_at;
+    always_ff @(posedge clk) raster_at <= raster_pos + 32'd8;
     wire  [8:0]  half = v_next[9:1];                    // MAME's scanline_shifted
 
     always_ff @(posedge clk) begin

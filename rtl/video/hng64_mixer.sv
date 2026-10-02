@@ -14,15 +14,21 @@
 // order.
 //
 // ONE CONTRIBUTOR A CLOCK. A pixel takes six clocks: its words are ranked once, then each
-// contributor in rank order reads the palette and goes down one pipeline - the eight region
-// modifiers one to a stage, the 3D's brightness, the fade, then the blend into the pixel's
-// accumulator. 512 pixels are about 3,080 clocks of the line's 3,840, beside the engines'
+// contributor in rank order reads the modified palette and goes down one pipeline - the 3D's
+// brightness, the fade, then the blend into the pixel's accumulator. 512 pixels are about 3,080 clocks of the line's 3,840, beside the engines'
 // 1,171-2,363. The first form did all of them in one clock: about 5,200 ALUTs for five, five
 // palette copies, and the likely clk2x path that missed timing by 34.8 ns.
 //
 // The 3D pixel is `llll appp pppp pppp`: m_palette_3d (render_3d.py palette3d) is the modified
 // palette entry p | fbcontrol[2] bit 5 << 11, plus l << 2 on each channel (saturating), through
 // fade 0; a is MAME's fixed half-alpha.
+//
+// THE MODIFIED PALETTE is built at each frame_start, as MAME builds its palette state at
+// screen_update: every entry through the eight region modifiers, one modifier a clock with one
+// unit, into a RAM the pixel path reads. 4,096 entries at ten clocks, about 41,000 clocks, inside
+// the vblank; busy covers it, so the frame's first pass waits. A palette or tcram write during the
+// frame shows from the next frame, as in MAME (except at its video-register splits). The
+// modifiers were eight pipeline stages on every pixel before (about 750 ALUTs).
 //
 // No multiplies or divides (WORKFLOW 14): every blend is a saturating add, or a halving add for
 // alpha at MAME's fixed level of 0x80.
@@ -32,6 +38,7 @@ module hng64_mixer (
     input  logic        reset,
 
     input  logic        start,              // one cycle, before the line is mixed
+    input  logic        rebuild,            // one cycle at frame_start: rebuild the modified palette
     output logic        busy,
 
     output logic  [8:0] lb_x,               // line-buffer read address; the word arrives NEXT cycle
@@ -45,7 +52,7 @@ module hng64_mixer (
     input  logic [23:0] bg_rgb,             // palette entry 0, or black: see fbcontrol bit 0
     input  logic        screen_dis,         // tcram_w's m_screen_dis: the background only
 
-    output logic [11:0] pal_a,              // one read a clock; the word is back next cycle
+    output logic [11:0] pal_a,              // the palette, read by the rebuild; data next cycle
     input  logic [31:0] pal_d,
 
     output logic        px_we,
@@ -69,15 +76,16 @@ module hng64_mixer (
     endfunction
 
     // tcram 0x24 holds eight two-bit modes and 0x28.. the eight modifiers: the palette region in
-    // bits 27:24, then b, g, r in 23:16, 15:8, 7:0. Mode 2 adds, 3 subtracts, applied in order;
-    // this is modifier i, of eight.
-    function automatic [23:0] modify1(input logic [23:0] rgb, input logic [3:0] region, input int i);
-        logic [7:0]  r, g, b;
-        logic [31:0] m;
-        logic [1:0]  mode;
+    // bits 27:24, then b, g, r in 23:16, 15:8, 7:0. Mode 2 adds, 3 subtracts, applied in order.
+
+    // One modifier, its word and mode already selected (the rebuild preloads them a step ahead:
+    // the eight-way tcram select in front of the add missed clk2x by 1.9 ns)
+    function automatic [23:0] modify_r(input logic [23:0] rgb, input logic [3:0] region,
+                                       input logic [31:0] m, input logic [1:0] mode_in);
+        logic [7:0] r, g, b;
+        logic [1:0] mode;
         {r, g, b} = rgb;
-        m    = tcram[10 + i];
-        mode = (m[27:24] == region) ? tcram[9][2 * i +: 2] : 2'd0;
+        mode = (m[27:24] == region) ? mode_in : 2'd0;
         if (mode == 2'd2) begin
             r = addsat(r, m[7:0]);
             g = addsat(g, m[15:8]);
@@ -87,7 +95,7 @@ module hng64_mixer (
             g = subsat(g, m[15:8]);
             b = subsat(b, m[23:16]);
         end
-        modify1 = {r, g, b};
+        modify_r = {r, g, b};
     endfunction
 
     // tcram 0x14 holds the six fade modes, 0x18 and 0x1c the two fade values. Mode 1 adds,
@@ -142,39 +150,91 @@ module hng64_mixer (
     logic  [3:0] br_c [0:NC-1];             // the 3D's brightness
     logic  [2:0] rank_c [0:NC-1];
 
-    wire [4:0] spr_inv = 5'h1f - {spr_pix[14:12], 2'b00};
+    logic [2:0] ph;                     // the phase of six, below
+
+    // the words read at phase 1, held from the end of phase 2
+    logic [15:0] w_tm [0:3];
+    logic [15:0] w_spr, w_d3;
+    always_ff @(posedge clk)
+        if (ph == 3'(NC - 4)) begin
+            for (int i = 0; i < 4; i++) w_tm[i] <= tm_pix[i];
+            w_spr <= spr_pix;
+            w_d3  <= d3_pix;
+        end
+
+    wire [4:0] spr_inv = 5'h1f - {w_spr[14:12], 2'b00};
     wire       spr_alpha = tcram[19][16];       // tcram 0x4c bit 16: alpha rather than additive
 
     always_comb begin
         for (int i = 0; i < 4; i++) begin
-            val_c[i]  = tileregs[i][6] && tm_pix[i] != 16'd0;
-            idx_c[i]  = tm_pix[i][11:0];
+            val_c[i]  = tileregs[i][6] && w_tm[i] != 16'd0;
+            idx_c[i]  = w_tm[i][11:0];
             key_c[i]  = {!val_c[i], 5'h1f - tileregs[i][4:0], 1'b0, i[1:0]};
             mode_c[i] = tcram[3][tileregs[i][5] ? 2 : 26] ? M_ADD : M_COPY;
             fen_c[i]  = tileregs[i][7];
             fsel_c[i] = tileregs[i][5];
             br_c[i]   = 4'd0;
         end
-        val_c[4]  = spr_pix[11:0] != 12'd0;
-        idx_c[4]  = spr_pix[11:0];
+        val_c[4]  = w_spr[11:0] != 12'd0;
+        idx_c[4]  = w_spr[11:0];
         key_c[4]  = {!val_c[4], spr_inv, 1'b1, 2'b00};
-        mode_c[4] = !spr_pix[15] ? M_COPY : (spr_alpha ? M_ALPHA : M_ADD);
+        mode_c[4] = !w_spr[15] ? M_COPY : (spr_alpha ? M_ALPHA : M_ADD);
         fen_c[4]  = 1'b0;
         fsel_c[4] = 1'b0;
         br_c[4]   = 4'd0;
-        val_c[5]  = d3_pix[10:0] != 11'd0;
-        idx_c[5]  = {d3_palbase, d3_pix[10:0]};
+        val_c[5]  = w_d3[10:0] != 11'd0;
+        idx_c[5]  = {d3_palbase, w_d3[10:0]};
         key_c[5]  = {!val_c[5], 5'h0f, 1'b1, 2'b11};
-        mode_c[5] = d3_pix[11] ? M_ALPHA : M_COPY;
+        mode_c[5] = w_d3[11] ? M_ALPHA : M_COPY;
         fen_c[5]  = 1'b1;
         fsel_c[5] = 1'b1;                   // fade 0
-        br_c[5]   = d3_pix[15:12];
+        br_c[5]   = w_d3[15:12];
+    end
+
+    // the contributors and their keys, registered at the end of phase 3; ranked from those
+    logic        val_k [0:NC-1];
+    logic [11:0] idx_k [0:NC-1];
+    logic  [1:0] mode_k [0:NC-1];
+    logic        fen_k [0:NC-1], fsel_k [0:NC-1];
+    logic  [3:0] br_k [0:NC-1];
+    logic  [8:0] key_k [0:NC-1];
+    always_ff @(posedge clk)
+        if (ph == 3'(NC - 3))
+            for (int i = 0; i < NC; i++) begin
+                val_k[i]  <= val_c[i];
+                idx_k[i]  <= idx_c[i];
+                mode_k[i] <= mode_c[i];
+                fen_k[i]  <= fen_c[i];
+                fsel_k[i] <= fsel_c[i];
+                br_k[i]   <= br_c[i];
+                key_k[i]  <= key_c[i];
+            end
+
+    always_comb
         for (int i = 0; i < NC; i++) begin
             rank_c[i] = 3'd0;
             for (int j = 0; j < NC; j++)
-                if (j != i && key_c[j] < key_c[i]) rank_c[i] = rank_c[i] + 3'd1;
+                if (j != i && key_k[j] < key_k[i]) rank_c[i] = rank_c[i] + 3'd1;
         end
-    end
+
+    // the contributors and their ranks, registered at the end of phase 4
+    logic        val_q [0:NC-1];
+    logic [11:0] idx_q [0:NC-1];
+    logic  [1:0] mode_q [0:NC-1];
+    logic        fen_q [0:NC-1], fsel_q [0:NC-1];
+    logic  [3:0] br_q [0:NC-1];
+    logic  [2:0] rank_q [0:NC-1];
+    always_ff @(posedge clk)
+        if (ph == 3'(NC - 2))
+            for (int i = 0; i < NC; i++) begin
+                val_q[i]  <= val_k[i];
+                idx_q[i]  <= idx_k[i];
+                mode_q[i] <= mode_k[i];
+                fen_q[i]  <= fen_k[i];
+                fsel_q[i] <= fsel_k[i];
+                br_q[i]   <= br_k[i];
+                rank_q[i] <= rank_c[i];
+            end
 
     // ---- the pixel being issued: its contributors in rank order -------------------------------
     logic        s_val [0:NC-1];
@@ -184,19 +244,24 @@ module hng64_mixer (
     logic  [3:0] s_br [0:NC-1];
     logic  [8:0] s_x;
 
-    // Phases: the line buffers are read at phase 4 for the next pixel, their words ranked and
-    // taken at the end of phase 5, and the pixel's slots issued at phases 0-5 of the next period.
+    // Phases: the line buffers are read at phase 1 for the next pixel, their words registered at
+    // the end of phase 2 (w_*), keyed at the end of phase 3 (*_k), ranked at the end of phase 4
+    // (*_q), scattered into the slots at the end of phase 5, and the pixel's slots issued at phases 0-5 of the next
+    // period. Ranking straight off the RAMs' outputs missed clk2x by 3.8 ns, and rank and scatter
+    // in one clock by 3.0 ns.
     // lb_x moves only in the clock of a read and otherwise holds the pixel last read: hng64_video
     // clears the sprite buffer a clock behind lb_x, so it must never point ahead of the read.
-    logic [2:0] ph;
     logic       reading;                // pixels are still to be read
-    logic       rd_pend;                // read at phase 4, to be taken at phase 5
+    logic       rd_pend;                // read at phase 1, to be taken at phase 5
     logic       have;                   // a pixel is being issued
     logic [8:0] x;                      // the next pixel to read
     logic [8:0] x_last;                 // the pixel last read
 
-    assign lb_x  = (reading && ph == 3'(NC - 2)) ? x : x_last;
-    assign pal_a = s_idx[ph];
+    // lb_x is a register: x from the clock before the read, held until the next (decoded from ph
+    // into every line buffer's address it missed clk2x by 2.1 ns)
+    always_ff @(posedge clk)
+        if (start) lb_x <= 9'd0;
+        else if (reading && ph == 3'(NC - 6)) lb_x <= x;
 
     // the pipeline's tag, one a clock: which pixel, and what to do with its palette word
     typedef struct packed {
@@ -205,27 +270,61 @@ module hng64_mixer (
         logic  [1:0] mode;
         logic        fen, fsel;
         logic  [3:0] br;
-        logic  [3:0] region;
         logic        first, last;
         logic  [8:0] x;
     } tag_t;
 
     tag_t t0, t4b, t5;
-    tag_t tm [0:7];                     // after modifier i
-    logic [23:0] cm [0:7];
     logic [23:0] c4b, c5;               // the colour after each stage
-    logic [23:0] c4;
-    tag_t        t4;
-    assign c4 = cm[7];
-    assign t4 = tm[7];
     logic [23:0] acc;
 
-    logic mod_go;
-    always_comb begin
-        mod_go = 1'b0;
-        for (int i = 0; i < 8; i++) mod_go = mod_go || tm[i].go;
+    // ---- the modified palette, and its rebuild -------------------------------------------------
+    logic [23:0] mpal_d;                // the entry at s_idx[ph], the clock after
+    logic        rb_run, rb_we;
+    logic [11:0] rb_k, rb_wk;
+    logic  [3:0] rb_step;               // 0 read issued, 1 word back, 2-9 modifier 0-7
+    logic [23:0] rb_c, rb_wc;
+    logic [31:0] rb_m;                  // the modifier the next step applies, and its mode
+    logic  [1:0] rb_md;
+    logic  [2:0] rb_ni;                 // the one to load next (kept, not added each step: 2.0 ns)
+
+    hng64_bram #(.AW(12), .DW(24)) u_mpal (
+        .a_clk(clk), .a_addr(rb_we ? rb_wk : rb_k), .a_be({3{rb_we}}), .a_wdata(rb_wc), .a_rdata(),
+        .b_clk(clk), .b_addr(s_idx[ph]), .b_rdata(mpal_d));
+
+    assign pal_a = rb_k;
+
+    always_ff @(posedge clk) begin
+        rb_we <= 1'b0;
+        if (reset) begin
+            rb_run <= 1'b0;
+        end else if (rebuild) begin
+            rb_run  <= 1'b1;
+            rb_k    <= 12'd0;
+            rb_step <= 4'd0;
+            rb_ni   <= 3'd0;
+        end else if (rb_run) begin
+            rb_step <= rb_step + 4'd1;
+            // modifier i is applied at step i + 2 and loaded the step before
+            if (rb_step == 4'd0 || (rb_step >= 4'd2 && rb_step <= 4'd8)) begin   // index 7 then wraps to 0
+                rb_m  <= tcram[10 + int'(rb_ni)];
+                rb_md <= tcram[9][2 * int'(rb_ni) +: 2];
+                rb_ni <= rb_ni + 3'd1;
+            end
+            if (rb_step == 4'd1) rb_c <= pal_d[23:0];
+            else if (rb_step >= 4'd2) rb_c <= modify_r(rb_c, rb_k[11:8], rb_m, rb_md);
+            if (rb_step == 4'd9) begin
+                rb_we   <= 1'b1;
+                rb_wk   <= rb_k;
+                rb_wc   <= modify_r(rb_c, rb_k[11:8], rb_m, rb_md);
+                rb_step <= 4'd0;
+                if (rb_k == 12'hFFF) rb_run <= 1'b0;
+                rb_k <= rb_k + 12'd1;
+            end
+        end
     end
-    assign busy = reading || rd_pend || have || t0.go || mod_go || t4b.go || t5.go;
+
+    assign busy = rb_run || rb_we || reading || rd_pend || have || t0.go || t4b.go || t5.go;
 
     always_ff @(posedge clk) begin
         px_we <= 1'b0;
@@ -237,32 +336,31 @@ module hng64_mixer (
             x       <= 9'd0;
             x_last  <= 9'd0;
             t0 <= '0; t4b <= '0; t5 <= '0;
-            for (int i = 0; i < 8; i++) tm[i] <= '0;
         end else begin
             // ---- issue --------------------------------------------------------------------
             if (start) begin
                 reading <= 1'b1;
                 x       <= 9'd0;
-                ph      <= 3'(NC - 2);      // read pixel 0 now
+                ph      <= 3'(NC - 5);      // read pixel 0 now
             end else if (reading || rd_pend || have) begin
                 ph <= (ph == 3'(NC - 1)) ? 3'd0 : ph + 3'd1;
-                if (ph == 3'(NC - 2) && reading) begin
+                if (ph == 3'(NC - 5) && reading) begin
                     rd_pend <= 1'b1;
                     x_last  <= x;
                     if (x == 9'd511) reading <= 1'b0;
                     else x <= x + 9'd1;
                 end
                 if (ph == 3'(NC - 1)) begin
-                    have    <= rd_pend;     // the words read at phase 4 become the next pixel
+                    have    <= rd_pend;     // the words read at phase 1 become the next pixel
                     rd_pend <= 1'b0;
                     if (rd_pend) begin
                         for (int i = 0; i < NC; i++) begin
-                            s_val[rank_c[i]]  <= val_c[i];
-                            s_idx[rank_c[i]]  <= idx_c[i];
-                            s_mode[rank_c[i]] <= mode_c[i];
-                            s_fen[rank_c[i]]  <= fen_c[i];
-                            s_fsel[rank_c[i]] <= fsel_c[i];
-                            s_br[rank_c[i]]   <= br_c[i];
+                            s_val[rank_q[i]]  <= val_q[i];
+                            s_idx[rank_q[i]]  <= idx_q[i];
+                            s_mode[rank_q[i]] <= mode_q[i];
+                            s_fen[rank_q[i]]  <= fen_q[i];
+                            s_fsel[rank_q[i]] <= fsel_q[i];
+                            s_br[rank_q[i]]   <= br_q[i];
                         end
                         s_x <= x_last;
                     end
@@ -276,22 +374,14 @@ module hng64_mixer (
             t0.fen    <= s_fen[ph];
             t0.fsel   <= s_fsel[ph];
             t0.br     <= s_br[ph];
-            t0.region <= s_idx[ph][11:8];
             t0.first  <= ph == 3'd0;
             t0.last   <= ph == 3'(NC - 1);
             t0.x      <= s_x;
 
-            // ---- the colour: modifiers one to a stage, the brightness, the fade, the blend -------
-            // one modifier a stage: two in series missed clk2x by 5.3 ns in the first full fit
-            tm[0] <= t0;
-            cm[0] <= modify1(pal_d[23:0], t0.region, 0);
-            for (int i = 1; i < 8; i++) begin
-                tm[i] <= tm[i - 1];
-                cm[i] <= modify1(cm[i - 1], tm[i - 1].region, i);
-            end
-            t4b <= t4;
-            c4b <= {addsat(c4[23:16], {2'd0, t4.br, 2'd0}), addsat(c4[15:8], {2'd0, t4.br, 2'd0}),
-                    addsat(c4[7:0], {2'd0, t4.br, 2'd0})};
+            // ---- the colour: the modified entry, the brightness, the fade, the blend --------------
+            t4b <= t0;
+            c4b <= {addsat(mpal_d[23:16], {2'd0, t0.br, 2'd0}), addsat(mpal_d[15:8], {2'd0, t0.br, 2'd0}),
+                    addsat(mpal_d[7:0], {2'd0, t0.br, 2'd0})};
             t5 <= t4b;
             c5 <= t4b.fen ? fade(c4b, t4b.fsel) : c4b;
 

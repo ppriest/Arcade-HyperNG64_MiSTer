@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The whole 2D video block against the model's finished frame: four tilemap engines, the sprite
+// The whole 2D video block against the model's finished frame: the tilemap engines, the sprite
 // engine, the line buffers and the mixer, with nothing from the model in between.
 //
 //     python scripts/render_model.py sams64 attract --dump
@@ -226,11 +226,13 @@ int main(int argc, char **argv) {
         do {
             tick();
             if (dut->px_we && dut->px_x < WIDTH) got[dut->px_x] = dut->px_rgb;
-            const int exs[5] = {dut->dbg_x0, dut->dbg_x1, dut->dbg_x2, dut->dbg_x3, dut->dbg_x4};
-            const uint16_t eps[5] = {dut->dbg_p0, dut->dbg_p1, dut->dbg_p2,
-                                     dut->dbg_p3, dut->dbg_p4};
-            for (int e = 0; e < 5; e++)
-                if (((dut->dbg_we >> e) & 1) && exs[e] < WIDTH) eng[e][exs[e]] = eps[e];
+            // slot 5 is the sprite engine's second pixel: it goes in with slot 4's
+            const int exs[6] = {dut->dbg_x0, dut->dbg_x1, dut->dbg_x2, dut->dbg_x3, dut->dbg_x4,
+                                dut->dbg_x5};
+            const uint16_t eps[6] = {dut->dbg_p0, dut->dbg_p1, dut->dbg_p2,
+                                     dut->dbg_p3, dut->dbg_p4, dut->dbg_p5};
+            for (int e = 0; e < 6; e++)
+                if (((dut->dbg_we >> e) & 1) && exs[e] < WIDTH) eng[e < 5 ? e : 4][exs[e]] = eps[e];
         } while (dut->busy && ++guard < 2000000);
         if (y < HEIGHT)
             for (int e = 0; e < 5; e++)

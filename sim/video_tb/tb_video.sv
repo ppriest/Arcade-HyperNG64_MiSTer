@@ -59,18 +59,18 @@ module tb_video (
     output logic        px_we,
     output logic  [8:0] px_x,
     output logic [23:0] px_rgb,
-    output logic  [4:0] dbg_we,
-    output logic  [8:0] dbg_x0, dbg_x1, dbg_x2, dbg_x3, dbg_x4,
-    output logic [15:0] dbg_p0, dbg_p1, dbg_p2, dbg_p3, dbg_p4
+    output logic  [5:0] dbg_we,
+    output logic  [8:0] dbg_x0, dbg_x1, dbg_x2, dbg_x3, dbg_x4, dbg_x5,
+    output logic [15:0] dbg_p0, dbg_p1, dbg_p2, dbg_p3, dbg_p4, dbg_p5
 );
 
-    logic  [8:0] dbg_x [0:4];
-    logic [15:0] dbg_pix [0:4];
+    logic  [8:0] dbg_x [0:5];
+    logic [15:0] dbg_pix [0:5];
     always_comb begin
         dbg_x0 = dbg_x[0]; dbg_x1 = dbg_x[1]; dbg_x2 = dbg_x[2];
-        dbg_x3 = dbg_x[3]; dbg_x4 = dbg_x[4];
+        dbg_x3 = dbg_x[3]; dbg_x4 = dbg_x[4]; dbg_x5 = dbg_x[5];
         dbg_p0 = dbg_pix[0]; dbg_p1 = dbg_pix[1]; dbg_p2 = dbg_pix[2];
-        dbg_p3 = dbg_pix[3]; dbg_p4 = dbg_pix[4];
+        dbg_p3 = dbg_pix[3]; dbg_p4 = dbg_pix[4]; dbg_p5 = dbg_pix[5];
     end
 
     // the windows docs/MEMORY.md gives the two tile regions

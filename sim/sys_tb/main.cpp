@@ -184,7 +184,7 @@ int main(int argc, char **argv) {
     uint32_t lfsr = 0xACE1u;
 
     // the frame being captured, if any
-    bool capturing = false, cap_armed = false, cap_seen_blank = false;
+    bool capturing = false, cap_armed = false, cap_seen_blank = false, cap_seen_active = false;
     long nv_pulses = 0;                 // the core's NVRAM-written pulses, one per clk1x high
     std::vector<uint8_t> frame_rgb;
     int cap_x = 0, cap_y = 0;
@@ -220,9 +220,11 @@ int main(int argc, char **argv) {
         if (rise1x) dut->clk1x = 1;
         dut->eval();
 
-        // a frame: from the first visible pixel after a vblank to the next vblank
+        // a frame: from the first visible pixel after a vblank that BEGAN after arming (the
+        // frame's sprite snapshot and palette rebuild happen as its vblank begins) to the next
         if (dut->ce_pix && (cap_armed || capturing)) {
-            if (cap_armed && dut->vblank) cap_seen_blank = true;
+            if (cap_armed && !dut->vblank) cap_seen_active = true;
+            if (cap_armed && cap_seen_active && dut->vblank) cap_seen_blank = true;
             if (cap_armed && cap_seen_blank && !dut->vblank) {
                 cap_armed = false;
                 capturing = true;
@@ -357,6 +359,7 @@ int main(int argc, char **argv) {
             frame_rgb.assign(448 * 512 * 3, 0);
             cap_armed = true;
             cap_seen_blank = false;
+            cap_seen_active = false;
             long g = 0;
             while ((cap_armed || capturing) && ++g < 20000000) step1x();
             // every captured frame is kept, whether or not there is a model to compare with

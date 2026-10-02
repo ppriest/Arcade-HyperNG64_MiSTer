@@ -32,6 +32,8 @@ entity cpu_cop0 is
 -- synthesis translate_off
       cop0_export             : out tExportRegs := (others => (others => '0'));
 -- synthesis translate_on
+      -- HyperNG64: BadVAddr, Status, Cause and EPC, low words in MIPS layout, for an ISSP probe
+      debug_regs              : out unsigned(127 downto 0);
                     
       eret                    : in  std_logic;
       exception3              : in  std_logic;
@@ -169,6 +171,9 @@ architecture arch of cpu_cop0 is
    signal COP0_20_XCONTEXT_PTE            : unsigned(30 downto 0) := (others => '0');
    signal COP0_20_XCONTEXT_Region         : unsigned(1 downto 0) := (others => '0');
    signal COP0_20_XCONTEXT_BadVPN         : unsigned(26 downto 0) := (others => '0');
+   -- HyperNG64: an exception's address, applied to the registers a clock after it is found
+   signal excQ_we                         : std_logic := '0';
+   signal excQ_addr                       : unsigned(63 downto 0) := (others => '0');
    signal COP0_26_PARITYERROR             : unsigned(7 downto 0) := (others => '0');  
    signal COP0_28_TAGLO_primaryCacheState : unsigned(1 downto 0) := (others => '0');     
    signal COP0_28_TAGLO_physicalAddress   : unsigned(19 downto 0) := (others => '0');     
@@ -588,6 +593,7 @@ begin
             COP0_20_XCONTEXT_PTE            <= (others => '0');
             COP0_20_XCONTEXT_Region         <= (others => '0');
             COP0_20_XCONTEXT_BadVPN         <= (others => '0');
+            excQ_we                         <= '0';
             COP0_26_PARITYERROR             <= (others => '0');  
             COP0_28_TAGLO_primaryCacheState <= (others => '0');     
             COP0_28_TAGLO_physicalAddress   <= (others => '0');     
@@ -890,16 +896,22 @@ begin
                excAddr   := TLB_Instr_fetchAddrIn; 
             end if;
 
-            if (excAddrWE = '1') then
-               COP0_8_BADVIRTUALADDRESS       <= excAddr;
+            -- HyperNG64: staged a clock. From the forwarded operand through the region compares, the
+            -- exception decision and this select into XContext missed clk93 by 1.6 ns at full speed
+            -- (build d5c9767). The exception flushes the pipeline, so the handler reads these
+            -- registers clocks later, and nothing writes them in between.
+            excQ_we   <= excAddrWE;
+            excQ_addr <= excAddr;
+            if (excQ_we = '1') then
+               COP0_8_BADVIRTUALADDRESS       <= excQ_addr;
                
-               COP0_10_ENTRYHI_virtualAddress <= excAddr(39 downto 13);
-               COP0_10_ENTRYHI_region         <= excAddr(63 downto 62);
+               COP0_10_ENTRYHI_virtualAddress <= excQ_addr(39 downto 13);
+               COP0_10_ENTRYHI_region         <= excQ_addr(63 downto 62);
                
-               COP0_4_CONTEXT_BADVPN          <= excAddr(31 downto 13);
+               COP0_4_CONTEXT_BADVPN          <= excQ_addr(31 downto 13);
                
-               COP0_20_XCONTEXT_Region        <= excAddr(63 downto 62);
-               COP0_20_XCONTEXT_BadVPN        <= excAddr(39 downto 13);
+               COP0_20_XCONTEXT_Region        <= excQ_addr(63 downto 62);
+               COP0_20_XCONTEXT_BadVPN        <= excQ_addr(39 downto 13);
             end if;
             
             -- tlb
@@ -992,14 +1004,14 @@ begin
                         TLB_Data_fetchDone <= '1';
                      end if;
                   end if;
+                  -- HyperNG64: an entry not valid for the page is passed over, as MAME's vtlb holds
+                  -- only valid pages; upstream stops at it and raises TLB invalid. fatfurwa leaves
+                  -- entries at their reset value (VPN 0) and maps virtual 0 at index 0xB
+                  -- (docs/MAME_KLUDGES.md).
                   if (TLBREAD_global = '1' or (COP0_10_ENTRYHI_addressSpaceID = TLBREAD_ASID)) then
-                     if (TLB_virtAddrMasked = TLBREAD_virtAddr) then
+                     if (TLB_virtAddrMasked = TLBREAD_virtAddr and TLB_valid = '1') then
                         if (TLB_fetchAddrIn(63 downto 62) = TLBREAD_region) then
                      
-                           if (TLB_valid = '0') then
-                              TLB_fetchExcInvalid <= '1';
-                           end if;
-                           
                            if (TLB_dirty = '0') then
                               TLB_fetchExcDirty <= '1';
                            end if;
@@ -1310,6 +1322,13 @@ begin
       end if;
    end process;
 
+
+   debug_regs <= COP0_8_BADVIRTUALADDRESS(31 downto 0) &
+                 x"0000" & COP0_12_SR_interruptMask & "000" & COP0_12_SR_privilegeMode &
+                 COP0_12_SR_errorLevel & COP0_12_SR_exceptionLevel & COP0_12_SR_interruptEnable &
+                 COP0_13_CAUSE_branchDelay & '0' & COP0_13_CAUSE_coprocessorError & x"000" &
+                 COP0_13_CAUSE_interruptPending & '0' & COP0_13_CAUSE_exceptionCode & "00" &
+                 COP0_14_EPC(31 downto 0);
 
    -- synthesis translate_off
    cop0_export(0)(5 downto 0)    <= COP0_0_INDEX_tlbEntry;

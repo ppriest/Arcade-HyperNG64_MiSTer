@@ -11,9 +11,9 @@
 // many steps as the work needs, and the instruction retires only once `cycles` ticks of `ce`
 // have passed since its fetch began. Instruction boundaries therefore land where MAME's do,
 // which is what decides when an interrupt is taken. `dbg_overrun` fires if an instruction needs
-// more core clocks than its budget allows: at 93.75 MHz against 8 MHz there are 11 clocks a tick
-// and the longest sequence here is well inside that, but a silent overrun would be a timing
-// difference nothing else would show.
+// more core clocks than its budget allows: on clk1x (62.5 MHz) there are 7.8 clocks a tick and
+// sim/iomcu_tb runs without one at 5, but a silent overrun would be a timing difference nothing
+// else would show.
 //
 // BUS TIMING - THE ONE RULE TO KEEP IN MIND
 // -----------------------------------------

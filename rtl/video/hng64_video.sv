@@ -92,9 +92,10 @@ module hng64_video (
 
     // sim only: what each engine wrote to its line buffer this line
     output logic  [7:0] dbg_busy,   // {line pass, sprites, 3D fetch, tilemaps 3:0, mixer}
-    output logic  [4:0] dbg_we,
-    output logic  [8:0] dbg_x [0:4],
-    output logic [15:0] dbg_pix [0:4]
+    output logic [48:0] dbg_spr,    // hng64_sprite's dbg_q
+    output logic  [5:0] dbg_we,         // [3:0] the tilemaps, [4] and [5] the sprites' two pixels
+    output logic  [8:0] dbg_x [0:5],
+    output logic [15:0] dbg_pix [0:5]
 );
 
     logic [15:0] tileregs [0:3];
@@ -107,14 +108,15 @@ module hng64_video (
                                     : videoregs[4 + (tm >> 1)][31:16]) & 14'h3fff;
         end
 
-    // ---- the four tilemap engines ---------------------------------------------------------------
-    logic  [3:0] tm_start, tm_busy, tm_vrd, tm_rrd, tm_we;
-    logic [16:0] tm_vaddr [0:3];
-    logic [25:0] tm_raddr [0:3];
+    // ---- the tilemap layers: two engines, two layers each ------------------------------------------
+    // Engine e draws layer 2e and then layer 2e+1 of each line. The per-layer signals below are what
+    // four engines had, for the line buffers; the VRAM and ROM arbiters below are per engine. A
+    // layer's replies are all back before its engine moves on (busy falls only then). Four engines were 5,880 ALUTs in quartus_map. Per layer the
+    // captures' worst line is 2,621 cycles (fatfurwa f2500, layer 3) and most are 600-900, against
+    // 3,840 a line at full speed.
+    logic  [3:0] tm_start, tm_busy, tm_we;
     logic  [8:0] tm_x [0:3];
     logic [15:0] tm_pix [0:3];
-    logic  [3:0] vgrant, rgrant;            // one-hot: whose request the port took this cycle
-    logic  [3:0] vdeliver, rdeliver;        // one-hot: whose reply is on the bus this cycle
 
     // DDR3 hands over a granule with the byte at its lowest address in bits 7:0, as MiSTer's DDRAM
     // port does everywhere (the skill's ddr_rom_loading.md; hng64_mainmem and the BIOS copy use it
@@ -129,22 +131,103 @@ module hng64_video (
     wire [63:0] srom_msb = reverse_bytes(srom_data);
     wire [63:0] prom_msb = reverse_bytes(prom_data);
 
+    logic  [1:0] e_start, e_busy, e_we, e_vrd, e_rrd;
+    logic  [1:0] e_ph;                      // the layer of its pair engine e is on
+    logic  [1:0] e_run, e_wait;             // e_wait: the clock an engine takes to raise busy
+    logic  [1:0] e_pend;                    // the second layer starts next clock
+    // the layer's registers, registered from e_ph: through the layer mux into the engine's pixel
+    // path missed clk2x by 3.4 ns. e_ph is back at 0 between lines and settles a clock before the
+    // second layer starts, so these are current when an engine starts.
+    logic [15:0] e_tr [0:1];
+    logic [13:0] e_sb [0:1];
+    logic  [1:0] e_lay [0:1];
+    always_ff @(posedge clk)
+        for (int e = 0; e < 2; e++) begin
+            e_tr[e]  <= tileregs[{e[0], e_ph[e]}];
+            e_sb[e]  <= scrollbase[{e[0], e_ph[e]}];
+            e_lay[e] <= {e[0], e_ph[e]};
+        end
+    logic [16:0] e_vaddr [0:1];
+    logic [25:0] e_raddr [0:1];
+    logic  [8:0] e_x [0:1];
+    logic [15:0] e_pix [0:1];
+    logic        vsel, rsel;                // the engine each arbiter picked (below)
+    logic  [1:0] vgrant_e, rgrant_e, vdeliver_e, rdeliver_e;
+
+    // Each engine takes the tile ROM's reply from its own register, a clock late: from the DDR3
+    // arbiter's one reply register (hng64_ddram's c_data) into both engines' word queues missed
+    // clk2x by 1.7 ns. preserve keeps the two copies apart so each sits by its engine.
+    (* preserve *) logic [63:0] e_rdata [0:1];
+    logic [1:0] e_rval;
+    always_ff @(posedge clk) begin
+        e_rval <= rdeliver_e;
+        for (int e = 0; e < 2; e++) e_rdata[e] <= srom_msb;
+    end
+
     genvar gtm;
     generate
-        for (gtm = 0; gtm < 4; gtm++) begin : g_tm
+        for (gtm = 0; gtm < 2; gtm++) begin : g_tm
             hng64_tilemap u_tm (
                 .clk(clk), .reset(reset),
-                .start(tm_start[gtm]), .line(line), .tm_index(2'(gtm)), .busy(tm_busy[gtm]),
-                .tileregs(tileregs[gtm]), .scrollbase(scrollbase[gtm]),
+                .start(e_start[gtm]), .line(line), .tm_index(e_lay[gtm]), .busy(e_busy[gtm]),
+                .tileregs(e_tr[gtm]), .scrollbase(e_sb[gtm]),
                 .videoreg0(videoregs[0]), .videoreg1(videoregs[1]),
                 .anim_mask(videoregs[11]), .anim_bits(videoregs[12]),
-                .vram_addr(tm_vaddr[gtm]), .vram_rd(tm_vrd[gtm]), .vram_ready(vgrant[gtm]),
-                .vram_data(vram_data), .vram_valid(vdeliver[gtm]),
-                .rom_addr(tm_raddr[gtm]), .rom_rd(tm_rrd[gtm]), .rom_ready(rgrant[gtm]),
-                .rom_data(srom_msb), .rom_valid(rdeliver[gtm]),
-                .px_we(tm_we[gtm]), .px_x(tm_x[gtm]), .px_pix(tm_pix[gtm]));
+                .vram_addr(e_vaddr[gtm]), .vram_rd(e_vrd[gtm]), .vram_ready(vgrant_e[gtm]),
+                .vram_data(vram_data), .vram_valid(vdeliver_e[gtm]),
+                .rom_addr(e_raddr[gtm]), .rom_rd(e_rrd[gtm]), .rom_ready(rgrant_e[gtm]),
+                .rom_data(e_rdata[gtm]), .rom_valid(e_rval[gtm]),
+                .px_we(e_we[gtm]), .px_x(e_x[gtm]), .px_pix(e_pix[gtm]));
         end
     endgenerate
+
+    always_comb begin
+        tm_we  = 4'd0;
+        for (int e = 0; e < 2; e++) begin
+            tm_we[{e[0], e_ph[e]}]  = e_we[e];
+            for (int k = 0; k < 2; k++) begin
+                tm_x[2 * e + k]     = e_x[e];
+                tm_pix[2 * e + k]   = e_pix[e];
+                tm_busy[2 * e + k]  = e_run[e];
+            end
+        end
+    end
+
+    // a line's tm_start (all four bits together) starts each engine on its first layer, and the
+    // second when the first is drawn; a disabled layer never raises busy
+    always_ff @(posedge clk) begin
+        e_start <= 2'd0;
+        if (reset) begin
+            e_run  <= 2'd0;
+            e_wait <= 2'd0;
+            e_pend <= 2'd0;
+            e_ph   <= 2'd0;
+        end else begin
+            for (int e = 0; e < 2; e++) begin
+                if (tm_start[0]) begin
+                    e_run[e]   <= 1'b1;
+                    e_start[e] <= 1'b1;
+                    e_wait[e]  <= 1'b1;
+                end else if (e_run[e]) begin
+                    if (e_wait[e]) begin
+                        e_wait[e] <= 1'b0;
+                    end else if (e_pend[e]) begin
+                        e_pend[e]  <= 1'b0;
+                        e_start[e] <= 1'b1;
+                        e_wait[e]  <= 1'b1;
+                    end else if (!e_busy[e] && !e_start[e]) begin
+                        if (!e_ph[e]) begin
+                            e_ph[e]   <= 1'b1;
+                            e_pend[e] <= 1'b1;
+                        end else begin
+                            e_ph[e]  <= 1'b0;
+                            e_run[e] <= 1'b0;
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     // MAME's init_reorder_gfx (hng64.cpp:1814) interleaves the region's two halves in 32-byte
     // units before decoding, and the engines address the decoded region. An .mra cannot express
@@ -152,77 +235,90 @@ module hng64_video (
     // image is stored as the ROMs load and the address is translated here instead: a decoded
     // chunk is even for the upper half and odd for the lower, so dropping bit 5 gives the offset
     // within the half.
-    wire [25:0] scr_dec = tm_raddr[onehot_num(rpick)];
+    wire [25:0] scr_dec = e_raddr[rsel];
     wire [25:0] scr_raw = {1'b0, scr_dec[25:6], scr_dec[4:0]} + (scr_dec[5] ? 26'd0 : scr_half);
 
-    // ---- round-robin arbiters, and the queues that route the replies back ------------------------
-    // Each engine bounds its own outstanding requests (16 tile words, 60 row words), so four of
-    // them cannot outrun these queues.
-    function automatic [3:0] pick(input logic [3:0] req, input logic [1:0] last);
-        logic [1:0] i;
-        pick = 4'd0;
-        for (int k = 1; k <= 4; k++) begin
-            i = last + k[1:0];
-            if (pick == 4'd0 && req[i]) pick = 4'd1 << i;
-        end
-    endfunction
-
-    function automatic [1:0] onehot_num(input logic [3:0] h);
-        onehot_num = h[1] ? 2'd1 : h[2] ? 2'd2 : h[3] ? 2'd3 : 2'd0;
-    endfunction
-
-    logic [1:0] vlast, rlast;
-    logic [1:0] vq [0:127];
+    // ---- round-robin arbiters between the two engines, and the queues that route replies back ---
+    // Each engine bounds its own outstanding requests (16 tile words, 60 row words), so two of
+    // them cannot outrun these queues. A queue entry is the engine; its layer is the one it is on,
+    // which cannot change while it has replies outstanding.
+    logic       vlast, rlast;
+    // Tile ROM requests go to DDR3 from a two-entry queue, which takes an engine's request while
+    // it has room (rq_n, a register): from an engine's request through the pick and the address
+    // translation into the DDR3 issue missed clk2x by 2.1 ns, and from DDR3's grant back into an
+    // engine by 1.9. Replies are tagged as requests enter it, so stay in order.
+    logic  [1:0] rq_n;
+    logic [25:0] rq_a0, rq_a1;
+    wire         rq_take = rq_n != 2'd2;
+    wire         rq_push = rq_take && e_rrd != 2'd0;
+    wire         rq_pop  = srom_ready;
+    logic       vq [0:127];
     logic [7:0] vq_w, vq_r;
-    logic [1:0] rq [0:255];
+    logic       rq [0:255];
     logic [8:0] rq_w, rq_r;
 
     // The choice of whose request to pass on does not depend on whether the memory takes it -
     // that would be a loop - so the pick drives the port and the memory's `ready` decides which
     // engine sees its request accepted.
-    logic [3:0] vpick, rpick;
 
     always_comb begin
-        vpick     = pick(tm_vrd, vlast);
-        rpick     = pick(tm_rrd, rlast);
-        vram_addr = tm_vaddr[onehot_num(vpick)];
-        srom_addr = scr_raw;
-        vram_rd   = vpick != 4'd0;
-        srom_rd   = rpick != 4'd0;
-        vgrant    = vram_ready ? vpick : 4'd0;
-        rgrant    = srom_ready ? rpick : 4'd0;
-        vdeliver  = vram_valid ? (4'd1 << vq[vq_r[6:0]]) : 4'd0;
-        rdeliver  = srom_valid ? (4'd1 << rq[rq_r[7:0]]) : 4'd0;
+        vsel      = (e_vrd[0] && e_vrd[1]) ? !vlast : e_vrd[1];
+        rsel      = (e_rrd[0] && e_rrd[1]) ? !rlast : e_rrd[1];
+        vram_addr = e_vaddr[vsel];
+        srom_addr = rq_a0;
+        vram_rd   = e_vrd != 2'd0;
+        srom_rd   = rq_n != 2'd0;
+        vgrant_e  = (vram_ready && vram_rd) ? (2'd1 << vsel) : 2'd0;
+        rgrant_e  = (rq_take && e_rrd != 2'd0) ? (2'd1 << rsel) : 2'd0;
+        vdeliver_e = vram_valid ? (2'd1 << vq[vq_r[6:0]]) : 2'd0;
+        rdeliver_e = srom_valid ? (2'd1 << rq[rq_r[7:0]]) : 2'd0;
     end
 
     always_ff @(posedge clk) begin
         if (reset) begin
-            vlast <= 2'd3;
-            rlast <= 2'd3;
+            vlast <= 1'b1;
+            rlast <= 1'b1;
             vq_w  <= 8'd0;
             vq_r  <= 8'd0;
             rq_w  <= 9'd0;
             rq_r  <= 9'd0;
+            rq_n  <= 2'd0;
         end else begin
-            if (vgrant != 4'd0) begin
-                vq[vq_w[6:0]] <= onehot_num(vgrant);
+            case ({rq_push, rq_pop})
+                2'b10: begin
+                    if (rq_n == 2'd0) rq_a0 <= scr_raw; else rq_a1 <= scr_raw;
+                    rq_n <= rq_n + 2'd1;
+                end
+                2'b01: begin
+                    rq_a0 <= rq_a1;
+                    rq_n  <= rq_n - 2'd1;
+                end
+                2'b11: begin
+                    if (rq_n == 2'd1) rq_a0 <= scr_raw;
+                    else begin rq_a0 <= rq_a1; rq_a1 <= scr_raw; end
+                end
+                default: ;
+            endcase
+            if (vgrant_e != 2'd0) begin
+                vq[vq_w[6:0]] <= vsel;
                 vq_w  <= vq_w + 8'd1;
-                vlast <= onehot_num(vgrant);
+                vlast <= vsel;
             end
             if (vram_valid) vq_r <= vq_r + 8'd1;
-            if (rgrant != 4'd0) begin
-                rq[rq_w[7:0]] <= onehot_num(rgrant);
+            if (rgrant_e != 2'd0) begin
+                rq[rq_w[7:0]] <= rsel;
                 rq_w  <= rq_w + 9'd1;
-                rlast <= onehot_num(rgrant);
+                rlast <= rsel;
             end
             if (srom_valid) rq_r <= rq_r + 9'd1;
         end
     end
 
     // ---- the sprite engine, which has both its ports to itself -----------------------------------
-    logic spr_start, spr_busy, spr_we;
-    logic  [8:0] spr_x;
-    logic [15:0] spr_px;
+    logic spr_start, spr_busy;
+    logic  [1:0] spr_we;                    // [0] the even-x pixel, [1] the odd-x one
+    logic  [8:0] spr_x [0:1];
+    logic [15:0] spr_px [0:1];
 
     hng64_sprite u_spr (
         .clk(clk), .reset(reset),
@@ -232,7 +328,7 @@ module hng64_video (
         .rom_addr(prom_addr), .rom_rd(prom_rd), .rom_ready(prom_ready),
         .rom_data(prom_msb), .rom_valid(prom_valid),
         .px_we(spr_we), .px_x(spr_x), .px_pix(spr_px),
-        .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw());
+        .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw(), .dbg_q(dbg_spr));
 
     // ---- line buffers -----------------------------------------------------------------------------
     // Each a hng64_bram: written as arrays these were built from 65,000 registers. A tilemap's two
@@ -256,18 +352,21 @@ module hng64_video (
         end
     endgenerate
 
-    logic [15:0] spr_q [0:1];
+    // The sprite engine writes two pixels a clock, x and x + 1, so each line bank is an even-x
+    // and an odd-x half; the mixer reads and clears one pixel a clock from the half its x picks.
+    logic [15:0] spr_q [0:1][0:1];          // [bank][half]
     generate
-        for (glb = 0; glb < 2; glb++) begin : g_lbspr
-            wire eng = (bank == 1'(glb));
-            hng64_bram #(.AW(9), .DW(16)) u_lb (
-                .a_clk(clk), .a_addr(eng ? spr_x : mix_x_q),
-                .a_be(eng ? {2{spr_we}} : {2{mixing_q}}),
-                .a_wdata(eng ? (dbg_layer_off[4] ? 16'd0 : spr_px) : 16'd0), .a_rdata(),
-                .b_clk(clk), .b_addr(mix_x), .b_rdata(spr_q[glb]));
+        for (glb = 0; glb < 4; glb++) begin : g_lbspr
+            localparam int BK = glb / 2, HF = glb % 2;
+            wire eng = (bank == 1'(BK));
+            hng64_bram #(.AW(8), .DW(16)) u_lb (
+                .a_clk(clk), .a_addr(eng ? spr_x[HF][8:1] : mix_x_q[8:1]),
+                .a_be(eng ? {2{spr_we[HF]}} : {2{mixing_q && mix_x_q[0] == 1'(HF)}}),
+                .a_wdata(eng ? (dbg_layer_off[4] ? 16'd0 : spr_px[HF]) : 16'd0), .a_rdata(),
+                .b_clk(clk), .b_addr(mix_x[8:1]), .b_rdata(spr_q[BK][HF]));
         end
     endgenerate
-    assign mix_spr = spr_q[mix_bank];
+    assign mix_spr = spr_q[mix_bank][mix_x_q[0]];
 
     always_ff @(posedge clk) begin
         mix_x_q  <= mix_x;
@@ -296,7 +395,7 @@ module hng64_video (
     assign mixing = mix_busy;
 
     hng64_mixer u_mix (
-        .clk(clk), .reset(reset), .start(mix_start), .busy(mix_busy),
+        .clk(clk), .reset(reset), .start(mix_start), .rebuild(frame_start), .busy(mix_busy),
         .lb_x(mix_x), .tm_pix(mix_tm), .spr_pix(mix_spr),
         .d3_pix(dbg_layer_off[5] ? 16'd0 : mix_d3), .d3_palbase(fbcontrol2[5]),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb), .screen_dis(screen_dis),
@@ -309,8 +408,10 @@ module hng64_video (
             dbg_x[i]   = tm_x[i];
             dbg_pix[i] = tm_pix[i];
         end
-        dbg_x[4]   = spr_x;
-        dbg_pix[4] = spr_px;
+        for (int i = 0; i < 2; i++) begin
+            dbg_x[4 + i]   = spr_x[i];
+            dbg_pix[4 + i] = spr_px[i];
+        end
     end
 
     // ---- the sequencer ------------------------------------------------------------------------------
@@ -319,7 +420,7 @@ module hng64_video (
     // The sprite engine's frame-start pre-pass walks the whole list and takes longer than a line,
     // so the block stays busy through it: a line started during it would see an unfinished
     // candidate list.
-    assign busy = (lst != L_IDLE) || spr_busy || f3_busy;
+    assign busy = (lst != L_IDLE) || spr_busy || f3_busy || mix_busy;   // mix_busy: the palette rebuild
     assign dbg_busy = {lst != L_IDLE, spr_busy, f3_busy, tm_busy, mix_busy};
 
     logic started;

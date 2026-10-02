@@ -207,36 +207,50 @@ module hng64_sdram #(
     logic [25:3] pend;
     logic        pend_hi;               // which half of the granule the pending request wants
 
+    // A request is taken into a register and looked up the clock after: from the tilemap
+    // arbiter's address through the tag compare into v_data in one clock missed clk2x by 3.1 ns.
+    // One request a clock or two; the tilemaps ask for a few dozen words a layer a line.
+    logic        rq_v;
+    logic [25:3] rq_gran;
+    logic        rq_hi;
+
     logic        hit;
     logic [63:0] hit_data;
     always_comb begin
         hit = 1'b0;
         hit_data = 64'd0;
         for (int w = 0; w < WAYS; w++)
-            if (have_v[w] && have[w] == vgran) begin
+            if (have_v[w] && have[w] == rq_gran) begin
                 hit = 1'b1;
                 hit_data = cache[w];
             end
     end
 
-    assign v_ready = v_rd && !busy;     // one transaction in flight, hit or miss
+    assign v_ready = v_rd && !rq_v && !busy;    // one transaction in flight, hit or miss
 
     always_ff @(posedge clk) begin
         v_valid <= 1'b0;
         if (reset) begin
             req0 <= 1'b0;
             busy <= 1'b0;
+            rq_v <= 1'b0;
             fill <= 2'd0;
             for (int w = 0; w < WAYS; w++) have_v[w] <= 1'b0;
         end else begin
-            if (v_rd && !busy) begin
-                pend    <= vgran;
-                pend_hi <= vbyte[2];
+            if (v_ready) begin
+                rq_v    <= 1'b1;
+                rq_gran <= vgran;
+                rq_hi   <= vbyte[2];
+            end
+            if (rq_v) begin
+                rq_v    <= 1'b0;
+                pend    <= rq_gran;
+                pend_hi <= rq_hi;
                 if (hit) begin
-                    v_data  <= swap32(vbyte[2] ? hit_data[63:32] : hit_data[31:0]);
+                    v_data  <= swap32(rq_hi ? hit_data[63:32] : hit_data[31:0]);
                     v_valid <= 1'b1;
                 end else begin
-                    addr0 <= {vgran, 2'b00};
+                    addr0 <= {rq_gran, 2'b00};
                     req0  <= ~req0;
                     busy  <= 1'b1;
                 end

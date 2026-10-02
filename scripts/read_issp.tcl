@@ -81,10 +81,29 @@ set fields_V {
     {late_passes     64  79 dec}
     {late_last_frame 80  95 dec}
     {first_late_line 96 104 dec}
+    {pass_max_len   105 120 dec}
+    {pass_sprites   121 136 dec}
+    {pass_tilemaps  137 152 dec}
+    {pass_fetch3d   153 168 dec}
+    {pass_mixer     169 184 dec}
+    {pass_ddr_stall 185 200 dec}
+    {pass_3d_writes 201 216 dec}
+    {spr_fe_state   217 221 dec}
+    {spr_dl_state   222 224 dec}
+    {spr_records    225 227 dec}
+    {spr_colours    228 233 dec}
+    {spr_rows_in    234 240 dec}
+    {spr_rows_asked 241 247 dec}
+    {spr_ci         248 256 dec}
+    {spr_ncand      257 265 dec}
 }
 # HyperNG64.sv, instance P: the CPU's fetch PC
 set fields_P {
     {pc               0  31 hex}
+    {epc             32  63 hex}
+    {cause           64  95 hex}
+    {status          96 127 hex}
+    {badvaddr       128 159 hex}
 }
 # HyperNG64.sv, instance T: one entry; `dump` reads them all
 set fields_T {

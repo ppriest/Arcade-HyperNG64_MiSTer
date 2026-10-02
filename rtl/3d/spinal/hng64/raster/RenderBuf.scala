@@ -101,11 +101,14 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   }
 
   // ---- the fragment: colour, draw, z ---------------------------------------------------------------
-  val prep = io.i.throwWhen({
+  // registered before the tag lookup (m2sPipe): from the texture cache's output through the prep,
+  // the lookup and the pending-slot pick in one clock missed clk2x by 3.6 ns. The hold outside
+  // F.Render comes after the register, so no fragment passes it during a clear or flush.
+  val prep = (io.i.throwWhen({
     val f = io.i.f
     val pen = f.tex4bpp ? (f.nib ? io.i.texel(7 downto 4) | io.i.texel(3 downto 0)).resize(8 bits) | io.i.texel
     !f.flat && pen === 0
-  }).haltWhen(fs =/= F.Render) ~~ { t =>
+  }) ~~ { t =>
     val o = RenderBuf.Frag()
     val f = t.f
     val pen = f.tex4bpp ? (f.nib ? t.texel(7 downto 4) | t.texel(3 downto 0)).resize(8 bits).asUInt | t.texel.asUInt
@@ -116,7 +119,7 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
     o.x := f.x
     o.y := f.y
     o
-  }
+  }).m2sPipe().haltWhen(fs =/= F.Render)
 
   // ---- entry: tags, LRU, pending victims ------------------------------------------------------------
   val tValid = Vec.fill(nSlots)(RegInit(False))
@@ -143,17 +146,22 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   val pendingHit = (0 until fillLines).map(k => pOcc(k) && pVic(k) && pLine(k) === line).orR
   val free = Vec(pOcc.map(!_)).asBits
   val freeSlot = OHToUInt(OHMasking.first(free))
-  val canGo = frags.io.push.ready &&
+  // the lookup's record goes into the FIFO through a register (fragIn): from the tags through the
+  // hit, way and slot into the FIFO's write data missed clk2x by 2.25 ns. The tags, LRU and
+  // pending slots still change on the lookup's clock; the FIFO keeps the order.
+  val fragIn = Stream(RenderBuf.Waiting())
+  frags.io.push << fragIn.m2sPipe()
+  val canGo = fragIn.ready &&
     (hit || (!pendingHit && free.orR && credits =/= 0 && missQ.io.push.ready))
 
   prep.ready := canGo
-  frags.io.push.valid := prep.valid && canGo
-  frags.io.push.payload.f := e
-  frags.io.push.payload.slot := slot
-  frags.io.push.payload.miss := !hit
-  frags.io.push.payload.victim := vValid
-  frags.io.push.payload.vLine := vLine
-  frags.io.push.payload.pend := freeSlot
+  fragIn.valid := prep.valid && canGo
+  fragIn.payload.f := e
+  fragIn.payload.slot := slot
+  fragIn.payload.miss := !hit
+  fragIn.payload.victim := vValid
+  fragIn.payload.vLine := vLine
+  fragIn.payload.pend := freeSlot
   missQ.io.push.valid := prep.valid && canGo && !hit
   missQ.io.push.payload := line
 
@@ -161,14 +169,21 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   val release = Flow(UInt(log2Up(fillLines) bits))    // a clean victim, at its fill
   val releaseWb = Flow(UInt(log2Up(fillLines) bits))  // a dirty victim, its last beat gone
   val allocate = prep.fire && !hit
+  // a free slot's victim fields are not looked at (pendingHit needs pOcc), so every free slot takes
+  // the victim a miss here would have, and an allocation only marks one occupied. A miss replaces
+  // the LRU way, so that victim is read through lru(set), not the hit: from the lookup's hit into
+  // these missed clk3d by 0.95 ns.
+  val mSlot = set @@ lru(set).asUInt
+  for (k <- 0 until fillLines) when(!pOcc(k)) {
+    pVic(k) := tValid(mSlot)
+    pLine(k) := tTag(mSlot) @@ set
+  }
   when(prep.fire) {
     lru(set) := !way.asBool
     when(!hit) {
       tValid(slot) := True
       tTag(slot) := ltag
       pOcc(freeSlot) := True
-      pVic(freeSlot) := vValid
-      pLine(freeSlot) := vLine
     }
   }
   when(release.valid) { pOcc(release.payload) := False }
@@ -388,7 +403,7 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   }
 
   // ---- the frame's end: every fragment through, every dirty line and the combiner written -------------
-  val pipeEmpty = !prep.valid && frags.io.occupancy === 0 && rIdle && missQ.io.occupancy === 0 &&
+  val pipeEmpty = !prep.valid && !frags.io.push.valid && frags.io.occupancy === 0 && rIdle && missQ.io.occupancy === 0 &&
     lineQ.io.occupancy === 0 && vLeft === 0 && hs === H.Wait
   val flushSlot = Reg(UInt(5 bits))
   when(fs === F.Render && finishing && pipeEmpty && !io.i.valid) {

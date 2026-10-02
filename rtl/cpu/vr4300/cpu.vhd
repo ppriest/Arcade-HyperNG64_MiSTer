@@ -38,6 +38,7 @@ entity cpu is
       error_fifo            : out std_logic := '0';
       error_TLB             : out std_logic := '0';
       debug_pc              : out unsigned(31 downto 0);   -- HyperNG64: the fetch PC, for an ISSP probe
+      debug_cop0            : out unsigned(127 downto 0);  -- HyperNG64: BadVAddr, Status, Cause, EPC (low words)
       mem_idle              : out std_logic;               -- HyperNG64: no request queued or in flight
       irqHold               : in  std_logic := '0';        -- HyperNG64: take no interrupt this clock (Cause unaffected)
 
@@ -545,6 +546,13 @@ architecture arch of cpu is
    
    signal TLB_ss_load                  : std_logic;
    signal TLB_instrMapped              : std_logic;
+   signal TLB_instrMapped1             : std_logic;   -- HyperNG64: per candidate fetch address
+   -- HyperNG64: the branch compares for each pair of forward sources
+   signal fw1R, fw1W, fw2R, fw2W       : std_logic;
+   signal eqRW, eqRD2, eqWD2, eqD1R, eqD1W, eqDD : std_logic;
+   signal zR, zW, zD1                  : std_logic;
+   signal cmpEqR, cmpEqW, cmpEqD       : std_logic;
+   signal TLB_instrMapped2             : std_logic;
    signal TLB_instrReq                 : std_logic;
    signal TLB_instrUseCache            : std_logic;
    signal TLB_instrStall               : std_logic;
@@ -1063,15 +1071,28 @@ begin
    
    FetchAddr <= FetchAddr2 when (FetchAddrSelect = '1') else FetchAddr1;
    
-   FetchAddrTLBMuxed1 <= TLB_instrAddrOutFound when (TLB_instrMapped = '1') else FetchAddr1(31 downto 0);
-   FetchAddrTLBMuxed2 <= TLB_instrAddrOutFound when (TLB_instrMapped = '1') else FetchAddr2(31 downto 0);
+   -- HyperNG64: each candidate's compare address takes the region check of that candidate, not of
+   -- the selected FetchAddr. A compare address matters only when its candidate is the one selected,
+   -- and then the two checks agree; computed from FetchAddr they put the branch decision in front of
+   -- both tag compares, which is what the two candidates exist to avoid (2.7 ns of clk93's worst
+   -- path at full speed, build 79c3631).
+   FetchAddrTLBMuxed1 <= TLB_instrAddrOutFound when (TLB_instrMapped1 = '1') else FetchAddr1(31 downto 0);
+   FetchAddrTLBMuxed2 <= TLB_instrAddrOutFound when (TLB_instrMapped2 = '1') else FetchAddr2(31 downto 0);
+
+   TLB_instrMapped1 <= '1' when (bit64region = '1' and FetchAddr1(63 downto 60) < 8) else
+                       '1' when (bit64region = '0' and privilegeMode = "00" and (FetchAddr1(31 downto 29) < 4 or FetchAddr1(31 downto 29) = 6 or FetchAddr1(31 downto 29) = 7)) else
+                       '1' when (bit64region = '0' and privilegeMode = "01" and (FetchAddr1(31 downto 29) < 4 or FetchAddr1(31 downto 29) = 6)) else
+                       '1' when (bit64region = '0' and privilegeMode = "10" and (FetchAddr1(31 downto 29) < 4)) else
+                       '0';
+   TLB_instrMapped2 <= '1' when (bit64region = '1' and FetchAddr2(63 downto 60) < 8) else
+                       '1' when (bit64region = '0' and privilegeMode = "00" and (FetchAddr2(31 downto 29) < 4 or FetchAddr2(31 downto 29) = 6 or FetchAddr2(31 downto 29) = 7)) else
+                       '1' when (bit64region = '0' and privilegeMode = "01" and (FetchAddr2(31 downto 29) < 4 or FetchAddr2(31 downto 29) = 6)) else
+                       '1' when (bit64region = '0' and privilegeMode = "10" and (FetchAddr2(31 downto 29) < 4)) else
+                       '0';
 
    -- running from 64 bit sections currently not fully supported to not screw up FPGA route timing
-   TLB_instrMapped <= '1' when (bit64region = '1' and FetchAddr(63 downto 60) < 8) else
-                      '1' when (bit64region = '0' and privilegeMode = "00" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6 or FetchAddr(31 downto 29) = 7)) else
-                      '1' when (bit64region = '0' and privilegeMode = "01" and (FetchAddr(31 downto 29) < 4 or FetchAddr(31 downto 29) = 6)) else
-                      '1' when (bit64region = '0' and privilegeMode = "10" and (FetchAddr(31 downto 29) < 4)) else
-                      '0';
+   -- HyperNG64: the same check, as the selected candidate's (the select last, not first)
+   TLB_instrMapped <= TLB_instrMapped2 when (FetchAddrSelect = '1') else TLB_instrMapped1;
                       
    TLB_instrReq <= '1' when (TLB_instrMapped = '1' and (stall = 0 or TLB_ss_load = '1')) else '0';
    
@@ -2141,9 +2162,29 @@ begin
    PCnext       <= PC(63 downto 29) & (PC(28 downto 0) + 4);
    PCnextBranch <= pcOld0(63 downto 29) & (pcOld0(28 downto 0) + unsigned((resize(signed(decodeImmData), 27) & "00")));
    
-   cmpEqual    <= '1' when (value1 = value2) else '0';
+   -- HyperNG64: value1 = value2 and value1 = 0, worked out for every pair of the operands' three
+   -- sources (execute's result, writeback's, the decoded value) and selected by the forward flags
+   -- that build value1 and value2. Same function; through the forward mux first, the compare was
+   -- the head of clk93's worst path at full speed (build 97a34b1, -0.791 ns).
+   fw1R <= '1' when (executeForwardValue1 = '1' and resultWriteEnable = '1') else '0';
+   fw1W <= writebackForwardValue1;
+   fw2R <= '1' when (executeForwardValue2 = '1' and resultWriteEnable = '1') else '0';
+   fw2W <= writebackForwardValue2;
+   eqRW  <= '1' when (resultData    = writebackData) else '0';
+   eqRD2 <= '1' when (resultData    = decodeValue2)  else '0';
+   eqWD2 <= '1' when (writebackData = decodeValue2)  else '0';
+   eqD1R <= '1' when (decodeValue1  = resultData)    else '0';
+   eqD1W <= '1' when (decodeValue1  = writebackData) else '0';
+   eqDD  <= '1' when (decodeValue1  = decodeValue2)  else '0';
+   zR    <= '1' when (resultData    = 0) else '0';
+   zW    <= '1' when (writebackData = 0) else '0';
+   zD1   <= '1' when (decodeValue1  = 0) else '0';
+   cmpEqR      <= '1'   when fw2R = '1' else eqRW  when fw2W = '1' else eqRD2;
+   cmpEqW      <= eqRW  when fw2R = '1' else '1'   when fw2W = '1' else eqWD2;
+   cmpEqD      <= eqD1R when fw2R = '1' else eqD1W when fw2W = '1' else eqDD;
+   cmpEqual    <= cmpEqR when fw1R = '1' else cmpEqW when fw1W = '1' else cmpEqD;
    cmpNegative <= value1(63);
-   cmpZero     <= '1' when (value1 = 0) else '0';
+   cmpZero     <= zR when fw1R = '1' else zW when fw1W = '1' else zD1;
    
    -- use two nextaddress/branch paths with 2 tag rams, so different paths can be calculated in parallel to improve timing
    
@@ -3347,6 +3388,7 @@ begin
 -- synthesis translate_off
       cop0_export             => cop0_export,
 -- synthesis translate_on
+      debug_regs              => debug_cop0,
 
       eret                    => execute_ERET,
       exception3              => exceptionNew3,

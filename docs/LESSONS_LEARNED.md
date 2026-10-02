@@ -541,6 +541,16 @@ later: the download silently became a read, and tile reads returned another engi
 address. Both were found by running the real controller against the chip model rather than
 an abstraction of it. Hold every input until `ack` catches up.
 
+### [HyperNG64] A dual-clock FIFO's count back to the writer counts what left the store, not what was taken
+
+A first-word-fall-through FIFO over a block RAM prefetches into a small head queue, and the read
+pointer it sends back in Gray code is the fetch pointer: the RAM slot is free once the word is
+fetched. So the writer's count reaches zero while words still wait in the head queue. In
+`hng64_3d_bridge` that count was the "every 3D write has reached the arbiter" test the frame swap
+waits on, and up to three commands could still be queued behind it. Found reading the code while
+adding a skid register (no bench had failed). To know the reader has taken everything, count its
+takes on its own clock and send that count back.
+
 ## Sprite lists, line buffers and snapshots
 
 ### A swap is not a copy
@@ -1110,6 +1120,17 @@ whether it passed or not. `sim/raster_tb` showed 339 of 262,144 pixels wrong on 
 same count at every memory latency; a replay of the compare stage's own fragments showed stored
 z values that had failed their test. Two write calls on one `Mem` also give two write ports, which
 an MLAB does not have: merge them into one call with muxed address and data.
+
+### [HyperNG64] A PLL's `mimic_fbclk_type` must agree with its compensation mode, which the .qip sets
+
+The Fitter checks `mimic_fbclk_type` against the PLL's compensation mode, and takes that mode from
+a `PLL_COMPENSATION_MODE` assignment, not from the module's `operation_mode("direct")`. With
+`PLL_COMPENSATION_MODE DIRECT` (the main PLL's `pll_0002.qip`, sys's `pll_hdmi`) the legal value
+is `"none"`; with no assignment (`pll_cpu.v`) `"none"` is rejected and `"gclk"` fits. The wrong
+value stops the Fitter after placement: "Fractional PLL parameter 'mimic_fbclk_type' is set to an
+illegal value" (`"none"` on pll_cpu, build of `2dd4718`; `"gclk_far"` on the main PLL given
+`"gclk"`, build of `9b214fa`). Keep what ip-generate wrote when the generated PLL keeps the
+original's .qip; otherwise check the pair before a full compile.
 
 ## Debug instrumentation: how not to fool yourself
 

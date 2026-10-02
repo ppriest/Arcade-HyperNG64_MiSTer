@@ -76,12 +76,17 @@ case class Raster(c: RasterConfig) extends Component {
   val renderBuf = RenderBuf(c)
   val texBlock = TexBlock()
 
-  setup.io.i << io.tri
+  // a register between the geometry engine's triangle and the setup (2.7 ns over clk2x across them)
+  val triIn = io.tri.m2sPipe()
+  setup.io.i << triIn
   walker.io.i << setup.io.o
   val spanParams = SpanParams(c)
-  spanParams.io.i << walker.io.o
+  // a skid buffer between the walker and SpanParams, so the walker's ready is a register (from
+  // the span queue's fill back into the walker's state it missed clk2x by 2.1 ns)
+  val walkOut = walker.io.o.s2mPipe()
+  spanParams.io.i << walkOut
   spanParams.io.tri := setup.io.o.payload
-  walker.io.drained := spanParams.io.idle && !walker.io.o.valid
+  walker.io.drained := spanParams.io.idle && !walker.io.o.valid && !walkOut.valid
   val spans = spanParams.io.o.queue(4)
   pixels.io.i << spans
   val skid0 = pixels.io.o.s2mPipe()                   // skid buffers: ready is registered here
@@ -116,7 +121,7 @@ case class Raster(c: RasterConfig) extends Component {
   renderBuf.io.finish := io.finish
   io.done := renderBuf.io.done
   // the engine holds each triangle until the setup has read it
-  io.busy := io.tri.valid || setup.io.o.valid || walker.io.busy || !spanParams.io.idle || spans.valid || pixels.io.busy ||
+  io.busy := io.tri.valid || triIn.valid || setup.io.o.valid || walker.io.busy || walkOut.valid || !spanParams.io.idle || spans.valid || pixels.io.busy ||
     skid0.valid || pixUnit.io.busy || skid1.valid || texCache.io.busy || skid2.valid
 }
 

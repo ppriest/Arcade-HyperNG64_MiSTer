@@ -91,6 +91,7 @@ int main(int argc, char **argv) {
     dut->tileregs3 = tileregs[3];
     dut->reset = 1;
     dut->start = 0;
+    dut->rebuild = 0;
     dut->tcram_we = 0;
 
     auto tick = [&]() {
@@ -109,6 +110,22 @@ int main(int argc, char **argv) {
         tick();
     }
     dut->tcram_we = 0;
+
+    // the modified palette is rebuilt at frame start, from the palette port
+    {
+        int pal_q = 0;
+        dut->rebuild = 1;
+        long guard = 0;
+        do {
+            dut->pal_d0 = be32(pal, size_t(pal_q) * 4);
+            dut->eval();
+            pal_q = dut->pal_a0;
+            tick();
+            dut->rebuild = 0;
+        } while ((dut->busy || guard == 0) && ++guard < 100000);
+        if (guard >= 100000) { printf("palette rebuild never finished%c", 10); return 1; }
+        printf("palette rebuild: %ld clocks%c", guard, 10);
+    }
 
     long bad = 0, checked = 0;
     FILE *dump = fopen((cap + "/rtl_rgb.bin").c_str(), "wb");
