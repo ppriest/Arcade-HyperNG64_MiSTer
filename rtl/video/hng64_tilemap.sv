@@ -62,16 +62,36 @@ module hng64_tilemap (
 
     output logic        px_we,
     output logic  [8:0] px_x,
-    output logic [15:0] px_pix          // palette index, 0 transparent
+    output logic [15:0] px_pix,         // palette index, 0 transparent
+    // for the stp revision's probe Q: {ast, est, s1_v, b_busy, qa_w, qa_r, qt_w, qb_w, qb_r,
+    // qh_w, qh_r, qw_w, qw_r, scroll_i, scroll_got}
+    output logic [67:0] dbg_q
 );
 
-    wire       enable   = tileregs[6];
-    wire       big      = tileregs[9];      // 16x16 tiles
-    wire       eightbpp = tileregs[10];
-    wire       linemode = ~tileregs[11];
-    wire [3:0] mosaic   = tileregs[15:12];
-    wire       alt      = big && (videoreg0[25:24] != 2'b00);
-    wire       wrap     = tileregs[8];
+    // the walk's (stage A) and the pixels' (stage E) states
+    typedef enum logic [2:0] { A_IDLE, A_GO, A_MOS, A_SCROLL, A_MUL, A_FIRST, A_WALK, A_DONE } astate_t;
+    astate_t ast;
+    typedef enum logic [1:0] { E_IDLE, E_WAIT, E_EMIT, E_DONE } estate_t;
+    estate_t est;
+
+    // The layer's mode, a register here: from hng64_video's tileregs into the walk's and the
+    // scroll words' logic they missed clk2x by 1.1 ns, and into the start's decision by 1.3 ns.
+    // tileregs are set a clock before a start, and the start is decided a clock after it (A_GO).
+    // It loads only while the engine is idle, so it holds for the pass: tileregs follow the CPU's
+    // writes, and a mode written mid-pass changed the words a tile between stage B, which asked
+    // for them, and stage E, which takes them, and E waited for ever (fatfurwa's intro on the
+    // board, probe Q: 32 tiles' colours against 120 words, mod 128).
+    logic      enable = 1'b0, big = 1'b0, eightbpp = 1'b0, linemode = 1'b0, alt = 1'b0, wrap = 1'b0;
+    logic [3:0] mosaic = 4'd0;
+    always_ff @(posedge clk) if (ast == A_IDLE && est == E_IDLE) begin
+        enable   <= tileregs[6];
+        mosaic   <= tileregs[15:12];
+        big      <= tileregs[9];                // 16x16 tiles
+        eightbpp <= tileregs[10];
+        linemode <= ~tileregs[11];
+        alt      <= tileregs[9] && (videoreg0[25:24] != 2'b00);
+        wrap     <= tileregs[8];
+    end
 
     // mosaic: every (mosaic+1)th line is the source line for the group, found by hng64_mosaic
     // while the line waits in A_MOS
@@ -80,7 +100,9 @@ module hng64_tilemap (
     wire  [8:0] mos_base;
     hng64_mosaic #(.W(9)) u_mos (
         .clk(clk), .start(mos_start), .x(line), .m(mosaic), .done(mos_done), .base(mos_base));
-    wire  [8:0] src_line = (mosaic != 4'd0) ? mos_base : line;
+    // the line the layer is drawn from, a register set as the scroll words are asked for: chosen
+    // by mosaic straight into the walk's multiply it missed clk2x by 1.0 ns
+    logic [8:0] src_line;
 
     // ---- the layer's scroll words, and the four steps they give -------------------------------
     // Three layouts (hng64_v.cpp:143-318): plain, per line, and the rotating "alt" one buriki's
@@ -120,16 +142,17 @@ module hng64_tilemap (
         step2 = ((d + (d[31] ? 32'sd511 : 32'sd0)) >>> 9) <<< 1;
     endfunction
 
-    // A_MUL's first step latches the selected words (q_*); the increments are worked out from
-    // those on the next: from the video registers through the selects, a subtract and a shift in
-    // one clock missed clk2x by 3.1 ns.
+    // A_MUL's first step latches the selected words (q_*), the second their differences (d_*),
+    // the third the increments: from the video registers through the selects, a subtract and a
+    // shift in one clock missed clk2x by 3.1 ns, and the subtract with step2's rounding add into
+    // add_y by 0.39 ns (bc6546a seed 1).
     logic signed [31:0] q_xtl, q_xmid, q_ytl, q_ymid, q_sb1, q_sb6;
     logic               q_roz, q_lalt;
-    wire signed [31:0] w_incxx = step2(q_xmid - q_xtl);
-    wire signed [31:0] w_incyy = q_lalt ? 32'sd0 : step2(q_ymid - q_ytl);
-    wire signed [31:0] w_incyx = q_roz ? step2(q_sb1 - q_xtl) : 32'sd0;
-    wire signed [31:0] w_incxy = q_roz ? step2(q_sb6 - q_ytl)
-                                       : q_lalt ? step2(q_ymid - q_ytl) : 32'sd0;
+    logic signed [31:0] d_xx, d_yy, d_yx, d_xy;
+    wire signed [31:0] w_incxx = step2(d_xx);
+    wire signed [31:0] w_incyy = q_lalt ? 32'sd0 : step2(d_yy);
+    wire signed [31:0] w_incyx = q_roz ? step2(d_yx) : 32'sd0;
+    wire signed [31:0] w_incxy = q_roz ? step2(d_xy) : q_lalt ? step2(d_yy) : 32'sd0;
     // MAME's optimised loop: no rotation and no wrap, so the line starts at the first in-range
     // pixel and stops at the first one past the map. Latched from the registered increments, on
     // A_MUL's first step: from the scroll words to `stopped` missed clk2x by 3.9 ns, and to a
@@ -139,6 +162,7 @@ module hng64_tilemap (
     logic signed [31:0] incxx, incxy;
     logic signed [31:0] acc_x, acc_y, add_x, add_y;
     logic [3:0]  mul_i;
+    logic [8:0]  mul_sh;                // src_line, shifted a bit a step
 
     // ---- coordinate helpers, used by both walkers ---------------------------------------------
     // 16.16 source position -> tile number: pixel is v[31:16], so a 16-wide tile is v[27:20]
@@ -163,13 +187,10 @@ module hng64_tilemap (
     always_ff @(posedge clk) words_m1 <= big ? (eightbpp ? 2'd3 : 2'd1) : (eightbpp ? 2'd1 : 2'd0);
 
     // ================= stage A: walk the line, issue tile-word reads ============================
-    typedef enum logic [2:0] { A_IDLE, A_MOS, A_SCROLL, A_MUL, A_FIRST, A_WALK, A_DONE } astate_t;
-    astate_t ast;
 
     logic signed [31:0] fcx, fcy;
     logic  [9:0] fx;
-    logic  [8:0] f_tx, f_ty;
-    logic  [3:0] f_py;
+    logic        fx_end;                // fx is 511, set as it gets there (the compare: 0.45 ns)
     logic  [3:0] scroll_i;              // scroll words issued
     logic  [3:0] scroll_got;            // scroll words returned
 
@@ -177,7 +198,15 @@ module hng64_tilemap (
     logic signed [31:0] fnx, fny;
     wire  [8:0] f_ntx = tile_x(fnx), f_nty = tile_y(fny);
     wire  [3:0] f_npy = pix_y(fny);
-    wire        f_newtile = (f_ntx != f_tx) || (f_nty != f_ty) || (f_npy != f_py);
+    // A new tile is a difference between fnx/fny and fcx/fcy in the bits that pick the tile (and
+    // y's pixel row): bits 27:16 under a mask set from the mode. Compared through tile_x/tile_y
+    // from `big` it missed clk2x by 0.8 ns (00a9080 seed 1).
+    logic [11:0] f_mx, f_my;
+    always_ff @(posedge clk) begin
+        f_mx <= big ? (alt ? 12'hFF0 : 12'h7F0) : 12'h3F8;
+        f_my <= big ? (alt ? 12'h3FF : 12'h7FF) : 12'h3FF;
+    end
+    wire        f_newtile = |((fnx[27:16] ^ fcx[27:16]) & f_mx) || |((fny[27:16] ^ fcy[27:16]) & f_my);
     wire  [3:0] scroll_last = linemode ? 4'd11 : 4'd7;
     wire [16:0] scroll_addr = (scroll_i < 4'd8) ? (base_addr + {13'd0, scroll_i})
                                                 : (line_addr + {15'd0, scroll_i[1:0]});
@@ -206,28 +235,24 @@ module hng64_tilemap (
     wire [25:0] tile_base = big
         ? (eightbpp ? {tileno[20:3], 8'd0} : {tileno[20:2], 7'd0})
         : (eightbpp ? {tileno[20:1], 6'd0} : {tileno[20:0], 5'd0});
-    wire [3:0] rows_m1 = big ? 4'd15 : 4'd7;
-    wire [3:0] b_row_y = bword[23] ? (rows_m1 - b_py) : b_py;    // bit 23 is flipy
+    // bit 23 is flipy: 15 - row, or 7 - row
+    wire [3:0] b_row_y = bword[23] ? (big ? ~b_py : {1'b0, ~b_py[2:0]}) : b_py;
     // A row is a 32-bit word every 4 bytes, but the layouts skip: rows 8-15 of a 16-tall tile
     // start 8 rows further on (hng64.cpp yoffsets 0..7*32 then 16..23*32), and the pixels of one
-    // row are spread over up to four words 32 bytes apart (xoffsets 0, 256, 1024, 1280 bits).
-    wire [4:0] b_row_sel = (b_row_y >= 4'd8) ? ({1'b0, b_row_y} + 5'd8) : {1'b0, b_row_y};
-    wire [6:0] b_row_ofs = {b_row_sel, 2'b00};
-    wire [25:0] b_word_addr = tile_base + {19'd0, b_row_ofs}
-                            + (b_wi == 2'd0 ? 26'd0 : b_wi == 2'd1 ? 26'd32
-                               : b_wi == 2'd2 ? 26'd128 : 26'd160);
+    // row are spread over up to four words at 0, 32, 128 and 160 bytes (xoffsets 0, 256, 1024,
+    // 1280 bits). Every offset a mode uses is below its tile's size, so they are ORed in: the
+    // adds missed clk2x by 1.3 ns into bq (00a9080 seed 2).
+    wire [25:0] b_word_addr = tile_base | {18'd0, b_wi[1], b_row_y[3], b_wi[0], b_row_y[2:0], 2'b00};
 
     // B -> E: colour and x flip, one entry a tile
     logic [16:0] qb [0:15];             // {colour[15:0], flipx}
     logic  [4:0] qb_w, qb_r;
     wire   [4:0] qb_n = qb_w - qb_r;
-    wire         qb_full = qb_n >= 5'd15;
 
     // B -> C: which half of the 64-bit beat each outstanding read wants
     logic        qh [0:63];
     logic  [6:0] qh_w, qh_r;
     wire   [6:0] qh_n = qh_w - qh_r;
-    wire         qh_full = qh_n >= 7'd63;
 
     // ================= stage C: beats -> 32-bit row words =======================================
     // The port has no back-pressure, so stage C must always have somewhere to put a beat. Stage B
@@ -237,16 +262,16 @@ module hng64_tilemap (
     logic  [6:0] qw_w, qw_r;
     wire   [6:0] qw_n = qw_w - qw_r;
     wire   [7:0] qw_owed = {1'b0, qw_n} + {1'b0, qh_n};
-    wire         qw_room = qw_owed < 8'd60;
+    // Stage B's room, registered: from the queue pointers through the subtracts, the sum and the
+    // compares into every qb entry's write it missed clk2x by 1.0 ns. A clock late it has not seen
+    // the read B issued in the clock before, so each limit is one lower; B issues one a clock.
+    logic        b_room = 1'b0;
+    always_ff @(posedge clk) b_room <= qb_n < 5'd14 && qh_n < 7'd62 && qw_owed < 8'd59;
 
     // ================= stage E: pixels ==========================================================
-    typedef enum logic [1:0] { E_IDLE, E_WAIT, E_EMIT, E_DONE } estate_t;
-    estate_t est;
 
     logic signed [31:0] cx, cy;
     logic  [8:0] x;
-    logic  [8:0] cur_tx, cur_ty;
-    logic  [3:0] cur_py;
     logic [31:0] rowwords [0:3];
     logic [15:0] colour;
     logic        flipx;
@@ -257,16 +282,20 @@ module hng64_tilemap (
 
     wire signed [31:0] next_cx = cx + incxx;
     wire signed [31:0] next_cy = cy + incxy;
-    wire [8:0] ntx = tile_x(next_cx), nty = tile_y(next_cy);
-    wire [3:0] npy = pix_y(next_cy);
+    // another tile, or another row of the same one: stage A's test, on cx/cy (through tile_x and
+    // tile_y from the mode bits into est it missed clk2x by 0.38 ns, f52fa64 seed 2)
+    wire e_newtile = |((next_cx[27:16] ^ cx[27:16]) & f_mx) || |((next_cy[27:16] ^ cy[27:16]) & f_my);
     wire [3:0] px_in_tile = big ? cx[19:16] : {1'b0, cx[18:16]};
 
-    wire x_in_map = wrap ? 1'b1
-                  : big ? (alt ? (cx[31:28] == 4'd0) : (cx[31:27] == 5'd0))
-                        : (cx[31:26] == 6'd0);
-    wire y_in_map = wrap ? 1'b1
-                  : big ? (alt ? (cy[31:26] == 6'd0) : (cy[31:27] == 5'd0))
-                        : (cy[31:26] == 6'd0);
+    // inside the map: the position's top bits under a mask set from the mode, 0 with wrap (through
+    // wrap, big and alt's selects into mos_x it missed clk2x by 0.85 ns, f52fa64 seed 2)
+    logic [5:0] e_mx, e_my;                 // bits 31:26 that must be 0
+    always_ff @(posedge clk) begin
+        e_mx <= wrap ? 6'b000000 : big ? (alt ? 6'b111100 : 6'b111110) : 6'b111111;
+        e_my <= wrap ? 6'b000000 : (big && !alt) ? 6'b111110 : 6'b111111;
+    end
+    wire x_in_map = (cx[31:26] & e_mx) == 6'd0;
+    wire y_in_map = (cy[31:26] & e_my) == 6'd0;
     wire in_range = x_in_map && y_in_map;
     wire draw_ok  = in_range && !stopped;
     // A tile is ready when its colour entry and all of its row words have arrived. The test
@@ -282,6 +311,22 @@ module hng64_tilemap (
     logic [15:0] s1_colour;
 
     assign busy = (ast != A_IDLE) || (est != E_IDLE) || s1_v;
+    // A and E both idle, a clock late: the B stage and the reply queues clear on it, and nothing
+    // is in flight in that clock either way (from the state decodes into the queues' writes it
+    // missed clk2x by 1.3 ns)
+    logic eng_idle = 1'b1;
+    always_ff @(posedge clk) eng_idle <= ast == A_IDLE && est == E_IDLE;
+    // from compares, not ast's and est's bits, so synthesis can still choose their encoding
+    logic [2:0] ast_code;
+    logic [1:0] est_code;
+    always_comb begin
+        ast_code = '0;
+        for (int k = 0; k <= int'(A_DONE); k++) if (ast == astate_t'(k)) ast_code = 3'(k);
+        est_code = '0;
+        for (int k = 0; k <= int'(E_DONE); k++) if (est == estate_t'(k)) est_code = 2'(k);
+    end
+    assign dbg_q = {ast_code, est_code, s1_v, b_busy, qa_w, qa_r, qt_w, qb_w, qb_r,
+                    qh_w, qh_r, qw_w, qw_r, scroll_i, scroll_got};
 
     // Pixel out of the fetched row. Bit offsets are MSB-first across the word, so offset k is
     // word[31-k]: 4bpp xoffsets 24,28,8,12,16,20,0,4 (hng64.cpp:1678) and 8bpp 24,8,16,0.
@@ -339,11 +384,16 @@ module hng64_tilemap (
             end else begin
             vram_rd <= 1'b0;
             case (ast)
-                A_IDLE: if (start && enable) begin
+                A_IDLE: if (start) ast <= A_GO;
+
+                A_GO: if (!enable) begin
+                    ast <= A_IDLE;
+                end else begin
                     if (mosaic != 4'd0) begin
                         mos_start  <= 1'b1;
                         ast        <= A_MOS;
                     end else begin
+                        src_line   <= line;
                         scroll_i   <= 4'd1;
                         scroll_got <= 4'd0;
                         vram_addr  <= base_addr;
@@ -354,6 +404,7 @@ module hng64_tilemap (
                 end
 
                 A_MOS: if (mos_done) begin
+                    src_line   <= mos_base;
                     scroll_i   <= 4'd1;
                     scroll_got <= 4'd0;
                     vram_addr  <= base_addr;
@@ -385,20 +436,28 @@ module hng64_tilemap (
                         q_lalt <= linemode && alt_fmt;
                         mul_i  <= 4'd1;
                     end else if (mul_i == 4'd1) begin
+                        d_xx  <= q_xmid - q_xtl;
+                        d_yy  <= q_ymid - q_ytl;
+                        d_yx  <= q_sb1 - q_xtl;
+                        d_xy  <= q_sb6 - q_ytl;
+                        mul_i <= 4'd2;
+                    end else if (mul_i == 4'd2) begin
                         incxx <= w_incxx;
                         incxy <= w_incxy;
                         acc_x <= 32'sd0;
                         acc_y <= 32'sd0;
                         add_x <= w_incyx;
                         add_y <= w_incyy;
-                        mul_i <= 4'd2;
-                    end else if (mul_i <= 4'd10) begin
+                        mul_sh <= src_line;
+                        mul_i <= 4'd3;
+                    end else if (mul_i <= 4'd11) begin
                         // add_x is still w_incyx on the first step
-                        if (mul_i == 4'd2) optimised <= (incxy == 32'sd0) && (add_x == 32'sd0) && !wrap;
-                        if (src_line[mul_i - 4'd2]) begin
+                        if (mul_i == 4'd3) optimised <= (incxy == 32'sd0) && (add_x == 32'sd0) && !wrap;
+                        if (mul_sh[0]) begin   // src_line[mul_i - 3]: 0.8 ns over clk2x
                             acc_x <= acc_x + add_x;
                             acc_y <= acc_y + add_y;
                         end
+                        mul_sh <= mul_sh >> 1;
                         add_x <= add_x <<< 1;
                         add_y <= add_y <<< 1;
                         mul_i <= mul_i + 4'd1;
@@ -406,6 +465,7 @@ module hng64_tilemap (
                         fcx <= s_xtl + acc_x;
                         fcy <= s_ytl + acc_y;
                         fx  <= 10'd0;
+                        fx_end <= 1'b0;
                         ast <= A_FIRST;
                     end
                 end
@@ -416,19 +476,17 @@ module hng64_tilemap (
                     fny       <= fcy + incxy;
                     vram_addr <= tile_index(tile_x(fcx), tile_y(fcy));
                     vram_rd   <= 1'b1;
-                    f_tx      <= tile_x(fcx);
-                    f_ty      <= tile_y(fcy);
-                    f_py      <= pix_y(fcy);
                     qa[qa_w[3:0]] <= pix_y(fcy);
                     qa_w      <= qa_w + 5'd1;
                     ast       <= A_WALK;
                 end
 
                 A_WALK: begin
-                    if (fx == 10'd511) begin
+                    if (fx_end) begin
                         ast <= A_DONE;
                     end else if (!(f_newtile && qa_full)) begin
                         fx  <= fx + 10'd1;
+                        fx_end <= fx == 10'd510;
                         fcx <= fnx;
                         fcy <= fny;
                         fnx <= fnx + incxx;
@@ -436,9 +494,6 @@ module hng64_tilemap (
                         if (f_newtile) begin
                             vram_addr <= tile_index(f_ntx, f_nty);
                             vram_rd   <= 1'b1;
-                            f_tx      <= f_ntx;
-                            f_ty      <= f_nty;
-                            f_py      <= f_npy;
                             qa[qa_w[3:0]] <= f_npy;
                             qa_w      <= qa_w + 5'd1;
                         end
@@ -465,23 +520,47 @@ module hng64_tilemap (
     end
 
     // ---- stage B ------------------------------------------------------------------------------
+    // Its ROM reads go out through two entries (bq): B waits only while both are full, a register,
+    // where it used to stop whole until the port took its read (from the port's ready through
+    // that hold into rom_addr and the queues: 1.1 ns over clk2x).
+    logic [25:0] bq_head, bq_tail;
+    logic  [1:0] bq_n;
+    logic        bq_v;                  // bq_n != 0, a register: compared, into hng64_video's pick
+                                        // and its queue it missed clk2x by 0.73 ns (8d5f748 s1)
+    wire         b_issue = !reset && !eng_idle && b_busy && b_room && bq_n != 2'd2;
+    wire         bq_pop  = bq_v && rom_ready;
+    wire  [25:0] bq_new  = {b_word_addr[25:3], 3'b000};
+    assign rom_rd   = bq_v;
+    assign rom_addr = bq_head;
     always_ff @(posedge clk) begin
         if (reset) begin
-            rom_rd <= 1'b0;
+            bq_n <= 2'd0;
+            bq_v <= 1'b0;
+        end else begin
+            case ({b_issue, bq_pop})
+                2'b10: if (bq_n == 2'd0) bq_head <= bq_new; else bq_tail <= bq_new;
+                2'b01: bq_head <= bq_tail;
+                2'b11: if (bq_n == 2'd1) bq_head <= bq_new;
+                       else begin bq_head <= bq_tail; bq_tail <= bq_new; end
+                default: ;
+            endcase
+            bq_n <= bq_n + 2'(b_issue) - 2'(bq_pop);
+            bq_v <= bq_n + 2'(b_issue) - 2'(bq_pop) != 2'd0;
+        end
+    end
+
+    always_ff @(posedge clk) begin
+        if (reset) begin
             b_busy <= 1'b0;
             qa_r   <= 5'd0;
             qb_w   <= 5'd0;
             qh_w   <= 7'd0;
-        end else if (rom_rd && !rom_ready) begin
-            // held until the port takes it
-        end else if (ast == A_IDLE && est == E_IDLE) begin
-            rom_rd <= 1'b0;
+        end else if (eng_idle) begin
             b_busy <= 1'b0;
             qa_r   <= 5'd0;
             qb_w   <= 5'd0;
             qh_w   <= 7'd0;
         end else begin
-            rom_rd <= 1'b0;
             if (!b_busy) begin
                 if (qt_ready) begin
                     bword  <= qt[qa_r[3:0]];
@@ -490,9 +569,7 @@ module hng64_tilemap (
                     b_wi   <= 2'd0;
                     b_busy <= 1'b1;
                 end
-            end else if (!qb_full && !qh_full && qw_room) begin
-                rom_addr <= {b_word_addr[25:3], 3'b000};
-                rom_rd   <= 1'b1;
+            end else if (b_issue) begin             // bq takes the read
                 qh[qh_w[5:0]] <= b_word_addr[2];
                 qh_w     <= qh_w + 7'd1;
                 if (b_wi == words_m1) begin
@@ -510,7 +587,7 @@ module hng64_tilemap (
     // ---- tile words in, as they come back --------------------------------------------------
     // A scroll word is not a tile word: stage A takes those itself while it is in A_SCROLL.
     always_ff @(posedge clk) begin
-        if (reset || (ast == A_IDLE && est == E_IDLE)) begin
+        if (reset || (eng_idle)) begin
             qt_w <= 5'd0;
         end else if (vram_valid && ast != A_SCROLL) begin
             qt[qt_w[3:0]] <= vram_data;
@@ -520,7 +597,7 @@ module hng64_tilemap (
 
     // ---- stage C ------------------------------------------------------------------------------
     always_ff @(posedge clk) begin
-        if (reset || (ast == A_IDLE && est == E_IDLE)) begin
+        if (reset || (eng_idle)) begin
             qw_w <= 7'd0;
             qh_r <= 7'd0;
         end else if (rom_valid) begin
@@ -539,7 +616,7 @@ module hng64_tilemap (
             qw_r <= 7'd0;
         end else begin
             case (est)
-                E_IDLE: if (ast == A_MUL && mul_i > 4'd10) begin   // the multiply is done
+                E_IDLE: if (ast == A_MUL && mul_i > 4'd11) begin   // the multiply is done
                     cx      <= s_xtl + acc_x;
                     cy      <= s_ytl + acc_y;
                     x       <= 9'd0;
@@ -561,9 +638,6 @@ module hng64_tilemap (
                         flipx  <= qb[qb_r[3:0]][0];
                         qb_r   <= qb_r + 5'd1;
                         pop_i  <= 2'd0;
-                        cur_tx <= tile_x(cx);
-                        cur_ty <= tile_y(cy);
-                        cur_py <= pix_y(cy);
                         est    <= E_EMIT;
                     end else begin
                         pop_i <= pop_i + 2'd1;
@@ -590,7 +664,7 @@ module hng64_tilemap (
                     end else begin
                         x <= x + 9'd1;
                         // another tile, or another row of the same one when the line rotates
-                        if (ntx != cur_tx || nty != cur_ty || npy != cur_py) est <= E_WAIT;
+                        if (e_newtile) est <= E_WAIT;
                     end
                 end
 

@@ -7,6 +7,7 @@
     python scripts/hw.py run   "Game Title (set 1)"      # launch, then shot
     python scripts/hw.py playing                         # what is running
     python scripts/hw.py osd                             # toggle the OSD (forces an nvram save)
+    python scripts/hw.py key coin1 start1 b1             # tap keys (rtl/hng64_keyboard.sv's map)
 
 Needs MiSTer Remote (wizzomafizzo/mrext) listening on port 8182, and the same
 ./mister.env that scripts/deploy.py uses. The .mra folder is derived from the
@@ -182,10 +183,22 @@ def resolve_mra(m, name):
     sys.exit(f"no such .mra on the device: {name}")
 
 
+# Linux keycodes (input-event-codes.h) of MAME's default keys, as rtl/hng64_keyboard.sv maps them
+KEYS = {
+    "up": 103, "down": 108, "left": 105, "right": 106,
+    "b1": 29, "b2": 56, "b3": 57, "b4": 42,             # left ctrl, left alt, space, left shift
+    "start1": 2, "coin1": 6,                            # 1, 5
+    "p2up": 19, "p2down": 33, "p2left": 32, "p2right": 34,   # R F D G
+    "p2b1": 30, "p2b2": 31, "p2b3": 16, "p2b4": 17,     # A S Q W
+    "start2": 3, "coin2": 7,                            # 2, 6
+    "pause": 25, "service": 10, "test": 60,             # P, 9, F2
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=("launch", "shot", "run", "playing", "osd"))
-    ap.add_argument("mra", nargs="?", help=".mra name or absolute remote path")
+    ap.add_argument("command", choices=("launch", "shot", "run", "playing", "osd", "key"))
+    ap.add_argument("mra", nargs="*", help=".mra name or absolute remote path; for key, the keys")
     ap.add_argument("--out", default=str(REPO / "debug" / "hw" / "shot.png"))
     ap.add_argument("--settle", type=float, default=4)
     ap.add_argument("--native", action="store_true",
@@ -200,6 +213,17 @@ def main():
     if a.command == "playing":
         print(m.get("/games/playing"))
         return 0
+
+    if a.command == "key":
+        for k in a.mra:
+            if k not in KEYS:
+                sys.exit(f"no key {k}: {', '.join(KEYS)}")
+            m.post(f"/controls/keyboard-raw/{KEYS[k]}")
+            print(f"  {k}")
+            time.sleep(0.3)
+        return 0
+
+    a.mra = " ".join(a.mra) if a.mra else None
 
     if a.command == "osd":
         # The remote API's named-key route accepts "f12" and returns 200

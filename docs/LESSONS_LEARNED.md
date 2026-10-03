@@ -736,6 +736,19 @@ in both layers; the screen said OK anyway. Pinned without probes: every backgrou
 screenshot was MAME's palette entry `0xAAAA & 0x1f`. Where real storage does not fit (~90 M10K), a
 mirror passes a fill-then-verify test if a write tap shows nothing else writes there.
 
+### [HyperNG64] A unit that samples a CPU-written register every clock can see it change mid-operation
+
+The tilemap engine registered its layer's mode (tile size, depth) from the video registers every
+clock. Benches set the registers once per line, so every bench passed; on the board the game
+rewrites them at scene changes while a line is being drawn, and the words-per-tile count changed
+between the stage that requested a tile's row words and the stage that consumed them. That stage
+waited for ever, video stopped, the 3D waited for the display, and the CPU stalled on a full queue.
+The hang was intermittent and moved between builds, so it was logged as placement-dependent. Probe
+Q settled it: 32 tiles' colours queued against 120 row words (mod 128), which no single words-per-
+tile count gives. A bench that flips the mode bits mid-pass (`tilemap_tb +modeflip=N`) hung the old
+RTL at once. Latch any CPU-written configuration a multi-stage unit uses for the length of its
+operation, and give its bench a register write mid-operation.
+
 ## Testbench discipline
 
 - **[HyperNG64] A per-module bench can silently choose its own memory latency, and the
@@ -747,6 +760,17 @@ mirror passes a fill-then-verify test if a write tap shows nothing else writes t
   latency in the module header, serve it the same way in every bench, and treat the composed
   bench as the one that decides. Passing a module bench proves the module is consistent with
   that bench, not that it is consistent with its neighbours.
+- **[HyperNG64] Count a RAM port's latency from the primitive's registers, not from the bench.**
+  The sprite engine read its list from an M10K in another module: its own `ram_addr` register,
+  then the M10K's address register, so a word two clocks after the state that addressed it.
+  `sprite_tb` and `video_tb` (the composed bench) both answered from `ram_addr` as it stood, one
+  clock, and the engine was written to match; every capture passed. On the board each read got
+  the previous word, and every sprite was missing or garbage. A bench comment had reasoned "the
+  address settled last cycle, so this is one cycle after it"; the palette, served a line further
+  down with the right delay, sat beside it. Found by reading the board's sprite RAM back over
+  JTAG (probe M) and running the bench on it: the bench drew the sprites and the board did not,
+  from the same state. Write each port's latency as (registers in the RTL before the RAM) +
+  `address_reg` + `outdata_reg`, and serve it that way.
 - **[HyperNG64] One game's captured frames exercise one game's modes.** The tilemap engine matched
   the model on all six `sams64` captures while carrying a 4-bit row offset that overflowed to 0 for
   rows 8-15 of a 16-tall tile, no clipping for non-wrapping layers, no x mosaic, and none of the
@@ -1039,6 +1063,19 @@ target is the reset entry. Not proven that the extra IRQ caused the restart -- a
 instruction lowering the mask to 0. Dump the vector table before deciding a board's interrupts; an
 ack address that is also an input port must acknowledge on writes only.
 
+### [HyperNG64] Transcribe a MAME CPU core from its dispatch, and verify it with the inputs held
+
+The IO MCU's TLCS-870 decode took `LD (dst),r` at 0x58-0x5f from the comment table in MAME's
+`tlcs870_ops_dst.cpp`; the `switch` below that table, MAME's disassembler and the firmware all use
+0x50-0x57. The firmware's one such store built the Start byte, so Coin worked on the board and
+Start never did. Every check had passed: an instruction-by-instruction comparison with MAME over
+3,000,000 instructions, and a bus replay of 3,098 reads, both with the inputs idle and without
+the main CPU's commands, so the path that copies a pressed button never ran, and with idle inputs
+it stores zero, which a NOP leaves in place. A replay of MAME's own main-CPU side of the protocol
+(`scripts/mame/mcu_proto.lua`, `iomcu_tb +events`) with Start held found it in one run. Take an
+opcode's encoding from the dispatch and the disassembler, not a comment; and drive each input in
+the verification of anything that handles inputs.
+
 ## Quartus synthesis gotchas (not visible in ModelSim)
 
 - **Non-blocking assignments to block-local (`automatic`) variables are rejected**, even with
@@ -1132,6 +1169,14 @@ illegal value" (`"none"` on pll_cpu, build of `2dd4718`; `"gclk_far"` on the mai
 `"gclk"`, build of `9b214fa`). Keep what ip-generate wrote when the generated PLL keeps the
 original's .qip; otherwise check the pair before a full compile.
 
+### [HyperNG64] A case-statement ROM can be built in logic; load it from a hex file with romstyle
+
+The TLCS-870's microcode, written as `always_ff ... case (uaddr) N: uword <= ...;` (526 words of
+46 bits), synthesised into ALUTs with no message saying a ROM was not inferred. The same contents
+as `(* romstyle = "M10K" *) logic [45:0] rom [0:1023]; initial $readmemh(...)` with a registered
+read went to five M10K, and the module's logic fell from 602 ALUTs to 178 (the rest is the
+asynchronous opcode dispatch). Check the map report's block memory bits after writing a ROM.
+
 ## Debug instrumentation: how not to fool yourself
 
 - **Never reset a debug counter with the reset you are investigating.** Two `0x000000` readings were
@@ -1198,6 +1243,15 @@ original's .qip; otherwise check the pair before a full compile.
   same pixel: forcing the blend off changed nothing. Test a reference feature by breaking it
   deliberately and checking the comparison fails. If it still passes, the capture does not
   exercise the path and the green result is worth nothing.
+- **[HyperNG64] An input port's read value is its PORT_BIT mask, not the bit it reports.** MAME's
+  `VBLANK` port is `PORT_BIT(0xffffffff, IP_ACTIVE_HIGH, ...)`: tcram 0x48 reads 0xffffffff in
+  vblank. The core returned `{31'd0, vblank}`. sams64 copies its palette only while
+  `lhu 0x2020804a` reads 0xffff, so the copy never ran and every 2D layer stayed black, while the
+  CPU, 3D and sprite list all ran normally; fatfurwa sign-extends the same halfword and does
+  arithmetic with it. The boot bench did not catch it because the read is outside the traced I/O
+  ranges of the older traces, and the value only matters to the code that tests it. Found by
+  tapping MAME's reads by PC around the palette writer (`debug/hw/s64_6a98_sheet.png`: the
+  backgrounds after the fix).
 - **[HyperNG64] Transcribing MAME means transcribing its integer types.** `tilemap_draw_roz_core_line`
   holds the scroll values in `s32` and the running coordinates in `u32`, and its `/ 512` truncates
   toward zero. A Python model using arbitrary-precision ints and `//` turned a wrapped subtraction

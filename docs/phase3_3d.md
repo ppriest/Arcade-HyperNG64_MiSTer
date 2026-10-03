@@ -605,6 +605,9 @@ blocks of four beats. It borrows the texture read port and the writer while the 
   the render buffer, and offers the plane to the display; once the display has taken it (in the
   next vblank, before its first line is read) the next frame starts in the other plane and the
   engine runs its clear entry. The 3D is shown one frame behind MAME's (HACKS).
+- **Triangles.** The engine's triangles reach the rasteriser through a 256-record FIFO (788
+  bits, 20 M10K): handed over one at a time, each side waited on the other (fatfurwa f1600 in
+  g3d_tb: 2.01 M clk3d clocks a frame, 1.49 M with the FIFO). The flush waits for it to empty.
 - **DDR3.** Three read clients (vertices, textures, depth) and the writer on `hng64_ddram`, which
   now has eight clients; the buffers are at fixed offsets above every set's image
   (`docs/MEMORY.md`).

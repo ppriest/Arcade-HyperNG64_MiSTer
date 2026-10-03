@@ -1,5 +1,6 @@
 rtl/common/hng64_tdpram.sv
 rtl/io/hng64_tlcs870_alu.sv
+rtl/io/hng64_tlcs870_ucode.sv
 rtl/io/hng64_tlcs870.sv
 rtl/io/hng64_iomcu.sv
 sim/iomcu_tb/tb_iomcu.sv

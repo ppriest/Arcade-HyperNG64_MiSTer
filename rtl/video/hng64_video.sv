@@ -93,6 +93,13 @@ module hng64_video (
     // sim only: what each engine wrote to its line buffer this line
     output logic  [7:0] dbg_busy,   // {line pass, sprites, 3D fetch, tilemaps 3:0, mixer}
     output logic [48:0] dbg_spr,    // hng64_sprite's dbg_q
+    // the tilemap engines and their arbiters, for probe Q: {engine 1's dbg_q, engine 0's,
+    // vq_w, vq_r, rq_w, rq_r, rq_n, e_vrd, e_rrd, e_run, e_busy, e_wait, e_pend, e_ph}
+    output logic [185:0] dbg_tq,
+    output logic  [59:0] dbg_sc,    // {mixed, passed, emitted} sprite pixels, the last frame
+    // the sprite engine's ports, for probe R: {line, line start, pixels 1 and 0, their x, their
+    // writes, ROM reply word (as the engine takes it), reply valid, ready, request, address}
+    output logic [154:0] dbg_rc,
     output logic  [5:0] dbg_we,         // [3:0] the tilemaps, [4] and [5] the sprites' two pixels
     output logic  [8:0] dbg_x [0:5],
     output logic [15:0] dbg_pix [0:5]
@@ -164,6 +171,8 @@ module hng64_video (
         for (int e = 0; e < 2; e++) e_rdata[e] <= srom_msb;
     end
 
+    logic [67:0] e_dbg [0:1];
+
     genvar gtm;
     generate
         for (gtm = 0; gtm < 2; gtm++) begin : g_tm
@@ -177,7 +186,7 @@ module hng64_video (
                 .vram_data(vram_data), .vram_valid(vdeliver_e[gtm]),
                 .rom_addr(e_raddr[gtm]), .rom_rd(e_rrd[gtm]), .rom_ready(rgrant_e[gtm]),
                 .rom_data(e_rdata[gtm]), .rom_valid(e_rval[gtm]),
-                .px_we(e_we[gtm]), .px_x(e_x[gtm]), .px_pix(e_pix[gtm]));
+                .px_we(e_we[gtm]), .px_x(e_x[gtm]), .px_pix(e_pix[gtm]), .dbg_q(e_dbg[gtm]));
         end
     endgenerate
 
@@ -236,7 +245,10 @@ module hng64_video (
     // chunk is even for the upper half and odd for the lower, so dropping bit 5 gives the offset
     // within the half.
     wire [25:0] scr_dec = e_raddr[rsel];
-    wire [25:0] scr_raw = {1'b0, scr_dec[25:6], scr_dec[4:0]} + (scr_dec[5] ? 26'd0 : scr_half);
+    // scrtile is a power of two (scripts/build_mra.py refuses one that is not) and the offset in a
+    // half is below scr_half, so adding scr_half is setting its bit: from the engines' requests
+    // through a 26-bit add into the queue it missed clk2x by 1.3 ns
+    wire [25:0] scr_raw = {1'b0, scr_dec[25:6], scr_dec[4:0]} | (scr_dec[5] ? 26'd0 : scr_half);
 
     // ---- round-robin arbiters between the two engines, and the queues that route replies back ---
     // Each engine bounds its own outstanding requests (16 tile words, 60 row words), so two of
@@ -247,13 +259,23 @@ module hng64_video (
     // it has room (rq_n, a register): from an engine's request through the pick and the address
     // translation into the DDR3 issue missed clk2x by 2.1 ns, and from DDR3's grant back into an
     // engine by 1.9. Replies are tagged as requests enter it, so stay in order.
+    // two entries and a read and a write pointer: a push writes its entry whatever the port does,
+    // and a pop moves rq_rp (shifting a1 into a0 put the arbiter's ready in front of a0's 26
+    // bits' select: 1.2 ns over clk2x)
     logic  [1:0] rq_n;
-    logic [25:0] rq_a0, rq_a1;
+    logic [25:0] rq_e [0:1];
+    logic        rq_rp, rq_wp;
     wire         rq_take = rq_n != 2'd2;
     wire         rq_push = rq_take && e_rrd != 2'd0;
     wire         rq_pop  = srom_ready;
     logic       vq [0:127];
     logic [7:0] vq_w, vq_r;
+    // Each queue's head entry held in a register, refreshed every clock with the next one when a
+    // reply takes this one: from the read pointer through the queue's RAM and its bypass into the
+    // engines' valid it missed clk2x by 1.5 ns. An entry is written clocks before its reply.
+    logic       vq_h, rq_h;
+    logic [7:0] vq_r1;                      // vq_r + 1
+    logic [8:0] rq_r1;                      // rq_r + 1
     logic       rq [0:255];
     logic [8:0] rq_w, rq_r;
 
@@ -265,13 +287,13 @@ module hng64_video (
         vsel      = (e_vrd[0] && e_vrd[1]) ? !vlast : e_vrd[1];
         rsel      = (e_rrd[0] && e_rrd[1]) ? !rlast : e_rrd[1];
         vram_addr = e_vaddr[vsel];
-        srom_addr = rq_a0;
+        srom_addr = rq_e[rq_rp];
         vram_rd   = e_vrd != 2'd0;
         srom_rd   = rq_n != 2'd0;
         vgrant_e  = (vram_ready && vram_rd) ? (2'd1 << vsel) : 2'd0;
         rgrant_e  = (rq_take && e_rrd != 2'd0) ? (2'd1 << rsel) : 2'd0;
-        vdeliver_e = vram_valid ? (2'd1 << vq[vq_r[6:0]]) : 2'd0;
-        rdeliver_e = srom_valid ? (2'd1 << rq[rq_r[7:0]]) : 2'd0;
+        vdeliver_e = vram_valid ? (2'd1 << vq_h) : 2'd0;
+        rdeliver_e = srom_valid ? (2'd1 << rq_h) : 2'd0;
     end
 
     always_ff @(posedge clk) begin
@@ -280,43 +302,51 @@ module hng64_video (
             rlast <= 1'b1;
             vq_w  <= 8'd0;
             vq_r  <= 8'd0;
+            vq_r1 <= 8'd1;
             rq_w  <= 9'd0;
             rq_r  <= 9'd0;
+            rq_r1 <= 9'd1;
             rq_n  <= 2'd0;
+            rq_rp <= 1'b0;
+            rq_wp <= 1'b0;
         end else begin
-            case ({rq_push, rq_pop})
-                2'b10: begin
-                    if (rq_n == 2'd0) rq_a0 <= scr_raw; else rq_a1 <= scr_raw;
-                    rq_n <= rq_n + 2'd1;
-                end
-                2'b01: begin
-                    rq_a0 <= rq_a1;
-                    rq_n  <= rq_n - 2'd1;
-                end
-                2'b11: begin
-                    if (rq_n == 2'd1) rq_a0 <= scr_raw;
-                    else begin rq_a0 <= rq_a1; rq_a1 <= scr_raw; end
-                end
-                default: ;
-            endcase
+            if (rq_push) begin
+                rq_e[rq_wp] <= scr_raw;
+                rq_wp <= !rq_wp;
+            end
+            if (rq_pop) rq_rp <= !rq_rp;
+            rq_n <= rq_n + 2'(rq_push) - 2'(rq_pop);
             if (vgrant_e != 2'd0) begin
                 vq[vq_w[6:0]] <= vsel;
                 vq_w  <= vq_w + 8'd1;
                 vlast <= vsel;
             end
-            if (vram_valid) vq_r <= vq_r + 8'd1;
+            if (vram_valid) begin
+                vq_r  <= vq_r1;
+                vq_r1 <= vq_r1 + 8'd1;
+            end
+            vq_h <= vq[vram_valid ? vq_r1[6:0] : vq_r[6:0]];
             if (rgrant_e != 2'd0) begin
                 rq[rq_w[7:0]] <= rsel;
                 rq_w  <= rq_w + 9'd1;
                 rlast <= rsel;
             end
-            if (srom_valid) rq_r <= rq_r + 9'd1;
+            if (srom_valid) begin
+                rq_r  <= rq_r1;
+                rq_r1 <= rq_r1 + 9'd1;
+            end
+            rq_h <= rq[srom_valid ? rq_r1[7:0] : rq_r[7:0]];
         end
     end
+
+    assign dbg_tq = {e_dbg[1], e_dbg[0], vq_w, vq_r, rq_w, rq_r, rq_n, e_vrd, e_rrd,
+                     e_run, e_busy, e_wait, e_pend, e_ph};
 
     // ---- the sprite engine, which has both its ports to itself -----------------------------------
     logic spr_start, spr_busy;
     logic  [1:0] spr_we;                    // [0] the even-x pixel, [1] the odd-x one
+    logic  [1:0] spr_pbv;                   // probe S: the engine's pixels before its z-test
+    logic        mix_spr_seen;
     logic  [8:0] spr_x [0:1];
     logic [15:0] spr_px [0:1];
 
@@ -328,7 +358,7 @@ module hng64_video (
         .rom_addr(prom_addr), .rom_rd(prom_rd), .rom_ready(prom_ready),
         .rom_data(prom_msb), .rom_valid(prom_valid),
         .px_we(spr_we), .px_x(spr_x), .px_pix(spr_px),
-        .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw(), .dbg_q(dbg_spr));
+        .dbg_ncand(), .dbg_xpos(), .dbg_dstwidth(), .dbg_xdrw(), .dbg_q(dbg_spr), .dbg_pbv(spr_pbv));
 
     // ---- line buffers -----------------------------------------------------------------------------
     // Each a hng64_bram: written as arrays these were built from 65,000 registers. A tilemap's two
@@ -400,7 +430,24 @@ module hng64_video (
         .d3_pix(dbg_layer_off[5] ? 16'd0 : mix_d3), .d3_palbase(fbcontrol2[5]),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb), .screen_dis(screen_dis),
         .pal_a(pal_a), .pal_d(pal_d),
-        .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb));
+        .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb), .dbg_spr_seen(mix_spr_seen));
+
+    assign dbg_rc = {line, spr_start, spr_px[1], spr_px[0], spr_x[1], spr_x[0], spr_we,
+                     prom_msb, prom_valid, prom_ready, prom_rd, prom_addr};
+
+    // sprite pixels a frame, latched at frame start: drawn by the engine, past its z-test into the
+    // line buffer, and read back by the mixer (probe S)
+    logic [19:0] c_emit, c_pass, c_mix;
+    always_ff @(posedge clk) begin
+        if (frame_start) begin
+            dbg_sc <= {c_mix, c_pass, c_emit};
+            c_emit <= 20'd0; c_pass <= 20'd0; c_mix <= 20'd0;
+        end else begin
+            c_emit <= c_emit + 20'(spr_pbv[0]) + 20'(spr_pbv[1]);
+            c_pass <= c_pass + 20'(spr_we[0]) + 20'(spr_we[1]);
+            c_mix  <= c_mix + 20'(mix_spr_seen);
+        end
+    end
 
     always_comb begin
         dbg_we = {spr_we, tm_we};
@@ -423,7 +470,7 @@ module hng64_video (
     assign busy = (lst != L_IDLE) || spr_busy || f3_busy || mix_busy;   // mix_busy: the palette rebuild
     assign dbg_busy = {lst != L_IDLE, spr_busy, f3_busy, tm_busy, mix_busy};
 
-    logic started;
+    logic started, started0;
 
     always_ff @(posedge clk) begin
         tm_start  <= 4'd0;
@@ -442,12 +489,15 @@ module hng64_video (
                     spr_start <= 1'b1;
                     mix_start <= primed;
                     started   <= 1'b0;
+                    started0  <= 1'b0;
                     lst       <= L_RUN;
                 end
-                // `started` covers the cycle it takes the engines to raise busy; a layer that is
+                // `started` covers the two clocks it takes the engines to raise busy (the sprite
+                // engine's is registered); a layer that is
                 // disabled never raises it at all, which is why the wait is on all five together
                 L_RUN: begin
-                    started <= 1'b1;
+                    started0 <= 1'b1;
+                    started  <= started0;
                     if (started && tm_busy == 4'd0 && !spr_busy && !mix_busy && !f3_busy) begin
                         bank   <= ~bank;
                         primed <= 1'b1;

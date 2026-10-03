@@ -107,7 +107,14 @@ module hng64_io #(
     input  logic        dl_full,
     output logic        dbg_mcu_en_0c,  // m_mcu_en == 0x0c, for the bench
     output logic [31:0] dbg_irq_pending,
-    output logic  [4:0] dbg_irq_level
+    output logic  [4:0] dbg_irq_level,
+    // the stp revision's readback (HyperNG64.sv, ISSP M): a read of the v_* port between CPU
+    // requests. dbg_rd toggles to ask; dbg_rdone follows it once dbg_rdata holds the word.
+    input  logic        dbg_rd,
+    input  logic  [2:0] dbg_sel,
+    input  logic [13:0] dbg_addr,
+    output logic        dbg_rdone,
+    output logic [31:0] dbg_rdata
 );
 
     localparam logic [2:0] V_SPR = 3'd0, V_SPRREG = 3'd1, V_VREG = 3'd2, V_PAL = 3'd3,
@@ -279,7 +286,8 @@ module hng64_io #(
 
     // ---- state machine ------------------------------------------------------------------------------------
     typedef enum logic [3:0] {
-        S_IDLE, S_MEM, S_MEM2, S_DP, S_DPLAST, S_DPLAST2, S_VWAIT, S_CLR, S_DMA, S_SPIN, S_ACK
+        S_IDLE, S_MEM, S_MEM2, S_DP, S_DPLAST, S_DPLAST2, S_VWAIT, S_CLR, S_DMA, S_SPIN, S_ACK,
+        S_DBG
     } state_t;
     state_t st;
 
@@ -289,6 +297,10 @@ module hng64_io #(
     logic  [1:0] dp_lane_q, dp_lane_q2;
     logic  [3:0] clr_i;                 // sprite-clear writes done
     logic  [8:0] spin;                  // the mailbox's 5 us
+    logic  [1:0] dbg_rd_s;
+    logic        dbg_seen = 1'b0;
+    logic        io_req_q = 1'b0;           // a CPU request that arrived during S_DBG
+    initial dbg_rdone = 1'b0;
 
     logic  [7:0] mcu_en;                // m_mcu_en
     logic        raster_half;           // m_irq_pos_half
@@ -361,6 +373,7 @@ module hng64_io #(
         dp_hack_q2 <= dp_hack_q;
 
         if (int0_cnt != 11'd0) int0_cnt <= int0_cnt - 11'd1;
+        dbg_rd_s <= {dbg_rd_s[0], dbg_rd};
         dl_we    <= 1'b0;
         dl_up    <= 1'b0;
         // held at 2 while the queue is full, so interrupt 3 waits for a free slot
@@ -381,7 +394,8 @@ module hng64_io #(
             dma_go <= 1'b0;
         end else begin
             case (st)
-                S_IDLE: if (io_req) begin
+                S_IDLE: if (io_req || io_req_q) begin
+                    io_req_q <= 1'b0;
                     a   <= io_addr;
                     we  <= io_we;
                     be  <= io_be;
@@ -389,6 +403,24 @@ module hng64_io #(
                     dev <= decode(io_addr);
                     result <= 32'd0;
                     st  <= S_MEM;
+                end else if (dbg_rd_s[1] != dbg_seen) begin
+                    dbg_seen <= dbg_rd_s[1];
+                    v_req    <= 1'b1;
+                    v_we     <= 1'b0;
+                    v_sel    <= dbg_sel;
+                    v_addr   <= dbg_addr;
+                    v_be     <= 4'hf;
+                    st       <= S_DBG;
+                end
+
+                // io_req is one clock: one that lands here is taken from S_IDLE
+                S_DBG: begin
+                    if (io_req) io_req_q <= 1'b1;
+                    if (v_ack) begin
+                        dbg_rdata <= v_rdata;
+                        dbg_rdone <= dbg_seen;
+                        st        <= S_IDLE;
+                    end
                 end
 
                 // the RAM reads have landed by the next clock; everything else decides here
@@ -469,7 +501,9 @@ module hng64_io #(
 
                         D_SPR, D_SPRREG, D_VREG, D_PAL, D_TCRAM: begin
                             if (dev == D_TCRAM && !we && a[6:0] == 7'h48) begin
-                                result <= {31'd0, vblank};              // tcram_r
+                                // tcram_r: the VBLANK port is all 32 bits; sams64's palette
+                                // copy waits for lhu 0x2020804a == 0xffff
+                                result <= {32{vblank}};
                             end else begin
                                 v_req  <= 1'b1;
                                 v_we   <= we;

@@ -104,10 +104,19 @@ module hng64_cpu_cdc (
         end
     end
 
+    // the token a clock before the FIFO: from hng64_bus's DOUT_READY through the select of four
+    // 64-bit sources into the FIFO's storage it missed clk2x by 0.8 ns
+    logic        tk_push_q = 1'b0;
+    logic [65:0] tk_in_q;
+    always_ff @(posedge b2x) begin
+        tk_push_q <= !b_rst && tk_push;
+        tk_in_q   <= tk_in;
+    end
+
     logic        tk_valid;
     logic [65:0] tk_out;
     hng64_afifo #(.DW(66), .AW(3)) u_tok (
-        .wclk(b2x), .wrst(b_rst), .w_valid(tk_push), .w_ready(), .w_data(tk_in), .w_count(),
+        .wclk(b2x), .wrst(b_rst), .w_valid(tk_push_q), .w_ready(), .w_data(tk_in_q), .w_count(),
         .rclk(c2x), .rrst(c_rst), .r_valid(tk_valid), .r_ready(1'b1), .r_data(tk_out));
 
     logic        dn_t = 1'b0;

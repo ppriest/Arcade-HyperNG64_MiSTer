@@ -11,8 +11,20 @@
 | Here | Copied from the Seta tree **untouched**. Do not edit. |
 
 Its own header and the Seta tree's `PROVENANCE.md` record what changed from upstream and why.
-Nothing in this repository modifies it; if it ever has to change, the change is recorded here
-with the reason and the evidence, as `rtl/cpu/vr4300/PROVENANCE.md` does for the CPU.
+Changes made in this repository are recorded below with the reason and the evidence, as
+`rtl/cpu/vr4300/PROVENANCE.md` does for the CPU.
+
+## Changed here
+
+- **The outputs through a register stage.** The command, address, bank, write data and output
+  enable are worked out into fabric registers (`cmd_q`, `a_q`, `ba_q`, `dqo_q`, `oe_q`) and the
+  I/O cells' registers copy them a clock later; `STATE_READ0` is `+3` instead of `+2`, so a read
+  burst ends a clock later. At 125 MHz the decode from `state`, `mode` and the init counter into
+  the I/O cells missed by up to 1.9 ns (release build of `eba8a65`). `mainmem_tb`, `romload_tb`
+  and `video_tb` (VRAM through the chip model) unchanged.
+- **The read data through a second register, `dq_in2`,** in the fabric after the I/O cell's
+  `dq_in`, and the four lanes taken from it; `STATE_READ0` is `+4`. From the I/O cell straight
+  into the lanes' registers it missed 125 MHz by 1.06 ns (`063e9f2`). Same benches unchanged.
 
 ## Why this controller
 

@@ -172,14 +172,19 @@ module hng64_3d_bridge #(
                  (hk == K_Z && dz_ready) || (hk == K_W && dw_ready);
     assign cq_rready = !sk_v;
 
+    // takes are counted a clock late (tk_inc): from the skid through the port's ready into the
+    // count's 16 bits it missed clk2x by 0.78 ns (3f20971)
+    logic tk_inc;
     always_ff @(posedge clk2x) begin
         if (rst2x) begin
-            sk_v <= 1'b0;
-            tk_b <= '0;
-            tk_g <= '0;
+            sk_v   <= 1'b0;
+            tk_inc <= 1'b0;
+            tk_b   <= '0;
+            tk_g   <= '0;
         end else begin
-            sk_v <= hv && !taken;
-            if (hv && taken) begin
+            sk_v   <= hv && !taken;
+            tk_inc <= hv && taken;
+            if (tk_inc) begin
                 tk_b <= tk_b + 8'd1;
                 tk_g <= (tk_b + 8'd1) ^ ((tk_b + 8'd1) >> 1);
             end
@@ -187,7 +192,10 @@ module hng64_3d_bridge #(
         if (!sk_v) sk_d <= cq_rdata;
     end
 
-    logic urg1, urg2;
+    // Kept as registers: Quartus made this chain and the arbiter's h_urg one M10K shift register
+    // with sys's video delay, its slow output then in front of every DDR3 client's ready (0.45 ns
+    // over clk2x into the sprite's rq_head, 00a9080).
+    (* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *) logic urg1, urg2;
     always_ff @(posedge clk2x) begin
         urg1 <= w_urgent;
         urg2 <= urg1;

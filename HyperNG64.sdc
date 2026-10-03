@@ -8,6 +8,12 @@ set_clock_groups -asynchronous -group [get_clocks {*|pll|pll_inst|*cyclonev_pll|
 
 # core specific constraints
 
+# The CPU's reset reaches its clock through two registers (rst93_a, rst93_s; HyperNG64.sv) from
+# clk1x and from the CPU clock selector's hold (hng64_pllsel, CLK_50M): asynchronous by design.
+# Unconstrained, the selector's state into rst93_a was the CPU clock's one failing path (-0.78 ns,
+# a00e889 seed 2).
+set_false_path -to [get_registers {*rst93_a}]
+
 # The main PLL, VCO 1000 MHz: counter[0] clk3d (100), counter[1] clk1x (62.5), counter[2] clk2x (125),
 # counter[3] the SDRAM clock (125 at 180 degrees). clk1x, clk2x and the SDRAM clock rely on sharing
 # it: clk2x is exactly twice clk1x (hng64_core.sv). clk3d and the CPU's own three (pll_cpu, kept in

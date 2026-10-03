@@ -108,8 +108,6 @@ module hng64_mainmem #(
     logic [31:0] addr;
     logic  [2:0] left;                  // beats still to ask for
     logic  [2:0] due;                   // beats still to come back
-    logic        to_ddr;
-    logic        ro;                    // read-only region: swallow the write
     logic        inflight;              // an SDRAM beat has been asked for and not answered
 
     // from the LATCHED address, which advances a beat at a time; the request's own address may
@@ -122,6 +120,15 @@ module hng64_mainmem #(
     assign s_be    = st_be;
     // gameprg is 0x04000000-0x05ffffff, so the offset into it is the low 25 bits
     assign d_addr  = prg_base + {3'd0, addr[24:0]};
+
+    // DDR3's reply taken into a register of its own here: hng64_ddram's one reply register feeds
+    // every client across the chip, and into st_rdata it missed clk2x by 1.5 ns (6d05a94)
+    (* preserve *) logic [63:0] d_data_q;
+    logic        d_valid_q;
+    always_ff @(posedge clk) begin
+        d_data_q  <= d_data;
+        d_valid_q <= !reset && d_valid;
+    end
 
     always_ff @(posedge clk) begin
         st_rvalid <= 1'b0;
@@ -137,8 +144,6 @@ module hng64_mainmem #(
                     addr   <= st_addr;
                     left   <= st_beats;
                     due    <= st_beats;
-                    to_ddr <= req_map.prg;
-                    ro     <= req_map.ro;
                     inflight <= 1'b0;
                     if (st_we)             st <= M_WRITE;
                     else if (req_map.prg)  st <= M_DDR;
@@ -175,17 +180,20 @@ module hng64_mainmem #(
                         addr <= addr + 32'd8;
                         if (left == 3'd1) d_rd <= 1'b0;
                     end
-                    if (d_valid) begin
+                    if (d_valid_q) begin
                         st_rvalid <= 1'b1;
-                        st_rdata  <= d_data;
+                        st_rdata  <= d_data_q;
                         due       <= due - 3'd1;
                         if (due == 3'd1) st <= M_IDLE;
                     end
                 end
 
-                // only main RAM is writable; elsewhere the write is swallowed and acknowledged
+                // only main RAM is writable; elsewhere the write is swallowed and acknowledged. A
+                // write is one beat, so addr is still the request's: its map, not one latched from
+                // the request (from the DMA's state through the request select and the map: 0.79 ns
+                // over clk2x, 47bb296 seed 1)
                 M_WRITE: begin
-                    if (ro) begin
+                    if (cur_map.ro) begin
                         st_wdone <= 1'b1;
                         st       <= M_IDLE;
                     end else begin

@@ -217,7 +217,20 @@ module hng64_3d #(
     assign dbg_state = st;
     assign dbg_queued = 6'(occ);
 
-    // the triangle between the two: the setup record (geo_engine.setup_record)
+    // the triangle between the two: the setup record (geo_engine.setup_record), out of the engine
+    // (g_*) and into the rasteriser (t_*) through a FIFO
+    logic         g_valid, g_ready, g_neg;
+    logic  [23:0] g_xy [0:5];
+    logic  [29:0] g_p0_0;
+    logic  [33:0] g_p0_1;
+    logic  [23:0] g_p0_2;
+    logic  [31:0] g_p0_3, g_p0_4;
+    logic  [41:0] g_dx_0, g_dy_0;
+    logic  [45:0] g_dx_1, g_dy_1;
+    logic  [35:0] g_dx_2, g_dy_2;
+    logic  [43:0] g_dx_3, g_dy_3, g_dx_4, g_dy_4;
+    logic  [66:0] gattr;
+
     logic         tri_valid, tri_ready, t_neg;
     assign dbg_tri = tri_valid && tri_ready;
     logic  [23:0] t_xy [0:5];
@@ -230,6 +243,37 @@ module hng64_3d #(
     logic  [35:0] t_dx_2, t_dy_2;
     logic  [43:0] t_dx_3, t_dy_3, t_dx_4, t_dy_4;
     logic  [66:0] tattr;
+
+    // ---- the triangle FIFO ----------------------------------------------------------------------
+    // Handing triangles over one at a time made each side wait on the other: fatfurwa f1600 took
+    // 2.01 M clk3d clocks a frame (1.67 M in a 60 Hz frame), the engine blocked on the rasteriser
+    // for 0.98 M and the rasteriser idle for 0.52 M (g3d_tb +prof). 256 records, 20 M10K. The store
+    // answers a clock after its address, so the head is shown only from the clock after it was
+    // written, and after a pop the next is shown a clock later.
+    localparam int TW = 788;
+    wire  [TW-1:0] g_rec = {g_neg, g_xy[0], g_xy[1], g_xy[2], g_xy[3], g_xy[4], g_xy[5],
+                            g_p0_0, g_p0_1, g_p0_2, g_p0_3, g_p0_4,
+                            g_dx_0, g_dx_1, g_dx_2, g_dx_3, g_dx_4,
+                            g_dy_0, g_dy_1, g_dy_2, g_dy_3, g_dy_4, gattr};
+    logic [TW-1:0] tq_q;
+    logic    [8:0] tq_w, tq_r;
+    logic          tq_v;
+    wire           tq_full  = (tq_w - tq_r) == 9'd256;
+    wire           tq_empty = tq_w == tq_r;
+    wire           tq_push  = g_valid && !tq_full;
+    wire           tq_pop   = tq_v && tri_ready;
+    assign g_ready   = !tq_full;
+    assign tri_valid = tq_v;
+    assign {t_neg, t_xy[0], t_xy[1], t_xy[2], t_xy[3], t_xy[4], t_xy[5],
+            t_p0_0, t_p0_1, t_p0_2, t_p0_3, t_p0_4,
+            t_dx_0, t_dx_1, t_dx_2, t_dx_3, t_dx_4,
+            t_dy_0, t_dy_1, t_dy_2, t_dy_3, t_dy_4, tattr} = tq_q;
+
+    (* ramstyle = "M10K, no_rw_check" *) logic [TW-1:0] tq_mem [0:255];
+    always_ff @(posedge clk3d) begin
+        if (tq_push) tq_mem[tq_w[7:0]] <= g_rec;
+        tq_q <= tq_mem[tq_r[7:0]];
+    end
 
     // reset, the pointers and show/shown into clk3d
     logic rst3a, rst3, shown_v3a, shown_v3, shown_p3a, shown_p3;
@@ -251,6 +295,18 @@ module hng64_3d #(
         show_valid <= show_v2a;
         show_p2a   <= show_p3;
         show_plane <= show_p2a;
+    end
+
+    always_ff @(posedge clk3d) begin
+        if (rst3) begin
+            tq_w <= 9'd0;
+            tq_r <= 9'd0;
+            tq_v <= 1'b0;
+        end else begin
+            if (tq_push) tq_w <= tq_w + 9'd1;
+            if (tq_pop)  tq_r <= tq_r + 9'd1;
+            tq_v <= !tq_pop && !tq_empty;
+        end
     end
 
     logic br_idle;                          // every DDR3 command has reached the arbiter
@@ -298,7 +354,7 @@ module hng64_3d #(
                 end
                 S_RUNW: begin
                     started <= 1'b1;
-                    if (started && !geo_busy && !tri_valid) begin
+                    if (started && !geo_busy && !g_valid) begin
                         if (after_run) begin
                             rptr <= rptr + 1'b1;
                             st <= S_IDLE;
@@ -341,7 +397,7 @@ module hng64_3d #(
                     st <= S_RUNW;
                 end
                 // the clearing vblank: every triangle through, then the buffer's last writes
-                S_FLUSH: if (!r_busy && !tri_valid) begin
+                S_FLUSH: if (!r_busy && !g_valid && tq_empty && !tq_v) begin
                     r_finish <= 1'b1;
                     st <= S_FIN;
                 end
@@ -399,18 +455,18 @@ module hng64_3d #(
         .io_vBase(vert_base),
         .io_vRd_valid(v3_rd), .io_vRd_ready(v3_ready), .io_vRd_payload(v3_addr),
         .io_vData_valid(v3_valid), .io_vData_payload(v3_data),
-        .io_tri_valid(tri_valid), .io_tri_ready(tri_ready),
-        .io_tri_payload_v_0_0(t_xy[0]), .io_tri_payload_v_0_1(t_xy[1]),
-        .io_tri_payload_v_1_0(t_xy[2]), .io_tri_payload_v_1_1(t_xy[3]),
-        .io_tri_payload_v_2_0(t_xy[4]), .io_tri_payload_v_2_1(t_xy[5]),
-        .io_tri_payload_neg(t_neg),
-        .io_tri_payload_p0_v_0(t_p0_0), .io_tri_payload_p0_v_1(t_p0_1), .io_tri_payload_p0_v_2(t_p0_2),
-        .io_tri_payload_p0_v_3(t_p0_3), .io_tri_payload_p0_v_4(t_p0_4),
-        .io_tri_payload_dx_v_0(t_dx_0), .io_tri_payload_dx_v_1(t_dx_1), .io_tri_payload_dx_v_2(t_dx_2),
-        .io_tri_payload_dx_v_3(t_dx_3), .io_tri_payload_dx_v_4(t_dx_4),
-        .io_tri_payload_dy_v_0(t_dy_0), .io_tri_payload_dy_v_1(t_dy_1), .io_tri_payload_dy_v_2(t_dy_2),
-        .io_tri_payload_dy_v_3(t_dy_3), .io_tri_payload_dy_v_4(t_dy_4),
-        .io_tri_payload_attr(tattr));
+        .io_tri_valid(g_valid), .io_tri_ready(g_ready),
+        .io_tri_payload_v_0_0(g_xy[0]), .io_tri_payload_v_0_1(g_xy[1]),
+        .io_tri_payload_v_1_0(g_xy[2]), .io_tri_payload_v_1_1(g_xy[3]),
+        .io_tri_payload_v_2_0(g_xy[4]), .io_tri_payload_v_2_1(g_xy[5]),
+        .io_tri_payload_neg(g_neg),
+        .io_tri_payload_p0_v_0(g_p0_0), .io_tri_payload_p0_v_1(g_p0_1), .io_tri_payload_p0_v_2(g_p0_2),
+        .io_tri_payload_p0_v_3(g_p0_3), .io_tri_payload_p0_v_4(g_p0_4),
+        .io_tri_payload_dx_v_0(g_dx_0), .io_tri_payload_dx_v_1(g_dx_1), .io_tri_payload_dx_v_2(g_dx_2),
+        .io_tri_payload_dx_v_3(g_dx_3), .io_tri_payload_dx_v_4(g_dx_4),
+        .io_tri_payload_dy_v_0(g_dy_0), .io_tri_payload_dy_v_1(g_dy_1), .io_tri_payload_dy_v_2(g_dy_2),
+        .io_tri_payload_dy_v_3(g_dy_3), .io_tri_payload_dy_v_4(g_dy_4),
+        .io_tri_payload_attr(gattr));
 
     hng64_raster u_raster (
         .clk(clk3d), .reset(rst3),

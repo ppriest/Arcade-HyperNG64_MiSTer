@@ -157,6 +157,10 @@ int main(int argc, char **argv) {
     dut->reset = 0;
 
     if (dbg_line >= 0) dbg = true;
+    // +modeflip=N: N clocks into each line's pass the layer's tile size and depth bits are flipped,
+    // as a CPU write to the register mid-pass would; the engine must finish with the mode it
+    // started with
+    const long modeflip = atol(arg("modeflip", "0").c_str());
     for (int y = 0; y < HEIGHT; y++) {
         cur_line = y;
         std::fill(got.begin(), got.end(), 0);
@@ -165,7 +169,11 @@ int main(int argc, char **argv) {
         tick();
         dut->start = 0;
         long guard = 0;
-        while (dut->busy && ++guard < 200000) tick();
+        while (dut->busy && ++guard < 200000) {
+            if (modeflip > 0 && guard == modeflip) dut->tileregs = tileregs ^ 0x0600;
+            tick();
+        }
+        dut->tileregs = tileregs;
         if (guard > worst) worst = guard;
         if (nrom - romprev > romworst) romworst = nrom - romprev;
         romprev = nrom;

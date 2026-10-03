@@ -57,7 +57,8 @@ module hng64_mixer (
 
     output logic        px_we,
     output logic  [8:0] px_x,
-    output logic [23:0] px_rgb              // r, g, b
+    output logic [23:0] px_rgb,             // r, g, b
+    output logic        dbg_spr_seen        // a pixel read with a sprite word in it, once a pixel
 );
 
     localparam logic [1:0] M_COPY = 2'd0, M_ADD = 2'd1, M_ALPHA = 2'd2;
@@ -223,7 +224,10 @@ module hng64_mixer (
     logic  [1:0] mode_q [0:NC-1];
     logic        fen_q [0:NC-1], fsel_q [0:NC-1];
     logic  [3:0] br_q [0:NC-1];
-    logic  [2:0] rank_q [0:NC-1];
+    // the ranks as one-hot slots: slot_q[k][i], contributor i goes to slot k. The keys are distinct
+    // (their low bits name the contributor), so each slot has one; scattered by a 3-bit rank through
+    // the loop's priority it missed clk2x by 0.74 ns into a_idx (a10b85c seed 1).
+    logic [NC-1:0] slot_q [0:NC-1];
     always_ff @(posedge clk)
         if (ph == 3'(NC - 2))
             for (int i = 0; i < NC; i++) begin
@@ -233,8 +237,27 @@ module hng64_mixer (
                 fen_q[i]  <= fen_k[i];
                 fsel_q[i] <= fsel_k[i];
                 br_q[i]   <= br_k[i];
-                rank_q[i] <= rank_c[i];
+                for (int k = 0; k < NC; k++) slot_q[k][i] <= rank_c[i] == 3'(k);
             end
+    logic        sc_val [0:NC-1];
+    logic [11:0] sc_idx [0:NC-1];
+    logic  [1:0] sc_mode [0:NC-1];
+    logic        sc_fen [0:NC-1], sc_fsel [0:NC-1];
+    logic  [3:0] sc_br [0:NC-1];
+    always_comb
+        for (int k = 0; k < NC; k++) begin
+            sc_val[k] = 1'b0; sc_idx[k] = '0; sc_mode[k] = '0;
+            sc_fen[k] = 1'b0; sc_fsel[k] = 1'b0; sc_br[k] = '0;
+            for (int i = 0; i < NC; i++)
+                if (slot_q[k][i]) begin
+                    sc_val[k]  = sc_val[k]  | val_q[i];
+                    sc_idx[k]  = sc_idx[k]  | idx_q[i];
+                    sc_mode[k] = sc_mode[k] | mode_q[i];
+                    sc_fen[k]  = sc_fen[k]  | fen_q[i];
+                    sc_fsel[k] = sc_fsel[k] | fsel_q[i];
+                    sc_br[k]   = sc_br[k]   | br_q[i];
+                end
+        end
 
     // ---- the pixel being issued: its contributors in rank order -------------------------------
     logic        s_val [0:NC-1];
@@ -253,6 +276,7 @@ module hng64_mixer (
     // clears the sprite buffer a clock behind lb_x, so it must never point ahead of the read.
     logic       reading;                // pixels are still to be read
     logic       rd_pend;                // read at phase 1, to be taken at phase 5
+    assign dbg_spr_seen = ph == 3'(NC - 3) && rd_pend && w_spr[11:0] != 12'd0;
     logic       have;                   // a pixel is being issued
     logic [8:0] x;                      // the next pixel to read
     logic [8:0] x_last;                 // the pixel last read
@@ -274,12 +298,15 @@ module hng64_mixer (
         logic  [8:0] x;
     } tag_t;
 
-    tag_t t0, t4b, t5;
+    tag_t t0, t1, t4b, t5;
     logic [23:0] c4b, c5;               // the colour after each stage
     logic [23:0] acc;
 
     // ---- the modified palette, and its rebuild -------------------------------------------------
-    logic [23:0] mpal_d;                // the entry at s_idx[ph], the clock after
+    logic [23:0] mpal_d;                // the entry at s_idx[ph], two clocks after
+    // s_idx in phase order: a_idx[0] is s_idx[ph]. From ph through s_idx's select into the RAM's
+    // address it missed clk2x by 0.95 ns; this shifts a slot each time ph moves on.
+    logic [11:0] a_idx [0:NC-1];
     logic        rb_run, rb_we;
     logic [11:0] rb_k, rb_wk;
     logic  [3:0] rb_step;               // 0 read issued, 1 word back, 2-9 modifier 0-7
@@ -288,9 +315,9 @@ module hng64_mixer (
     logic  [1:0] rb_md;
     logic  [2:0] rb_ni;                 // the one to load next (kept, not added each step: 2.0 ns)
 
-    hng64_bram #(.AW(12), .DW(24)) u_mpal (
-        .a_clk(clk), .a_addr(rb_we ? rb_wk : rb_k), .a_be({3{rb_we}}), .a_wdata(rb_wc), .a_rdata(),
-        .b_clk(clk), .b_addr(s_idx[ph]), .b_rdata(mpal_d));
+    hng64_bram #(.AW(12), .DW(24), .OUTREG_B(1'b1)) u_mpal (
+        .a_clk(clk), .a_addr(rb_wk), .a_be({3{rb_we}}), .a_wdata(rb_wc), .a_rdata(),
+        .b_clk(clk), .b_addr(a_idx[0]), .b_rdata(mpal_d));
 
     assign pal_a = rb_k;
 
@@ -324,7 +351,7 @@ module hng64_mixer (
         end
     end
 
-    assign busy = rb_run || rb_we || reading || rd_pend || have || t0.go || t4b.go || t5.go;
+    assign busy = rb_run || rb_we || reading || rd_pend || have || t0.go || t1.go || t4b.go || t5.go;
 
     always_ff @(posedge clk) begin
         px_we <= 1'b0;
@@ -335,7 +362,7 @@ module hng64_mixer (
             ph      <= 3'd0;
             x       <= 9'd0;
             x_last  <= 9'd0;
-            t0 <= '0; t4b <= '0; t5 <= '0;
+            t0 <= '0; t1 <= '0; t4b <= '0; t5 <= '0;
         end else begin
             // ---- issue --------------------------------------------------------------------
             if (start) begin
@@ -344,6 +371,7 @@ module hng64_mixer (
                 ph      <= 3'(NC - 5);      // read pixel 0 now
             end else if (reading || rd_pend || have) begin
                 ph <= (ph == 3'(NC - 1)) ? 3'd0 : ph + 3'd1;
+                for (int k = 0; k < NC - 1; k++) a_idx[k] <= a_idx[k + 1];
                 if (ph == 3'(NC - 5) && reading) begin
                     rd_pend <= 1'b1;
                     x_last  <= x;
@@ -353,14 +381,16 @@ module hng64_mixer (
                 if (ph == 3'(NC - 1)) begin
                     have    <= rd_pend;     // the words read at phase 1 become the next pixel
                     rd_pend <= 1'b0;
+                    for (int k = 0; k < NC; k++) a_idx[k] <= s_idx[k];
                     if (rd_pend) begin
-                        for (int i = 0; i < NC; i++) begin
-                            s_val[rank_q[i]]  <= val_q[i];
-                            s_idx[rank_q[i]]  <= idx_q[i];
-                            s_mode[rank_q[i]] <= mode_q[i];
-                            s_fen[rank_q[i]]  <= fen_q[i];
-                            s_fsel[rank_q[i]] <= fsel_q[i];
-                            s_br[rank_q[i]]   <= br_q[i];
+                        for (int k = 0; k < NC; k++) begin
+                            s_val[k]  <= sc_val[k];
+                            s_idx[k]  <= sc_idx[k];
+                            a_idx[k]  <= sc_idx[k];
+                            s_mode[k] <= sc_mode[k];
+                            s_fen[k]  <= sc_fen[k];
+                            s_fsel[k] <= sc_fsel[k];
+                            s_br[k]   <= sc_br[k];
                         end
                         s_x <= x_last;
                     end
@@ -379,9 +409,13 @@ module hng64_mixer (
             t0.x      <= s_x;
 
             // ---- the colour: the modified entry, the brightness, the fade, the blend --------------
-            t4b <= t0;
-            c4b <= {addsat(mpal_d[23:16], {2'd0, t0.br, 2'd0}), addsat(mpal_d[15:8], {2'd0, t0.br, 2'd0}),
-                    addsat(mpal_d[7:0], {2'd0, t0.br, 2'd0})};
+            // the palette word is registered at the RAM (u_mpal OUTREG_B): it comes back two clocks
+            // after its slot, so the slot waits a clock in t1 (from the RAM straight into the
+            // brightness add it missed clk2x by 0.8 ns)
+            t1  <= t0;
+            t4b <= t1;
+            c4b <= {addsat(mpal_d[23:16], {2'd0, t1.br, 2'd0}), addsat(mpal_d[15:8], {2'd0, t1.br, 2'd0}),
+                    addsat(mpal_d[7:0], {2'd0, t1.br, 2'd0})};
             t5 <= t4b;
             c5 <= t4b.fen ? fade(c4b, t4b.fsel) : c4b;
 

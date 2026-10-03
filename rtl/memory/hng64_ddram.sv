@@ -65,48 +65,63 @@ module hng64_ddram #(
 
     // Replies go out a clock after the port gives them, registered: decoded from the queue's head
     // straight into every client's valid, they missed clk2x by up to 3.2 ns (fb3d's line buffer,
-    // the loader, the backing store). Clients take replies in order and at any latency.
-    always_ff @(posedge clk) c_data <= DDRAM_DOUT;
+    // the loader, the backing store). Clients take replies in order and at any latency. The register
+    // is copied for its loads (maxfan): one copy for all of them missed clk2x by 1.05 ns into
+    // hng64_video's e_rdata and 0.83 ns into the sprite's row buffer (a10b85c seed 2).
+    (* maxfan = 4 *) logic [63:0] c_data_r;
+    always_ff @(posedge clk) c_data_r <= DDRAM_DOUT;
+    assign c_data = c_data_r;
 
-    // ---- the issue register --------------------------------------------------------------------------
-    // What goes to the port is a register, loaded when it is empty or its contents are being
-    // taken this clock. So nothing a client computes reaches DDRAM_ADDR, or another client's
-    // ready, in the same clock: the first full fit had the geometry engine's decode in front of
-    // the HPS port (-9.6 ns) and every video engine (docs/phase3_3d.md, Timing).
-    logic          o_valid, o_we;
-    logic   [28:0] o_addr;
-    logic   [63:0] o_din;
-    logic    [7:0] o_be;
+    // ---- the issue queue -----------------------------------------------------------------------------
+    // What goes to the port comes from a two-entry queue of registers, its head picked by a read
+    // pointer. So nothing a client computes reaches DDRAM_ADDR, or another client's ready, in the
+    // same clock (the first full fit had the geometry engine's decode in front of the HPS port,
+    // -9.6 ns): a request is accepted while the queue is not full (acc, from registers). And
+    // DDRAM_BUSY, which comes from the HPS's own registers across the chip, moves only the read
+    // pointer and the count: as the enable of one issue register's 100 bits it missed clk2x by
+    // 0.76 ns (an issue register and a spare before this). Order is kept.
+    // An entry keeps the writer's and the reader's fields side by side, and the port picks by the
+    // entry's f_we: choosing on the way in put the write-or-read decision (wr_sel, from the held
+    // write) in front of 100 bits' selects (1.1 ns over clk2x).
+    logic          f_we   [0:1];
+    logic   [28:0] f_waddr [0:1];
+    logic   [28:0] f_raddr [0:1];
+    logic   [63:0] f_din  [0:1];
+    logic    [7:0] f_be   [0:1];
+    logic    [1:0] f_n;
+    logic          f_rp, f_wp;
+    // acc is f_n != 2, a register set from f_n's next value: compared, it was in front of every
+    // client's take into the held requests (0.46 ns over clk2x, 102 endpoints, bc6546a seed 1)
+    logic          acc;
+    wire           f_pop = f_n != 2'd0 && !DDRAM_BUSY;
 
-    wire load = !o_valid || !DDRAM_BUSY;
-    // A spare register beside the issue register: a new request is accepted whenever the spare is
-    // empty (sp_v, a register), and waits there if the port cannot take it this clock. So no
-    // client's ready depends on DDRAM_BUSY (into the backing store's address it missed clk2x by
-    // 1.8 ns). The spare goes out before anything newer is accepted, so order is kept.
-    logic          sp_v, sp_we;
-    logic   [28:0] sp_addr;
-    logic   [63:0] sp_din;
-    logic    [7:0] sp_be;
-    wire           acc = !sp_v;
+    assign DDRAM_RD   = f_n != 2'd0 && !f_we[f_rp];
+    assign DDRAM_WE   = f_n != 2'd0 && f_we[f_rp];
+    assign DDRAM_ADDR = f_we[f_rp] ? f_waddr[f_rp] : f_raddr[f_rp];
+    assign DDRAM_DIN  = f_din[f_rp];
+    assign DDRAM_BE   = f_we[f_rp] ? f_be[f_rp] : 8'hFF;
 
-    assign DDRAM_RD   = o_valid && !o_we;
-    assign DDRAM_WE   = o_valid && o_we;
-    assign DDRAM_ADDR = o_addr;
-    assign DDRAM_DIN  = o_din;
-    assign DDRAM_BE   = o_be;
+    // ---- each client's requests, held here ---------------------------------------------------------
+    // A client's requests go into two entries of its own (o_h the head, o_t behind it, o_n of them),
+    // and the issue queue loads from the heads: from the clients' address logic through the base
+    // add and the grant's select into the queue it missed clk2x by up to 1.0 ns (mainmem, the
+    // sprite and tile ROM queues, the 3D bridge; 3f20971). A client's ready is its own request and
+    // whether its entries are full, a register: with one entry, taken or not, the grant and the
+    // room reached every client's queues through it (1.1 ns into the sprite's, a10b85c seed 2).
+    // A read costs a clock more.
+    logic   [27:3] o_h [0:N-1], o_t [0:N-1];
+    logic    [1:0] o_n [0:N-1];
+    logic          o_v  [0:N-1];             // o_n != 0
+    logic          take [0:N-1];
+    logic          push [0:N-1];
+    always_comb for (int i = 0; i < N; i++) o_v[i] = o_n[i] != 2'd0;
 
     // ---- which client: a registered round-robin grant ------------------------------------------------
-    // Only the granted client can be taken, so a client's ready depends on its own request and on
-    // registers. The grant moves to the next client asking once its holder is served or stops
-    // asking; with requests held until ready, that loses no clock while others are waiting.
+    // Only the granted client can be taken. The grant moves to the next client asking once its
+    // holder is served or stops asking; the picks read the held requests, so no client's decode
+    // reaches the grant register (the geometry engine's vertex read missed clk2x by 3.2 ns there).
     logic [IW-1:0] gnt, nxt;
     logic          nxt_any, nxt_pri;
-    // The next grant is chosen from the requests as they were a clock ago: from the live ones, a
-    // client's decode reached the grant register through the round robin (the geometry engine's
-    // vertex read, 3.2 ns over clk2x). A request that has since been served or withdrawn only
-    // costs the grant a clock (g_rd low moves it on).
-    logic          c_rd_q [0:N-1];
-    always_ff @(posedge clk) for (int i = 0; i < N; i++) c_rd_q[i] <= c_rd[i];
 
     // round robin as two lowest-set-bit picks: among those above the grant, else among all (the
     // rotating loops it replaces missed clk2x by 1.8 ns into g_pri)
@@ -118,7 +133,7 @@ module hng64_ddram #(
     logic [N-1:0] reqv, reqp, above;
     always_comb begin
         for (int i = 0; i < N; i++) begin
-            reqv[i]  = c_rd_q[i];
+            reqv[i]  = o_v[i];
             above[i] = i > int'(gnt);
         end
         reqp    = reqv & PRIO;
@@ -143,97 +158,135 @@ module hng64_ddram #(
         room_np  <= inflight < 8'(LIMIT - RESERVE - 1);
     end
     wire           room     = g_pri ? room_all : room_np;
-    wire           g_rd     = c_rd[gnt];
+    wire           g_rd     = o_v[gnt];
     logic          asked;                    // some client asked last clock
     logic          pasked;                   // some PRIO client asked last clock
     // The writer's head is taken into a holding register, refilled in the clock it issues, so
     // the write/read choice is made from registers: from the writer's FIFO through it into every
     // client's ready missed clk2x by 1.9 ns.
-    logic          h_v, h_urg;
+    logic          h_v;
+    (* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *) logic h_urg;  // hng64_3d_bridge
     logic   [28:0] h_addr;
     logic   [63:0] h_din;
     logic    [7:0] h_be;
     // An ORD client's read is not taken while a write is held: the 3D's reads and writes share one
     // ordered queue (hng64_3d_bridge), and a read taken after a held write could be issued before it
     // (a depth line read back stale; g3d_tb, one pixel). Nor does an ORD client's request keep a
-    // held write waiting (oasked, the others' requests): it is waiting for that write.
+    // held write waiting (oasked, the others' requests): it is waiting for that write. And no write
+    // is taken while an ORD read is held (o_ord): it was asked for first.
     logic          oasked;
-    wire           wr_sel   = h_v && !pasked && (h_urg || !oasked || !room);
+    // A held write gives way to the other readers (a PRIO client asking, or another reader while
+    // the writer is not urgent) for one clock at most (wturn): the 3D's reads queue behind its
+    // writes (hng64_3d_bridge), so a write held while the video and the CPU kept asking stalled the
+    // whole 3D. On the board fatfurwa's intro got through 45 to 91 display-list uploads a second
+    // with the port idle 78% of the time (probes D, E), where g3d_tb, which has no other readers,
+    // draws f1600's 6 in 1.49 M clk3d clocks (about 400 a second).
+    logic          wturn;
+    wire           wr_sel   = h_v && (wturn || (!pasked && (h_urg || !oasked || !room)));
     wire           w_issue  = acc && wr_sel;
     wire           rd_ok    = acc && !wr_sel && room;      // registers only
     logic          g_ord;                    // the granted client is in ORD
     wire           g_blk    = g_ord && h_v;  // ... and is held back by a held write
     wire           rd_take  = rd_ok && g_rd && !g_blk;
+    logic          o_ord;
+    always_comb begin
+        o_ord = 1'b0;
+        for (int i = 0; i < N; i++) if (ORD[i] && o_v[i]) o_ord = 1'b1;
+    end
 
-    assign w_ready = !h_v || w_issue;
+    assign w_ready = (!h_v || w_issue) && !o_ord;
 
     always_ff @(posedge clk) begin
         h_urg <= w_urgent;
+        wturn <= !reset && h_v && !w_issue;
         if (reset) h_v <= 1'b0;
         else if (w_ready) begin
             h_v    <= w_valid;
             h_addr <= w_addr;
             h_din  <= w_din;
             h_be   <= w_be;
-        end
+        end else if (w_issue) h_v <= 1'b0;
     end
 
-    // each ready from its own request: rd_take's mux of all of them would put every client's
-    // request in front of every other client's ready as far as timing analysis can tell
     always_comb
-        for (int i = 0; i < N; i++) c_ready[i] = rd_ok && (gnt == IW'(i)) && c_rd[i] && !(ORD[i] && h_v);
+        for (int i = 0; i < N; i++) begin
+            // rd_ok with client i's own room: g_pri is PRIO[gnt], so for the granted client it is
+            // the constant PRIO[i] (from g_pri through the room select into every client's queue:
+            // 0.81 ns over clk2x, 109 endpoints, f52fa64 seed 2)
+            take[i]    = acc && !wr_sel && (PRIO[i] ? room_all : room_np) && (gnt == IW'(i)) && o_v[i]
+                         && !(ORD[i] && h_v);
+            push[i]    = c_rd[i] && o_n[i] != 2'd2;
+            c_ready[i] = push[i];
+        end
 
     always_ff @(posedge clk)
-        for (int i = 0; i < N; i++) c_valid[i] <= !reset && DDRAM_DOUT_READY && (q[q_r[6:0]] == IW'(i));
+        for (int i = 0; i < N; i++) begin
+            if (reset) o_n[i] <= 2'd0;
+            else o_n[i] <= o_n[i] + 2'(push[i]) - 2'(take[i]);
+            case ({push[i], take[i]})
+                2'b10: if (o_n[i] == 2'd0) o_h[i] <= c_addr[i][27:3]; else o_t[i] <= c_addr[i][27:3];
+                2'b01: o_h[i] <= o_t[i];
+                2'b11: if (o_n[i] == 2'd1) o_h[i] <= c_addr[i][27:3];
+                       else begin o_h[i] <= o_t[i]; o_t[i] <= c_addr[i][27:3]; end
+                default: ;
+            endcase
+        end
+
+    // The head's client, held in a register (q_h): from q_r through the queue's select and the
+    // compare into every client's valid it missed clk2x by 0.9 ns. It is refreshed every clock,
+    // with the next entry when this one is answered; a tag is read clocks after it is written, as
+    // no reply comes back that soon after its read.
+    logic [IW-1:0] q_h;
+    logic    [7:0] q_r1;                     // q_r + 1
+    always_ff @(posedge clk) begin
+        q_h <= DDRAM_DOUT_READY ? q[q_r1[6:0]] : q[q_r[6:0]];
+        for (int i = 0; i < N; i++) c_valid[i] <= !reset && DDRAM_DOUT_READY && (q_h == IW'(i));
+    end
 
     always_ff @(posedge clk) begin
         if (reset) begin
             gnt     <= '0;
             q_w     <= 8'd0;
             q_r     <= 8'd0;
-            o_valid <= 1'b0;
-            sp_v    <= 1'b0;
+            q_r1    <= 8'd1;
+            f_n     <= 2'd0;
+            acc     <= 1'b1;
+            f_rp    <= 1'b0;
+            f_wp    <= 1'b0;
             asked   <= 1'b0;
             pasked  <= 1'b0;
             oasked  <= 1'b0;
             g_pri   <= PRIO[0];
             g_ord   <= ORD[0];
         end else begin
-            if (load) begin
-                if (sp_v) begin
-                    o_valid <= 1'b1;
-                    o_we    <= sp_we;
-                    o_addr  <= sp_addr;
-                    o_din   <= sp_din;
-                    o_be    <= sp_be;
-                    sp_v    <= 1'b0;
-                end else begin
-                    o_valid <= w_issue || rd_take;
-                    o_we    <= w_issue;
-                    o_addr  <= w_issue ? h_addr : {4'b0011, c_addr[gnt][27:3]};
-                    o_din   <= h_din;
-                    o_be    <= w_issue ? h_be : 8'hFF;
-                end
-            end else if (w_issue || rd_take) begin
-                sp_v    <= 1'b1;
-            end
-            // the spare's fields load whenever it is empty and are used only once sp_v is set, so
-            // only sp_v waits on rd_take (a client's live request; into all of them -1.2 ns)
+            // the free entry's fields load whenever the queue has room and count only once the
+            // write pointer passes them, so only the pointer and count wait on rd_take
             if (acc) begin
-                sp_we   <= w_issue;
-                sp_addr <= w_issue ? h_addr : {4'b0011, c_addr[gnt][27:3]};
-                sp_din  <= h_din;
-                sp_be   <= w_issue ? h_be : 8'hFF;
+                f_we[f_wp]    <= w_issue;
+                f_waddr[f_wp] <= h_addr;
+                f_raddr[f_wp] <= {4'b0011, o_h[gnt]};
+                f_din[f_wp]   <= h_din;
+                f_be[f_wp]    <= h_be;
             end
+            if (w_issue || rd_take) f_wp <= !f_wp;
+            if (f_pop) f_rp <= !f_rp;
+            f_n <= f_n + 2'(w_issue || rd_take) - 2'(f_pop);
+            acc <= f_n + 2'(w_issue || rd_take) - 2'(f_pop) != 2'd2;
             if (rd_take) begin
                 q[q_w[6:0]] <= gnt;
                 q_w <= q_w + 8'd1;
             end
-            if (DDRAM_DOUT_READY) q_r <= q_r + 8'd1;
+            if (DDRAM_DOUT_READY) begin
+                q_r  <= q_r1;
+                q_r1 <= q_r1 + 8'd1;
+            end
             // a blocked ORD client gives the grant up, so a PRIO client is not stuck behind it
+            // g_pri without the pick: a PRIO client asking means one is picked, any other asking
+            // means a non-PRIO one is, and none means the grant stays (from gnt through the picks
+            // into PRIO[nxt] it missed clk2x by 1.1 ns)
             if (rd_take || !g_rd || g_blk) begin
                 gnt   <= nxt;
-                g_pri <= PRIO[nxt];
+                g_pri <= nxt_pri ? 1'b1 : nxt_any ? 1'b0 : g_pri;
                 g_ord <= ORD[nxt];
             end
             asked  <= nxt_any;

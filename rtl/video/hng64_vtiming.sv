@@ -20,7 +20,8 @@
 // otherwise unchanged. `flip` is taken once a frame, in vblank, so no frame is drawn half each
 // way. MAME has no flip for this board; the check is the unflipped frame rotated (sim/sys_tb).
 //
-// VBLANK. At line 448 the sprite list is copied into the engine's copy (hng64_vbus.sv), and when
+// VBLANK. From line 448, once no pass is running or waiting, the sprite list is copied into the
+// engine's copy (hng64_vbus.sv), and when
 // that is done the engine's frame starts (`frame_start`), 78 blanked lines before line 0 is due.
 //
 // INTERRUPTS, as MAME's scanline timer raises them (hng64_irq, hng64.cpp:2128): it runs on every
@@ -141,6 +142,10 @@ module hng64_vtiming (
     logic [9:0] out_line;                               // what the running pass emits
     logic       out_valid;
     logic       frame_pend;                             // the engine's frame, waiting for idle
+    // The list is copied once no pass is running or waiting (the flush pass of 447 goes first), and
+    // no pass starts during the copy: a pass reading the engine's copy as it is rewritten saw a
+    // candidate's zoom go to 0 under it (fatfurwa, hardware).
+    logic       snap_pend, snap_run;
     logic       flip_f = 1'b0;                          // flip, for the frame being drawn
 
     always_ff @(posedge clk) if (line_begin && v_next == 10'd450) begin
@@ -161,6 +166,14 @@ module hng64_vtiming (
     endfunction
     wire in_x = (h >= wx0) && (h < wx1) && (h < HVIS);
     wire in_y = (v >= wy0) && (v < wy1) && (v < VVIS);
+    // registered for the output below: h and v change entering div 0 and are used at div 1, so a
+    // clock late they are still this pixel's (from v through the compares into the 24 colour
+    // registers it missed clk2x by 0.8 ns)
+    logic in_x_q = 1'b0, in_y_q = 1'b0;
+    always_ff @(posedge clk) begin
+        in_x_q <= in_x;
+        in_y_q <= in_y;
+    end
 
     always_ff @(posedge clk) begin
         line_start <= 1'b0;
@@ -172,6 +185,8 @@ module hng64_vtiming (
             dbg_late <= 1'b0;
             out_valid <= 1'b0;
             frame_pend <= 1'b0;
+            snap_pend <= 1'b0;
+            snap_run <= 1'b0;
         end else begin
             if (line_begin) begin
                 // the last pass has not started, or has not finished, when the next is due
@@ -182,9 +197,15 @@ module hng64_vtiming (
                     pend_flush <= (pass_l == VVIS);
                     pend_line  <= (pass_l == VVIS) ? 9'(VVIS - 1) : pass_l[8:0];
                 end
-                if (v_next == VVIS) snapshot <= 1'b1;   // vblank begins
+                if (v_next == VVIS) snap_pend <= 1'b1;  // vblank begins
             end
-            if (pend && !busy_q && !line_start && !ls_d && !frame_pend && !frame_start && !fs_d) begin
+            if (snap_pend && !pend && !busy_q && !line_start && !ls_d) begin
+                snapshot  <= 1'b1;
+                snap_pend <= 1'b0;
+                snap_run  <= 1'b1;
+            end
+            if (pend && !busy_q && !line_start && !ls_d && !frame_pend && !frame_start && !fs_d
+                && !snap_run && !snapshot) begin
                 line_start <= 1'b1;
                 line <= flip_f ? flip_line(pend_line) : pend_line;
                 pend <= 1'b0;
@@ -193,7 +214,10 @@ module hng64_vtiming (
                 out_line  <= pend_flush ? 10'(VVIS - 1) : 10'(pend_line) - 10'd1;
             end
             // the block only takes frame_start when idle
-            if (snapshot_done) frame_pend <= 1'b1;
+            if (snapshot_done) begin
+                frame_pend <= 1'b1;
+                snap_run   <= 1'b0;
+            end
             if (frame_pend && !busy_q && !line_start && !ls_d && !fs_d) begin
                 frame_start <= 1'b1;
                 frame_pend  <= 1'b0;
@@ -218,11 +242,11 @@ module hng64_vtiming (
     always_ff @(posedge clk) begin
         ce_pix <= (div == 3'd1);
         if (div == 3'd1) begin
-            hblank    <= !in_x;
-            vblank    <= !in_y;
+            hblank    <= !in_x_q;
+            vblank    <= !in_y_q;
             hsync     <= (h >= 10'(HS_START)) && (h < 10'(HS_END));
             vsync     <= (v >= 10'(VS_START)) && (v < 10'(VS_END));
-            {r, g, b} <= (in_x && in_y) ? obuf_q : 24'd0;
+            {r, g, b} <= (in_x_q && in_y_q) ? obuf_q : 24'd0;
         end
     end
 

@@ -72,6 +72,19 @@ int main(int argc, char **argv) {
     const int lat = atoi(arg("lat", "60").c_str());
     const int busy_pct = atoi(arg("busy", "20").c_str());
     const int back = atoi(arg("back", "2").c_str());
+    // +realtime=N: the board's frame timing, for N video frames. A vblank every 2,083,333 clocks
+    // (60 Hz), at whose rising edge the RTL queues a clearing event whatever the game has done;
+    // the game's uploads go in as the queue takes them, and after a capture frame's last upload
+    // the game waits for the next vblank (the capture's frames, from the +back'th, played round
+    // and round); the display takes an offered plane only as a frame starts (the vblank's end).
+    // Reports how many capture frames the game got through and how many planes were shown.
+    const long rt_frames = atol(arg("realtime", "0").c_str());
+    // +vid=K, +cpu=K: the port's other readers, a PRIO one and a plain one, each raising a request
+    // with K% chance a clock and holding it until it is taken (their replies are dropped)
+    const int vid_pct = atoi(arg("vid", "0").c_str());
+    const int cpu_pct = atoi(arg("cpu", "0").c_str());
+    uint32_t orng = 0x13579BDu;
+    uint64_t vid_n = 0, cpu_n = 0;
 
     FILE *f = fopen((cap + "/geo_events.txt").c_str(), "r");
     if (!f) { fprintf(stderr, "no geo_events.txt in %s%c", cap.c_str(), 10); return 2; }
@@ -154,6 +167,7 @@ int main(int argc, char **argv) {
         dut->clk2x = 0;
         dut->clk1x = (cycles & 1) ? 1 : 0;   // clk1x falls on odd clk2x edges, rises on even ones
         dut->eval();
+
         if (!rst && !dut->DDRAM_BUSY) {
             const uint64_t a = uint64_t(dut->DDRAM_ADDR & 0x1FFFFFF) << 3;
             if (dut->DDRAM_WE) {
@@ -167,23 +181,118 @@ int main(int argc, char **argv) {
                 reads++;
             }
         }
-        // the display: takes an offered plane a while later
+        // the display: takes an offered plane a while later (in realtime mode, as a frame starts)
         const bool differ = dut->show_valid != dut->shown_valid || dut->show_plane != dut->shown_plane;
-        if (differ && show_delay < 0) show_delay = 2000;
+        if (rt_frames > 0) {
+            if (differ && (cycles % 2083333) == 120000) {
+                dut->shown_valid = dut->show_valid;
+                dut->shown_plane = dut->show_plane;
+            }
+        } else if (differ && show_delay < 0) show_delay = 2000;
         if (show_delay == 0) {
             dut->shown_valid = dut->show_valid;
             dut->shown_plane = dut->show_plane;
         }
         if (show_delay >= 0) show_delay--;
         run3(tns + 4);
+        // the other readers: a request ready at this edge is taken
+        const bool vid_taken = !rst && dut->vid_rd && dut->vid_ready;
+        const bool cpu_taken = !rst && dut->cpu_rd && dut->cpu_ready;
         dut->clk2x = 1;
         dut->clk1x = (cycles & 1) ? 0 : 1;
         dut->eval();
         cycles++;
         tns += 8;
+        if (vid_taken) { dut->vid_rd = 0; vid_n++; }
+        if (cpu_taken) { dut->cpu_rd = 0; cpu_n++; }
+        // and new ones are raised by chance, for the next clock
+        if (!rst) {
+            orng = orng * 1103515245u + 12345u;
+            if (!dut->vid_rd && int((orng >> 16) % 100) < vid_pct) {
+                dut->vid_rd = 1;
+                dut->vid_addr = (orng & 0xFFFFF8u) | 0x1000000u;
+            }
+            orng = orng * 1103515245u + 12345u;
+            if (!dut->cpu_rd && int((orng >> 16) % 100) < cpu_pct) {
+                dut->cpu_rd = 1;
+                dut->cpu_addr = (orng & 0xFFFFF8u) | 0x2000000u;
+            }
+        }
     };
 
     for (int i = 0; i < 8; i++) tick(true);
+
+    if (rt_frames > 0) {
+        // the capture's frames from `first`, without the closing C the default mode appends
+        std::vector<Event> game(all.begin() + long(first), all.end());
+        size_t gi = 0, wi = 0;
+        bool waiting = false;          // the game has sent a frame and waits for a vblank
+        bool vb_prev = false;
+        long game_frames = 0, shown = 0, video = 0;
+        int prev_sv = 0, prev_sp = 0;
+        long started = -1;             // the first video frame counted (after the start-up)
+        bool ready_seen = false;       // the 3D has been idle once: its start-up is over
+        const uint64_t P = 2083333, VBL = 120000;
+        while (true) {
+            const bool vbl = (cycles % P) < VBL;
+            if ((cycles & 1) == 0) {
+                dut->dl_we = 0;
+                dut->dl_up = 0;
+                dut->vblank = vbl;
+                if (dut->state == 6) ready_seen = true;
+                if (vbl && !vb_prev) {
+                    if (ready_seen) {          // the 3D's start-up is over
+                        if (started < 0) started = 0;
+                        video++;
+                    }
+                    waiting = false;
+                }
+                vb_prev = vbl;
+                if (!waiting && started >= 0) {
+                    const Event &e = game[gi];
+                    if (e.kind == 'C') {
+                        game_frames++;
+                        waiting = true;
+                        gi = (gi + 1) % game.size();
+                    } else if (wi < 128) {
+                        if (!dut->dl_busy) {
+                            dut->dl_we = 1;
+                            dut->dl_addr = uint32_t(wi);
+                            dut->dl_be = 0xF;
+                            dut->dl_wdata = (uint32_t(e.dl[2 * wi]) << 16) | e.dl[2 * wi + 1];
+                            wi++;
+                        }
+                    } else if (!dut->dl_upbusy) {
+                        for (int k = 0; k < 8; k++) {
+                            uint32_t w = 0;
+                            for (int b = 0; b < 4; b++) w |= uint32_t(e.wrap[4 * k + b]) << (8 * b);
+                            dut->texwrap[k] = w;
+                        }
+                        dut->dl_up = 1;
+                        wi = 0;
+                        gi = (gi + 1) % game.size();
+                    }
+                }
+            }
+            tick(false);
+            if (dut->shown_valid != prev_sv || dut->shown_plane != prev_sp) {
+                if (started >= 0) shown++;
+                prev_sv = dut->shown_valid;
+                prev_sp = dut->shown_plane;
+            }
+            if (video > rt_frames) break;
+            if (cycles > uint64_t(rt_frames + 20) * P) {
+                printf("g3d realtime: stopped at clock %llu, %ld video frames counted, state %d%c",
+                       (unsigned long long)cycles, video, int(dut->state), 10);
+                break;
+            }
+        }
+        printf("g3d realtime: %ld video frames: the game through %ld capture frames (%.0f%%), %ld planes shown "
+               "(latency %d, %d%% busy)%c", video - 1, game_frames, 100.0 * game_frames / double(video - 1),
+               shown, lat, busy_pct, 10);
+        delete dut;
+        return 0;
+    }
 
     // the CPU side, one step per clk1x clock (even clk2x cycles)
     size_t ei = 0, wi = 0;
@@ -227,6 +336,8 @@ int main(int argc, char **argv) {
         }
         tick(false);
         if (dut->show_valid != prev_sv || dut->show_plane != prev_sp) {
+            printf("g3d: plane %d shown at clock %llu%c", int(dut->show_plane),
+                   (unsigned long long)cycles, 10);
             swaps++;
             prev_sv = dut->show_valid;
             prev_sp = dut->show_plane;
@@ -248,8 +359,9 @@ int main(int argc, char **argv) {
     const bool pass = finished && bad == 0;
     printf("g3d: %zu uploads and %zu clearing vblanks from event %zu, %d planes shown, %zu of 262144 pixels "
            "differ; %" PRIu64 " clocks (events in by %" PRIu64 "), %" PRIu64 " reads, %" PRIu64
-           " writes (latency %d, %d%% busy): %s%c", uploads, clears, first, swaps, bad, cycles, fed_at, reads,
-           writes, lat, busy_pct, pass ? "PASS" : "FAIL", 10);
+           " writes (latency %d, %d%% busy; other readers %" PRIu64 " PRIO, %" PRIu64 " plain): %s%c", uploads,
+           clears, first, swaps, bad, cycles, fed_at, reads, writes, lat, busy_pct, vid_n, cpu_n,
+           pass ? "PASS" : "FAIL", 10);
     delete dut;
     return pass ? 0 : 1;
 }

@@ -113,13 +113,19 @@ int main(int argc, char **argv) {
     long cyc = 0;
     uint32_t lfsr = 0xACE1u;
     int pal_q[5] = {0, 0, 0, 0, 0};
+    uint32_t sram_q = 0, sram_q2 = 0, sram_q3 = 0;
 
     auto tick = [&]() {
-        // Registered reads. The address ports still hold the value they settled to last cycle,
-        // so answering from them here presents the word one cycle after the address, which is
-        // what the engines and the mixer expect (and what sim/tilemap_tb does).
+        // Registered reads: each RAM port answers the address it held the clock before.
         cyc++;
-        dut->sram_data = be32(sram, size_t(dut->sram_addr) * 4);
+        // the sprite list: the engine's ram_addr is a register, hng64_vbus registers it again, and
+        // its copy is an M10K that registers the address and its output (OUTREG_B), so the word
+        // is that of the address ram_addr held three clocks before. (Answering from the address
+        // as it stood was early: the engine passed here and read every word late on the board.)
+        dut->sram_data = be32(sram, size_t(sram_q3) * 4);
+        sram_q3 = sram_q2;
+        sram_q2 = sram_q;
+        sram_q = dut->sram_addr;
         // the palette needs a full cycle of delay: serve the address this port held LAST cycle
         dut->pal_d0 = be32(pal, size_t(pal_q[0]) * 4);
         dut->pal_d1 = be32(pal, size_t(pal_q[1]) * 4);

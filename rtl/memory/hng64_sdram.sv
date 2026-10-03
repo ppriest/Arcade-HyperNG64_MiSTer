@@ -127,7 +127,9 @@ module hng64_sdram #(
     logic  [1:0] c_word;                // which 16-bit lane of the granule is being written
 
     wire [1:0] c_next = c_word + 2'd1;
-    wire       c_lane_on = c_be_r[{c_word, 1'b0}] || c_be_r[{c_word, 1'b1}];
+    // the data and byte enables shift down a lane as c_word steps, so the lane is always bits 15:0
+    // (selected by c_word, into din1: 1.35 ns over clk2x, 47bb296 seed 1)
+    wire       c_lane_on = c_be_r[0] || c_be_r[1];
 
     assign c_ready = (cst == C_IDLE);
 
@@ -165,15 +167,17 @@ module hng64_sdram #(
                 C_WRITE: begin
                     if (c_lane_on) begin
                         addr1 <= {c_gran, c_word};
-                        din1  <= c_wdata_r[{c_word, 4'd0} +: 16];
-                        wrl1  <= c_be_r[{c_word, 1'b0}];
-                        wrh1  <= c_be_r[{c_word, 1'b1}];
+                        din1  <= c_wdata_r[15:0];
+                        wrl1  <= c_be_r[0];
+                        wrh1  <= c_be_r[1];
                         req1  <= ~req1;
                         cst   <= C_WRITE_W;
                     end else if (c_word == 2'd3) begin
                         cst <= C_IDLE;
                     end else begin
-                        c_word <= c_next;
+                        c_word    <= c_next;
+                        c_wdata_r <= c_wdata_r >> 16;
+                        c_be_r    <= c_be_r >> 2;
                     end
                 end
 
@@ -183,8 +187,10 @@ module hng64_sdram #(
                     if (c_word == 2'd3) begin
                         cst <= C_IDLE;
                     end else begin
-                        c_word <= c_next;
-                        cst    <= C_WRITE;
+                        c_word    <= c_next;
+                        c_wdata_r <= c_wdata_r >> 16;
+                        c_be_r    <= c_be_r >> 2;
+                        cst       <= C_WRITE;
                     end
                 end
 
@@ -213,6 +219,11 @@ module hng64_sdram #(
     logic        rq_v;
     logic [25:3] rq_gran;
     logic        rq_hi;
+    // and the lookup's result registered before it is used: from rq_gran through the four tag
+    // compares and the way select into v_data it missed clk2x by 0.8 ns
+    logic        lk_v, lk_hit, lk_hi;
+    logic [25:3] lk_gran;
+    logic [63:0] lk_data;
 
     logic        hit;
     logic [63:0] hit_data;
@@ -226,7 +237,7 @@ module hng64_sdram #(
             end
     end
 
-    assign v_ready = v_rd && !rq_v && !busy;    // one transaction in flight, hit or miss
+    assign v_ready = v_rd && !rq_v && !lk_v && !busy;    // one transaction in flight, hit or miss
 
     always_ff @(posedge clk) begin
         v_valid <= 1'b0;
@@ -234,6 +245,7 @@ module hng64_sdram #(
             req0 <= 1'b0;
             busy <= 1'b0;
             rq_v <= 1'b0;
+            lk_v <= 1'b0;
             fill <= 2'd0;
             for (int w = 0; w < WAYS; w++) have_v[w] <= 1'b0;
         end else begin
@@ -242,15 +254,22 @@ module hng64_sdram #(
                 rq_gran <= vgran;
                 rq_hi   <= vbyte[2];
             end
+            lk_v <= rq_v;
             if (rq_v) begin
                 rq_v    <= 1'b0;
-                pend    <= rq_gran;
-                pend_hi <= rq_hi;
-                if (hit) begin
-                    v_data  <= swap32(rq_hi ? hit_data[63:32] : hit_data[31:0]);
+                lk_hit  <= hit;
+                lk_data <= hit_data;
+                lk_gran <= rq_gran;
+                lk_hi   <= rq_hi;
+            end
+            if (lk_v) begin
+                pend    <= lk_gran;
+                pend_hi <= lk_hi;
+                if (lk_hit) begin
+                    v_data  <= swap32(lk_hi ? lk_data[63:32] : lk_data[31:0]);
                     v_valid <= 1'b1;
                 end else begin
-                    addr0 <= {rq_gran, 2'b00};
+                    addr0 <= {lk_gran, 2'b00};
                     req0  <= ~req0;
                     busy  <= 1'b1;
                 end

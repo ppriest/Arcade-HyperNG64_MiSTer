@@ -461,18 +461,38 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
 
 ## Next steps
 
-1. Timing closure at full speed (user decision: clk2x 125, clk3d 100, CPU on its own PLL). Left
-   after `36de823`: sys's scaler on clk2x (CLK_VIDEO) and the SDRAM read pins, about -1.5 to
-   -1.8 ns; clk3d about -0.7 ns, with geometry fixes since.
-2. Sprite engine throughput (user decision, approved). buriki f2500 needs up to 8,438 clocks a
-   line at a 60-clock ROM latency against 3,840 (`sprite_tb +prof=1`): drawing 3,486, row waits
-   1,018, fetch 865, per-sprite setup ~670, z-buffer clear 512. Late passes show as stale lines
-   (the top-of-screen corruption on hardware, probe V). In order, each checked by sprite_tb
-   against the model:
-   a. z-buffer entries tagged with their line, cleared once a frame in vblank: no per-line clear.
-   b. sprite setup and tile fetch run ahead of the draw loop, so they and the row waits overlap
-      drawing.
-   c. two pixels a clock, the z-buffer in even and odd x banks; the sprite line buffer in video
-      takes two writes a clock.
-3. sams64: grey untextured 3D and no 2D title on hardware; buriki textures correctly.
-4. An intermittent video hang (every line the same); probe V on the stp build to find the unit.
+1. Timing closure at full speed (user decision: clk2x 125, clk3d 100, CPU on its own PLL). The
+   release build misses clk2x inside the core as well as in sys's scaler; failing core paths have
+   shown up on the board as wrong behaviour (`71bb684`'s stp build kept 256 sprite candidates
+   where the RTL keeps 8). Failing clk2x core endpoints in the 2,000 worst: 2,000+ (`17161cd`),
+   1,343, 987, 687, 642 (`063e9f2`), 897 and 679 (`00a9080`, seeds 1 and 2), 392 (`a10b85c`
+   seed 1). clk3d: the geometry engine's STX bypass into its register
+   files (about -1.6 ns, GeoEngine.scala). The SDRAM read pins fail setup by 1.44 ns against the
+   SDC's two-cycle relationship (hold +10.2, the outputs' setup +0.08, so the clock phase cannot
+   take it); reads work on the board, so whether the SDC names the edge the RTL samples is open.
+2. All four sets run their attract modes with sprites since `c17f1fb` (sprite list read latency).
+   To compare with MAME: fatfurwa's helicopter cabin (two of three men missing on the board, the
+   third without his face; g3d_tb renders MAME's f1600 exactly, at 2.59 M clk2x clocks a frame
+   against the display's 2.03 M), buriki's Ducalis intro (a yellow zigzag block). sams64_2's
+   mirrored text and offset portrait are MAME's too (`debug/mame_s64b`, f1320, f2520, f3840).
+   fatfurwa's title logo matches MAME's fly-in at f3600.
+3. 3D throughput. Where the engine is slower than the game, the upload queue (32) fills, interrupt
+   3 is held, the game's uploads run past the vblank and the clearing vblank's event lands among
+   them, so a frame is shown part drawn: buriki's Ducalis intro cut off at a line, fatfurwa's cabin
+   with models missing, and the game slowed: on `00a9080` fatfurwa's intro reached MAME's f2760
+   about 1,000 MAME frames after its f1600-1920, in 2,400 board frames
+   (`debug/hw/ff_00as2_sheet.png` against `debug/mame_ff/sheet.png`). In g3d_tb (+prof, latency
+   60, 20% busy; clk3d, 1.67 M in a 60 Hz frame): fatfurwa f1600 took 2.01 M, the engine and the
+   rasteriser waiting on each other; with the triangle FIFO (`5e5c585`) 1.49 M, the rasteriser
+   busy for 1.48 M. sams64 f2500 (a 3D frame every other video frame, 3.33 M) takes 3.72 M, the
+   engine busy 3.57 M: of that, 0.77 M are stalls on stores and two-operand ALU ops (ST, STF,
+   STV, SHRI, NEG), several clocks each in GeoEngine.scala where docs/phase3_3d.md's 2.46 M
+   estimate has one, and 0.07 M on DIV.
+4. Hangs. The tilemap engine busy for ever with nothing owed by DDR3 (`5626a76`, `74f4d60`, and
+   fatfurwa's intro on the stp build of `bc6546a`) was a layer's mode written by the CPU mid-pass,
+   not placement: fixed in `b9e8900` (LESSONS_LEARNED). The sprite engine's (per-line zoom test,
+   copy after the passes) were fixed before. Not yet explained: on the same stp build fatfurwa once
+   stopped with the CPU idle at 0x04000008, interrupts pending and its error flag set, the 3D and
+   video running (that build misses the CPU clock by 0.141 ns).
+5. A mosaic sprite on a synthetic capture (`debug/sams64-wide`) draws its runs a pixel off the
+   model's; no MAME capture has shown it.

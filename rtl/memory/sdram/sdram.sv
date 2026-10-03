@@ -100,7 +100,10 @@ localparam STATE_CONT   = STATE_START+RASCAS_DELAY;
 // data bus is now captured ONCE, unconditionally, into a register the I/O
 // cell can hold, and the four lanes are taken from that register a cycle
 // later. See the comment above the lane captures for why.
-localparam STATE_READ0  = STATE_CONT+CAS_LATENCY+4'd2;
+// +4: the command, address and data outputs go through a register stage of their own (cmd_q
+// etc. below), so every command reaches the pins a clock later and its data comes back a clock
+// later; and the data is taken from dq_in2, a fabric register after the I/O cell's dq_in.
+localparam STATE_READ0  = STATE_CONT+CAS_LATENCY+4'd4;
 localparam STATE_READ1  = STATE_READ0+4'd1;
 localparam STATE_READ2  = STATE_READ0+4'd2;
 localparam STATE_READ3  = STATE_READ0+4'd3;
@@ -142,6 +145,8 @@ reg         init_old = 1'b0;
 
 reg [63:0] dout;
 reg [15:0] dq_in;    // the bus, captured once per cycle -- see the lane captures
+reg [15:0] dq_in2;   // and again in the fabric: from the I/O cell straight into the four lanes'
+                     // registers it missed 125 MHz by 1.06 ns (HyperNG64, 063e9f2)
 
 assign dout0 = dout;
 assign dout1 = dout;
@@ -242,18 +247,19 @@ always @(posedge clk) begin
 	// With dq_in the pin path is fixed by the I/O cell, and dq_in -> dout is
 	// an ordinary register-to-register path that STA times completely. The
 	// burst is one cycle longer; STATE_READ0 carries the +2.
-	dq_in <= SDRAM_DQ;
+	dq_in  <= SDRAM_DQ;
+	dq_in2 <= dq_in;
 
 	// Burst-of-4 read capture: one 16-bit lane per cycle across the four
 	// STATE_READ0..STATE_READ3 cycles, ascending address order (lane 0 =
 	// lowest address = dout[15:0]) matching ACCESS_TYPE=sequential above.
 	// Write completion (ack, no data capture) shares STATE_READ3 for a
 	// single uniform completion point -- see PROVENANCE.md for why.
-	if (state == STATE_READ0 && ram_req && !we) dout[15:0]  <= dq_in;
-	if (state == STATE_READ1 && ram_req && !we) dout[31:16] <= dq_in;
-	if (state == STATE_READ2 && ram_req && !we) dout[47:32] <= dq_in;
+	if (state == STATE_READ0 && ram_req && !we) dout[15:0]  <= dq_in2;
+	if (state == STATE_READ1 && ram_req && !we) dout[31:16] <= dq_in2;
+	if (state == STATE_READ2 && ram_req && !we) dout[47:32] <= dq_in2;
 	if (state == STATE_READ3 && ram_req) begin
-		if (!we) dout[63:48] <= dq_in;
+		if (!we) dout[63:48] <= dq_in2;
 		active <= 0;
 		ram_req <= 0;
 		if (ram_req[0]) ack0 <= req0;
@@ -294,28 +300,47 @@ localparam CMD_AUTO_REFRESH    = 3'b001;
 localparam CMD_LOAD_MODE       = 3'b000;
 
 // SDRAM state machines
-reg         dq_oe;
+reg         dq_oe = 1'b0;
 reg  [15:0] dq_out;
 assign SDRAM_DQ = dq_oe ? dq_out : 16'bz;
 
+// THE PINS' REGISTERS TAKE A COPY. The command, address, bank and data are worked out into the
+// *_q registers in the fabric, and the I/O cells' registers copy them a clock later. Decoded from
+// the state, mode and init counter straight into the I/O cells, around the chip, they missed the
+// 125 MHz clock by up to 1.9 ns (HyperNG64, eba8a65); now only a register-to-register path
+// reaches them. Everything moves together, so the data comes back a clock later too (STATE_READ0).
+reg   [2:0] cmd_q = CMD_NOP;
+reg  [12:0] a_q;
+reg   [1:0] ba_q;
+reg         oe_q = 1'b0;
+reg  [15:0] dqo_q;
+initial {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} = CMD_NOP;
 always @(posedge clk) begin
-	if(state == STATE_START) SDRAM_BA <= (mode == MODE_NORMAL) ? ba : 2'b00;
+	{SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= cmd_q;
+	SDRAM_A  <= a_q;
+	SDRAM_BA <= ba_q;
+	dq_oe    <= oe_q;
+	dq_out   <= dqo_q;
+end
 
-	dq_oe <= 1'b0;
+always @(posedge clk) begin
+	if(state == STATE_START) ba_q <= (mode == MODE_NORMAL) ? ba : 2'b00;
+
+	oe_q <= 1'b0;
 	casex({active,we,mode,state})
-		{2'bXX, MODE_NORMAL, STATE_START}: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= active ? CMD_ACTIVE : CMD_AUTO_REFRESH;
+		{2'bXX, MODE_NORMAL, STATE_START}: cmd_q <= active ? CMD_ACTIVE : CMD_AUTO_REFRESH;
 		{2'b11, MODE_NORMAL, STATE_CONT }: begin
-			{SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_WRITE;
-			dq_oe  <= 1'b1;
-			dq_out <= data;
+			cmd_q <= CMD_WRITE;
+			oe_q  <= 1'b1;
+			dqo_q <= data;
 		end
-		{2'b10, MODE_NORMAL, STATE_CONT }: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_READ;
+		{2'b10, MODE_NORMAL, STATE_CONT }: cmd_q <= CMD_READ;
 
 		// init
-		{2'bXX,    MODE_LDM, STATE_START}: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_LOAD_MODE;
-		{2'bXX,    MODE_PRE, STATE_START}: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_PRECHARGE;
+		{2'bXX,    MODE_LDM, STATE_START}: cmd_q <= CMD_LOAD_MODE;
+		{2'bXX,    MODE_PRE, STATE_START}: cmd_q <= CMD_PRECHARGE;
 
-		                          default: {SDRAM_nRAS, SDRAM_nCAS, SDRAM_nWE} <= CMD_NOP;
+		                          default: cmd_q <= CMD_NOP;
 	endcase
 
 	if(mode == MODE_NORMAL) begin
@@ -331,19 +356,19 @@ always @(posedge clk) begin
 			// the upstream split, a 4-word burst starting at word address N
 			// silently read from rows N, N+1, N+2, N+3 at column 0 each
 			// time -- wrong data, not just misaligned. See PROVENANCE.md.
-			STATE_START: SDRAM_A <= a[22:10];
+			STATE_START: a_q <= a[22:10];
 			// A10 = auto-precharge; A9 = byte address bit 25, which is column
 			// bit 9 on a 64 MB chip (13 row x 10 column x 4 bank) and ignored by
 			// the 32 MB chip (9 column bits) -- so the low 32 MB map identically
 			// on both modules. This is the 128 MB module's layout: 2 x 64 MB, the
 			// second chip selected by byte address bit 26, which this core does
 			// not use (FG-3 needs 56.5 MB).
-			STATE_CONT:  SDRAM_A <= {dqm, 1'b1, a25, a[9:1]};
+			STATE_CONT:  a_q <= {dqm, 1'b1, a25, a[9:1]};
 		endcase
 	end
-	else if(mode == MODE_LDM && state == STATE_START) SDRAM_A <= MODE;
-	else if(mode == MODE_PRE && state == STATE_START) SDRAM_A <= 13'b0010000000000;
-	else SDRAM_A <= 0;
+	else if(mode == MODE_LDM && state == STATE_START) a_q <= MODE;
+	else if(mode == MODE_PRE && state == STATE_START) a_q <= 13'b0010000000000;
+	else a_q <= 0;
 end
 
 // Upstream drives SDRAM_CLK via an altddio_out megafunction instance here

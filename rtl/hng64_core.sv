@@ -112,7 +112,16 @@ module hng64_core #(
     // clk2x: {w_urgent, w_valid, c_ready[7:0], c_rd[7:0], vtiming {late now, frame_pend, pend},
     //         video busy[7:0], vbusy, line_start, frame_start}
     output logic [31:0] dbg_vid,
-    output logic [48:0] dbg_spr         // the sprite engine's state (hng64_sprite dbg_q)
+    output logic [48:0] dbg_spr,        // the sprite engine's state (hng64_sprite dbg_q)
+    output logic [185:0] dbg_tq,        // clk2x: the tilemap engines' state (hng64_video dbg_tq)
+    output logic  [59:0] dbg_sc,        // clk2x: sprite pixels a frame (hng64_video dbg_sc)
+    output logic [154:0] dbg_rc,        // clk2x: the sprite engine's ports (hng64_video dbg_rc)
+    // clk1x: a read of the video memories between CPU requests (hng64_io dbg_rd)
+    input  logic        dbg_rd,
+    input  logic  [2:0] dbg_rsel,
+    input  logic [13:0] dbg_raddr,
+    output logic        dbg_rdone,
+    output logic [31:0] dbg_rdata
 );
 
     // declared ahead of the instances that share them
@@ -287,9 +296,14 @@ module hng64_core #(
     logic  [7:0] w3_be;
     logic        w3_valid, w3_urgent, w3_ready;
 
+    // The tile ROMs' bases are on 1 MB boundaries (scripts/build_mra.py, ALIGN), so only the top
+    // eight bits are added: the full 28-bit add from an engine's address into the arbiter's
+    // queue missed clk2x by 1.4 ns.
     always_comb begin
-        c_addr[0] = cfg_base[2] + {2'd0, srom_addr};    c_rd[0] = srom_rd;
-        c_addr[1] = cfg_base[3] + {2'd0, prom_addr};    c_rd[1] = prom_rd;
+        c_addr[0] = {cfg_base[2][27:20] + {2'd0, srom_addr[25:20]}, srom_addr[19:0]};
+        c_rd[0] = srom_rd;
+        c_addr[1] = {cfg_base[3][27:20] + {2'd0, prom_addr[25:20]}, prom_addr[19:0]};
+        c_rd[1] = prom_rd;
         c_addr[2] = prg_addr;                           c_rd[2] = prg_rd;
         c_addr[3] = ldr_addr;                           c_rd[3] = ldr_rd;
         c_addr[4] = v3_addr;                            c_rd[4] = v3_rd;
@@ -354,7 +368,9 @@ module hng64_core #(
         .fbcontrol(fbcontrol), .fbscroll(fbscroll), .texwrap(texwrap),
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
         .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full),
-        .dbg_mcu_en_0c(), .dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level));
+        .dbg_mcu_en_0c(), .dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
+        .dbg_rd(dbg_rd), .dbg_sel(dbg_rsel), .dbg_addr(dbg_raddr), .dbg_rdone(dbg_rdone),
+        .dbg_rdata(dbg_rdata));
 
     // ---- the IO MCU, on clk1x: 8 MHz from 62.5, as an accumulator (16/125 exactly) -------------------
     // 7.8 clocks a tick; sim/iomcu_tb matches MAME with no overrun at 5 (+cediv=5)
@@ -440,7 +456,7 @@ module hng64_core #(
         .d3_addr(f3_addr), .d3_rd(f3_rd), .d3_ready(c_ready[7]), .d3_data(ddr_data),
         .d3_valid(c_valid[7]),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
-        .dbg_busy(vid_busy), .dbg_spr(dbg_spr), .dbg_we(), .dbg_x(), .dbg_pix());
+        .dbg_busy(vid_busy), .dbg_spr(dbg_spr), .dbg_tq(dbg_tq), .dbg_sc(dbg_sc), .dbg_rc(dbg_rc), .dbg_we(), .dbg_x(), .dbg_pix());
 
     hng64_vtiming u_timing (
         .clk(clk2x), .reset(game_reset), .flip(flip),

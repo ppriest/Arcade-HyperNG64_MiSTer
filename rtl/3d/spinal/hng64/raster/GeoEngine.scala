@@ -211,6 +211,9 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
     o === op("NEG") || o === op("ABS") || o === op("SEXT16") || o === op("WRAP")
   val alu2B = Reg(SInt(W bits))
   val alu2I = Reg(Bits(imm.getWidth bits))
+  // LDA/ADA/ADAV's shift, picked by the op at step 0: picked at the shift, from instrE through the
+  // select into the 72-bit shift and accVal it missed clk3d by 0.72 ns (4b342dc)
+  val accSh = Reg(UInt(7 bits))
   // LDA, ADA and ADAV latch their operand and shift a step before the shift into accVal: the
   // forwarded operand through a 72-bit shifter in one clock missed clk3d by 1.5 ns
   val accLd = o === op("LDA") || o === op("ADA") || o === op("ADAV")
@@ -227,6 +230,9 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   val slowSh = Reg(SInt(8 bits))
   val stxWrite = Bool()
   stxWrite := False
+  // STX's value, registered between its read and its write: from the X copy's output through the
+  // bypass select into the three register files' write data it missed clk3d by 1.1 ns (f52fa64)
+  val stxD = Reg(SInt(W bits))
 
 
   val mcGo = eLive && isMc && !stHazard && !accBranchHazard
@@ -236,8 +242,10 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
         when(mcStep === 0) { mcStep := 1 }.otherwise { mcVal := rdX; mcDone := True }
       }
       is(op("STX")) {
-        // step 0: read the value (d) through copy X; step 1: write it at a + b
-        when(mcStep === 0) { xAddr := d; mcStep := 1 }.otherwise { stxWrite := True; mcDone := True }
+        // step 0: read the value (d) through copy X; step 1: hold it; step 2: write it at a + b
+        when(mcStep === 0) { xAddr := d; mcStep := 1 }
+          .elsewhen(mcStep === 1) { stxD := (d === 0) ? S(0, W bits) | rdX; mcStep := 2 }
+          .otherwise { stxWrite := True; mcDone := True }
       }
       is(op("SHLV"), op("LOG2"), op("NORM")) {
         when(mcStep === 0) {
@@ -301,6 +309,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
           slowA := a
           alu2B := b
           alu2I := imm.asBits
+          accSh := (o === op("ADAV")) ? b.asUInt.resize(7 bits) | imm.asUInt.resize(7 bits)
           mcStep := 1
         }.otherwise { mcDone := True }
       }
@@ -461,7 +470,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
       is(op("ASHL")) { accOp := 3; mAccOp := True }
     }
     prod := (a.resize(36 bits) * b.resize(36 bits)).resize(AW bits)
-    accVal := slowA.resize(AW bits) |<< ((o === op("ADAV")) ? alu2B.asUInt.resize(7 bits) | alu2I.asUInt.resize(7 bits))
+    accVal := slowA.resize(AW bits) |<< accSh
     mSh := (o === op("STV") || o === op("STVW")) ? (b + imm.resize(W bits)).resize(8 bits) | imm.resize(8 bits)
   }
 
@@ -489,7 +498,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   when(stxWrite) {
     wrEn := True
     wrAddr := xAddr
-    wrData := (d === 0) ? S(0, W bits) | rdX
+    wrData := stxD
   }
   when(cfgStep === 1) {
     wrEn := True

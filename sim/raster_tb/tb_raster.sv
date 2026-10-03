@@ -115,4 +115,27 @@ module tb_raster (
         .io_texData_payload(tex_data),
         .io_busy(busy));
 
+    // +prof: where the rasteriser's busy clocks go, over the whole run, printed at the end
+    bit prof = 1'b0;
+    initial prof = $test$plusargs("prof");
+    longint n_busy, n_frag, n_pidle, n_walk, n_tcst, n_rbst, n_setupw;
+    logic done_q;
+    always @(posedge clk) if (prof) begin
+        done_q <= done;
+        if (done && !done_q) begin
+            $display("prof: %0d busy clocks: %0d fragments out of the span rasteriser, it idle %0d; walker busy %0d, walker and setup both empty %0d; stalled at the texture cache %0d, at the render buffer %0d",
+                     n_busy, n_frag, n_pidle, n_walk, n_setupw, n_tcst, n_rbst);
+            n_busy = 0; n_frag = 0; n_pidle = 0; n_walk = 0; n_tcst = 0; n_rbst = 0; n_setupw = 0;
+        end
+    end
+    always @(posedge clk) if (prof && busy) begin
+        n_busy++;
+        if (u_dut.skid0_valid && u_dut.skid0_ready) n_frag++;
+        if (!u_dut.pixels_io_busy) n_pidle++;
+        if (u_dut.walker_io_busy) n_walk++;
+        if (u_dut.skid1_valid && !u_dut.skid1_ready) n_tcst++;
+        if (u_dut.skid2_valid && !u_dut.skid2_ready) n_rbst++;
+        if (!u_dut.walker_io_busy && !u_dut.setup_io_o_valid) n_setupw++;
+    end
+
 endmodule

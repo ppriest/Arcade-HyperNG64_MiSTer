@@ -93,12 +93,19 @@ int main(int argc, char **argv) {
     int first_bad_line = -1, first_bad_x = -1;
     int cur_line = -1;
 
+    uint32_t ram_q = 0, ram_q2 = 0, ram_q3 = 0;
     auto tick = [&]() {
         cyc++;
-        if (dut->ram_rd) {
-            nvram++;
-            size_t byte = size_t(dut->ram_addr) * 4;
+        // the list as hng64_vbus has it: an M10K that registers ram_addr (itself a register)
+        if (dut->ram_rd) nvram++;
+        {
+            // and registers its output, behind hng64_vbus's own register on the address: the
+            // word of the address ram_addr held three clocks before
+            size_t byte = size_t(ram_q3) * 4;
             dut->ram_data = byte + 4 <= ram.size() ? be32(ram, byte) : 0;
+            ram_q3 = ram_q2;
+            ram_q2 = ram_q;
+            ram_q = dut->ram_addr;
         }
         if (!dut->frame_start) {
             st_hist[dut->dbg_st & 31]++;
@@ -142,9 +149,10 @@ int main(int argc, char **argv) {
     tick();
 
     // pre-pass over the list, once
+    // busy is registered: it rises the clock after the engine starts, so give it that clock
     dut->frame_start = 1; tick();
-    dut->frame_start = 0;
-    long guard = 0;
+    dut->frame_start = 0; tick();
+    long guard = 1;
     while (dut->busy && ++guard < 5000000) tick();
     printf("pre-pass took %ld cycles, kept %d candidates%c", guard, dut->dbg_ncand, 10);
 
@@ -153,8 +161,8 @@ int main(int argc, char **argv) {
         std::fill(got.begin(), got.end(), 0);
         dut->line = y;
         dut->line_start = 1; tick();
-        dut->line_start = 0;
-        guard = 0;
+        dut->line_start = 0; tick();
+        guard = 1;
         while (dut->busy && ++guard < 2000000) tick();
         if (guard > worst) worst = guard;
         if (nrom - romprev > romworst) romworst = nrom - romprev;

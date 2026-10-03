@@ -88,7 +88,7 @@ module tb_sys (
         .r(r), .g(g), .b(b),
         .lamp_we(), .lamp_addr(), .lamp_data(),
         .dbg_fault(dbg_fault), .dbg_layer_off(6'd0), .dbg_load(), .dbg_mcu_pc(),
-        .dbg_mcu_fetch());
+        .dbg_mcu_fetch(), .dbg_rd(1'b0), .dbg_rsel(3'd0), .dbg_raddr(14'd0));
 
     sdram_chip_model_wide #(.MB(32)) u_chip (
         .clk(clk2x), .SDRAM_DQ(SDRAM_DQ), .SDRAM_A(SDRAM_A), .SDRAM_BA(SDRAM_BA),

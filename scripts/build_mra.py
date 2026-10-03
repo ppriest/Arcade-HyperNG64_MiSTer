@@ -66,7 +66,7 @@ LAYOUT = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts"]
 # The 3D's own buffers start here (rtl/hng64_core.sv, D3_*): the blocked textures,
 # the depth plane and two colour planes. The ROM image must end below it.
 D3_BASE = 0xE000000
-ALIGN = 0x100000
+ALIGN = 0x100000                # rtl/hng64_core.sv adds only the tile ROM bases' top 8 bits
 
 # rom index 1. Big-endian, the CPU's order; `layout()` fills it.
 CFG_MAGIC = b"HNG2"
@@ -104,6 +104,10 @@ def layout(decls):
     put every tile of one half at the wrong address.
     """
     out, pos = [], 0
+    # hng64_video adds half of scrtile as an OR (rtl/video/hng64_video.sv, scr_raw)
+    scr = decls["scrtile"][0]
+    if scr & (scr - 1):
+        raise SystemExit(f"scrtile is {scr:#x} bytes, not a power of two")
     for region in LAYOUT:
         size = decls[region][0]
         out.append((region, pos, size))

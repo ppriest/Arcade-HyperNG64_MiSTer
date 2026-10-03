@@ -95,7 +95,9 @@ localparam CONF_STR = {
 wire   [1:0] buttons;
 wire [127:0] status;
 wire         direct_video;
+wire  [31:0] joy_pad_0, joy_pad_1;      // hps_io; joystick_N adds the keyboard (hng64_keyboard)
 wire  [31:0] joystick_0, joystick_1;
+wire  [10:0] ps2_key;
 wire  [64:0] rtc;
 
 wire        ioctl_download;
@@ -145,9 +147,16 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.ioctl_rd(),
 
 	.RTC(rtc),
-	.joystick_0(joystick_0),
-	.joystick_1(joystick_1)
+	.joystick_0(joy_pad_0),
+	.joystick_1(joy_pad_1),
+	.ps2_key(ps2_key)
 );
+
+// MAME's default arcade keys, ORed into the pads
+wire [31:0] key_0, key_1;
+hng64_keyboard u_keys (.clk(clk1x), .ps2_key(ps2_key), .key0(key_0), .key1(key_1));
+assign joystick_0 = joy_pad_0 | key_0;
+assign joystick_1 = joy_pad_1 | key_1;
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
@@ -229,7 +238,8 @@ wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download | clk
 
 // MiSTer joystick bits: 0 R, 1 L, 2 D, 3 U, then the J1 list from bit 4: 4-7 buttons 1-4,
 // 8 start, 9 coin, 10 pause, 11 service, 12 test.
-wire [31:0] j0 = joystick_0, j1 = joystick_1;
+wire [31:0] dbg_j0;                     // stp: ISSP source K, held into player 1's inputs
+wire [31:0] j0 = joystick_0 | dbg_j0, j1 = joystick_1;
 
 // MAME's coins are PORT_IMPULSE(1): one frame low per press. 2^20 clk1x is 16.8 ms.
 reg [20:0] coin_t [2] = '{21'd0, 21'd0};
@@ -405,6 +415,13 @@ wire [12:0] dbg_3d;
 wire        dbg_3d_tri, dbg_3d_up, dbg_mcu_int0;
 wire [31:0] dbg_vid;
 wire [48:0] dbg_spr;
+wire [185:0] dbg_tq;
+wire  [59:0] dbg_sc;
+wire [154:0] dbg_rc;
+wire        dbg_rd, dbg_rdone;
+wire  [2:0] dbg_rsel;
+wire [13:0] dbg_raddr;
+wire [31:0] dbg_rdata;
 
 hng64_core u_core
 (
@@ -435,7 +452,9 @@ hng64_core u_core
 	.dbg_load(dbg_load), .dbg_mcu_pc(dbg_mcu_pc), .dbg_mcu_fetch(dbg_mcu_fetch),
 	.dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
 	.dbg_ddr_inflight(dbg_ddr_inflight), .dbg_3d(dbg_3d), .dbg_3d_tri(dbg_3d_tri), .dbg_3d_up(dbg_3d_up),
-	.dbg_mcu_int0(dbg_mcu_int0), .dbg_vid(dbg_vid), .dbg_spr(dbg_spr)
+	.dbg_mcu_int0(dbg_mcu_int0), .dbg_vid(dbg_vid), .dbg_spr(dbg_spr), .dbg_tq(dbg_tq), .dbg_sc(dbg_sc), .dbg_rc(dbg_rc),
+	.dbg_rd(dbg_rd), .dbg_rsel(dbg_rsel), .dbg_raddr(dbg_raddr), .dbg_rdone(dbg_rdone),
+	.dbg_rdata(dbg_rdata)
 );
 
 ///////////////////////   DEBUG PROBE   ///////////////////////////
@@ -546,8 +565,9 @@ issp_probe #(.INSTANCE_ID("G"), .PROBE_W(128), .SOURCE_W(1)) u_issp_g (
 // entry read out, [12] stop the capture, [13] keep the last 4,096 instead, [14] all requests,
 // [15] restart (a rising edge). Probe: {entries recorded [15:0], the next slot [11:0], the entry
 // [79:0]}; `read_issp.py T dump` reads them (read_issp.tcl). [16] widens the default to the
-// memories as well (every I/O request).
-wire [16:0] src_t;
+// memories as well (every I/O request). [17] keeps writes only, and [18] leaves out the 3D display
+// list (0x20300000-0x203001ff), so a ring holds the game's recent register writes.
+wire [18:0] src_t;
 reg  [79:0] trace [0:4095];
 reg  [79:0] trace_q;
 reg  [11:0] trace_w = 0;
@@ -576,7 +596,8 @@ always @(posedge clk1x) begin
 		           (mem_address >= 32'h6000_0000 && mem_address < 32'h6800_0000);
 	end else if (mem_done && t_pend) begin
 		t_pend <= 1'b0;
-		if (((t_io && (!t_mem || src_t[16])) || src_t[14]) && !src_t[12] && !t_full) begin
+		if (((t_io && (!t_mem || src_t[16])) || src_t[14]) && !src_t[12] && !t_full &&
+		    !(src_t[17] && t_rnw) && !(src_t[18] && t_addr[31:9] == 23'h101800)) begin
 			trace[trace_w] <= {6'd0, t_64, t_rnw, t_mask, t_rnw ? mem_dataRead[31:0] : t_wdata, t_addr};
 			trace_w <= trace_w + 1'd1;
 			if (~&trace_n) trace_n <= trace_n + 1'd1;
@@ -588,7 +609,7 @@ always @(posedge clk1x) begin
 	end
 end
 
-issp_probe #(.INSTANCE_ID("T"), .PROBE_W(108), .SOURCE_W(17)) u_issp_t (
+issp_probe #(.INSTANCE_ID("T"), .PROBE_W(108), .SOURCE_W(19)) u_issp_t (
 	.clk(clk1x),
 	.probe({trace_n, trace_w, trace_q}),
 	.source(src_t)
@@ -677,8 +698,191 @@ issp_probe #(.INSTANCE_ID("V"), .PROBE_W(266), .SOURCE_W(1)) u_issp_v (
 	.probe({spr_s, l_wv, l_stall, l_mix, l_f3, l_tm, l_spr, l_len, first_last, late_last, cnt_late, cnt_ls, cnt_fs, vid_s}),
 	.source()
 );
+
+// ISSP instance Q: the tilemap engines' stages and queues and the arbiters' reply tags
+// (hng64_video dbg_tq), for a pass that never ends: which reply is owed, VRAM or tile ROM.
+reg [185:0] tq_s;
+always @(posedge clk2x) tq_s <= dbg_tq;
+issp_probe #(.INSTANCE_ID("Q"), .PROBE_W(186), .SOURCE_W(1)) u_issp_q (
+	.clk(clk2x),
+	.probe(tq_s),
+	.source()
+);
+
+// ISSP instance S: sprite pixels in the last frame - drawn, past the z-test, read by the mixer
+reg [59:0] sc_s;
+always @(posedge clk2x) sc_s <= dbg_sc;
+issp_probe #(.INSTANCE_ID("S"), .PROBE_W(60), .SOURCE_W(1)) u_issp_s (
+	.clk(clk2x),
+	.probe(sc_s),
+	.source()
+);
+
+// ISSP instance D: the DDR3 port over the last frame, latched at each vblank rise (clk2x): clocks
+// with a request presented, clocks of those it waited on DDRAM_BUSY, reads and writes it took, and
+// the sum of reads in flight each clock, so the mean read latency is that sum over the reads
+// (Little's law). Field table: read_issp.tcl fields_D.
+reg [21:0] dd_req = 0, dd_stall = 0, dd_rd = 0, dd_wr = 0, ld_req = 0, ld_stall = 0, ld_rd = 0, ld_wr = 0;
+reg [31:0] dd_infl = 0, ld_infl = 0;
+reg  [7:0] dd_frames = 0;
+reg        dd_vb = 0;
+wire       dd_any = DDRAM_RD || DDRAM_WE;
+always @(posedge clk2x) begin
+	dd_vb <= vblank;
+	if (vblank && !dd_vb) begin
+		ld_req    <= dd_req;
+		ld_stall  <= dd_stall;
+		ld_rd     <= dd_rd;
+		ld_wr     <= dd_wr;
+		ld_infl   <= dd_infl;
+		dd_frames <= dd_frames + 1'd1;
+		dd_req    <= 0;
+		dd_stall  <= 0;
+		dd_rd     <= 0;
+		dd_wr     <= 0;
+		dd_infl   <= 0;
+	end else begin
+		dd_req   <= dd_req + dd_any;
+		dd_stall <= dd_stall + (dd_any && DDRAM_BUSY);
+		dd_rd    <= dd_rd + (DDRAM_RD && !DDRAM_BUSY);
+		dd_wr    <= dd_wr + (DDRAM_WE && !DDRAM_BUSY);
+		dd_infl  <= dd_infl + dbg_ddr_inflight;
+	end
+end
+issp_probe #(.INSTANCE_ID("D"), .PROBE_W(128), .SOURCE_W(1)) u_issp_d (
+	.clk(clk2x),
+	.probe({dd_frames, ld_infl, ld_wr, ld_rd, ld_stall, ld_req}),
+	.source()
+);
+
+// ISSP instance E: where the 3D's time goes, over the last video frame (clk2x clocks, latched at each
+// vblank rise): its sequence state (hng64_3d st, sampled across from clk3d) running the engine,
+// flushing, finishing, waiting for the display to take a plane, idle with nothing queued; clocks
+// with the upload queue full; and clk3d clocks over the frame (a clk3d count crossed in Gray code),
+// to check the 3D's clock. Field table: read_issp.tcl fields_E.
+wire [3:0] e3_st = dbg_3d[9:6];
+reg [20:0] e3_runw = 0, e3_flush = 0, e3_fin = 0, e3_swap = 0, e3_idle = 0, e3_full = 0;
+reg [20:0] l3_runw = 0, l3_flush = 0, l3_fin = 0, l3_swap = 0, l3_idle = 0, l3_full = 0;
+reg [20:0] c3_bin = 0, c3_gray = 0;
+reg [20:0] c3_s1 = 0, c3_s2 = 0, c3_at = 0, l3_c3 = 0;
+reg        e3_vb = 0;
+always @(posedge clk3d) begin
+	c3_bin  <= c3_bin + 1'd1;
+	c3_gray <= (c3_bin + 1'd1) ^ ((c3_bin + 1'd1) >> 1);
+end
+function [20:0] ungray21(input [20:0] g);
+	integer k;
+	begin
+		ungray21[20] = g[20];
+		for (k = 19; k >= 0; k = k - 1) ungray21[k] = ungray21[k + 1] ^ g[k];
+	end
+endfunction
+always @(posedge clk2x) begin
+	c3_s1 <= c3_gray;
+	c3_s2 <= c3_s1;
+	e3_vb <= vblank;
+	if (vblank && !e3_vb) begin
+		l3_runw <= e3_runw; l3_flush <= e3_flush; l3_fin <= e3_fin;
+		l3_swap <= e3_swap; l3_idle <= e3_idle; l3_full <= e3_full;
+		l3_c3   <= ungray21(c3_s2) - c3_at;
+		c3_at   <= ungray21(c3_s2);
+		e3_runw <= 0; e3_flush <= 0; e3_fin <= 0; e3_swap <= 0; e3_idle <= 0; e3_full <= 0;
+	end else begin
+		e3_runw  <= e3_runw  + (e3_st == 4'd4);
+		e3_flush <= e3_flush + (e3_st == 4'd9);
+		e3_fin   <= e3_fin   + (e3_st == 4'd10);
+		e3_swap  <= e3_swap  + (e3_st == 4'd11);
+		e3_idle  <= e3_idle  + (e3_st == 4'd6 && dbg_3d[5:0] == 6'd0);
+		e3_full  <= e3_full  + dbg_3d[12];
+	end
+end
+issp_probe #(.INSTANCE_ID("E"), .PROBE_W(147), .SOURCE_W(1)) u_issp_e (
+	.clk(clk2x),
+	.probe({l3_c3, l3_full, l3_idle, l3_swap, l3_fin, l3_flush, l3_runw}),
+	.source()
+);
+
+// ISSP instance R: one line of the sprite engine's traffic. Source {arm toggle, line, sel, idx}:
+// a toggle arms a capture of the next pass for `line`: every ROM read the port takes (address),
+// every reply word, and every line-buffer write (both pixels). sel 0/1/2 with idx reads them back.
+wire [19:0] src_r;
+reg   [1:0] r_arm_s = 0;
+reg         r_armed = 0, r_on = 0, r_seen = 0;
+reg   [6:0] r_nreq = 0, r_nrep = 0;
+reg   [7:0] r_npix = 0;
+reg  [25:0] r_req [0:127];
+reg  [63:0] r_rep [0:127];
+reg  [51:0] r_pix [0:255];
+reg  [63:0] r_q;
+wire  [8:0] rc_line  = dbg_rc[154:146];
+wire        rc_start = dbg_rc[145];
+wire [31:0] rc_px    = dbg_rc[144:113];
+wire [17:0] rc_x     = dbg_rc[112:95];
+wire  [1:0] rc_we    = dbg_rc[94:93];
+wire [63:0] rc_rep   = dbg_rc[92:29];
+wire        rc_valid = dbg_rc[28], rc_ready = dbg_rc[27], rc_rd = dbg_rc[26];
+wire [25:0] rc_addr  = dbg_rc[25:0];
+always @(posedge clk2x) begin
+	r_arm_s <= {r_arm_s[0], src_r[19]};
+	if (r_arm_s[1] != r_seen) begin
+		r_seen  <= r_arm_s[1];
+		r_armed <= 1'b1;
+	end
+	if (rc_start) begin
+		if (r_armed && rc_line == src_r[18:10]) begin
+			r_on <= 1'b1; r_armed <= 1'b0;
+			r_nreq <= 0; r_nrep <= 0; r_npix <= 0;
+		end else r_on <= 1'b0;
+	end else if (r_on) begin
+		if (rc_rd && rc_ready && ~&r_nreq) begin r_req[r_nreq] <= rc_addr; r_nreq <= r_nreq + 1'd1; end
+		if (rc_valid && ~&r_nrep)          begin r_rep[r_nrep] <= rc_rep;  r_nrep <= r_nrep + 1'd1; end
+		if (|rc_we && ~&r_npix) begin
+			r_pix[r_npix] <= {rc_we[1], rc_x[17:9], rc_px[31:16], rc_we[0], rc_x[8:0], rc_px[15:0]};
+			r_npix <= r_npix + 1'd1;
+		end
+	end
+	case (src_r[9:8])
+		2'd0:    r_q <= {38'd0, r_req[src_r[6:0]]};
+		2'd1:    r_q <= r_rep[src_r[6:0]];
+		default: r_q <= {12'd0, r_pix[src_r[7:0]]};
+	endcase
+end
+issp_probe #(.INSTANCE_ID("R"), .PROBE_W(88), .SOURCE_W(20)) u_issp_r (
+	.clk(clk2x),
+	.probe({r_on, r_armed, r_npix, r_nrep, r_nreq, r_q}),
+	.source(src_r)
+);
+
+// ISSP instance M: the video memories as the CPU sees them (hng64_vbus v_sel: 0 sprite RAM,
+// 1 sprite registers, 2 video registers, 3 palette, 4 tcram). Source {toggle, sel, addr}: a
+// toggle asks for one dword; the probe's toggle follows it when the data is there.
+// scripts/read_issp.tcl `M dump` reads a whole memory into debug/hw-cap.
+wire [17:0] src_m;
+assign dbg_rd    = src_m[17];
+assign dbg_rsel  = src_m[16:14];
+assign dbg_raddr = src_m[13:0];
+issp_probe #(.INSTANCE_ID("M"), .PROBE_W(33), .SOURCE_W(18)) u_issp_m (
+	.clk(clk1x),
+	.probe({dbg_rdone, dbg_rdata}),
+	.source(src_m)
+);
+
+// ISSP instance K: player 1's inputs held from JTAG (the Remote API only taps keys): the source is
+// ORed into joystick_0 (J1 layout: 8 Start, 9 Coin, 11 Service, 12 Test); the probe is IN4 and IN7
+// as the IO MCU reads them. read_issp.py K set N holds them, K set 0 lets go.
+wire [31:0] src_k;
+assign dbg_j0 = src_k;
+issp_probe #(.INSTANCE_ID("K"), .PROBE_W(16), .SOURCE_W(32)) u_issp_k (
+	.clk(clk1x),
+	.probe({inputs[7], inputs[4]}),
+	.source(src_k)
+);
 `else
+assign dbg_j0    = 32'd0;
 assign dbg_pause = 1'b0;
+assign dbg_rd    = 1'b0;
+assign dbg_rsel  = 3'd0;
+assign dbg_raddr = 14'd0;
 `endif
 
 

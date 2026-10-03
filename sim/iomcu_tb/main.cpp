@@ -67,6 +67,15 @@ int main(int argc, char **argv) {
     // 93.75 MHz against 8 MHz is 11.7 core clocks a tick; 12 gives every instruction its full
     // budget. The comparison depends on ticks, not on this ratio.
     const int CE_DIV = atoi(arg("cediv", "12").c_str());
+    // +start=N: no comparison; run +n clocks with IN7's Start 1 (bit 6) low from clock N, and print
+    // every write the MCU makes to dual-port RAM offsets 0-15 (MAME's game reads Start at offset 8)
+    const long start_at = atol(arg("start", "0").c_str());
+    // +events=FILE: MAME's side of the protocol (scripts/mame/mcu_proto.lua: `t W off mask data`,
+    // `t I ...`, `t R off mask data`, `t F frame`), replayed from reset at the bench's 93.75 MHz: the MIPS's
+    // dual-port writes byte by byte, INT0 for 1,000 clocks per interrupt write, coin 1 low for frame
+    // 1300 and Start 1 for 1400-1409. Prints the MCU's writes to offset 8 and, at each of MAME's
+    // reads of 0x1f808008, offset 8 as the MIPS would read it against MAME's value.
+    const std::string evpath = arg("events", "");
 
     std::vector<uint8_t> region(0x10000, 0);
     {
@@ -110,10 +119,13 @@ int main(int argc, char **argv) {
     dut->ce = 0;
     dut->int0 = 0;
     dut->in_all = 0xff;
+    dut->in7 = 0xff;
+    dut->mips_we = 0;
+    dut->mips_addr = 0;
     dut->rom_we = 0;
 
     std::vector<uint8_t> iram(0x200, 0);        // the bench's copy of 0x0040-0x023f
-    long cyc = 0;
+    long long cyc = 0;                          // 64 bits: a replay passes 2^31 clocks
 
     auto tick = [&]() {
         cyc++;
@@ -140,6 +152,129 @@ int main(int argc, char **argv) {
     for (int pri = 0; pri < 16; pri++) {
         uint32_t a = 0xffe0 + (15 - pri) * 2;
         vec[pri] = uint16_t(region[a] | (region[a + 1] << 8));
+    }
+
+    if (!evpath.empty()) {
+        struct Ev { double t; char k; uint32_t off, mask, data; };
+        std::vector<Ev> ev;
+        FILE *f = fopen(evpath.c_str(), "r");
+        if (!f) { fprintf(stderr, "cannot open %s%c", evpath.c_str(), 10); return 2; }
+        char buf[256];
+        while (fgets(buf, sizeof buf, f)) {
+            Ev e{}; char k;
+            unsigned a = 0, b = 0, c = 0;
+            if (sscanf(buf, "%lf %c %x %x %x", &e.t, &k, &a, &b, &c) >= 3) {
+                e.k = k; e.off = a; e.mask = b; e.data = c;
+                if (k == 'F') e.off = unsigned(atoi(strchr(buf, 'F') + 1));
+                ev.push_back(e);
+            }
+        }
+        fclose(f);
+        const double HZ = 93.75e6;
+        // +pcs=FILE: every PC fetched in frames 1399-1403, for comparing with MAME's trace
+        const std::string pcpath = arg("pcs", "");
+        FILE *pcfile = pcpath.empty() ? nullptr : fopen(pcpath.c_str(), "w");
+        int last_pc = 0, unimpl_pc = 0, unimpl_op = 0, unimpl_op1 = 0;
+        long long last_fetch = 0;
+        long last_fetch_frame = 0, unimpl_frame = 0;
+        bool unimpl_seen = false;
+        std::vector<std::string> ring(30);
+        size_t ring_i = 0;
+        long frame = 0, int0_left = 0;
+        uint8_t last8 = 0xAA;
+        long reads = 0, rbad = 0;
+        size_t i = 0;
+        std::vector<std::pair<uint32_t, uint8_t>> wq;       // pending byte writes
+        while (i < ev.size()) {
+            const long long due = (long long)(ev[i].t * HZ);
+            while (cyc < due) {
+                // one queued MIPS byte write a clock
+                if (!wq.empty()) {
+                    dut->mips_addr = wq.front().first;
+                    dut->mips_wdata = wq.front().second;
+                    dut->mips_we = 1;
+                    wq.erase(wq.begin());
+                } else dut->mips_we = 0;
+                uint8_t in7 = 0xff;
+                if (frame == 1300) in7 &= ~0x04;
+                if (frame >= 1400 && frame < 1410) in7 &= ~0x40;
+                dut->in7 = in7;
+                dut->int0 = int0_left > 0;
+                if (int0_left > 0) int0_left--;
+                tick();
+                // the routine that builds offset 8 (MAME's trace: CFD0-D00A), in two frames
+                if (dut->dbg_fetch) {
+                    last_pc = dut->dbg_pc; last_fetch = cyc; last_fetch_frame = frame;
+                    char b[200];
+                    int n = snprintf(b, sizeof b, "f%ld c%lld pc=%04x op=%02x %02x sp=%04x rb=%x f=%02x",
+                                     frame, cyc, int(dut->dbg_pc), int(dut->dbg_op), int(dut->dbg_op1),
+                                     int(dut->dbg_sp), int(dut->dbg_rbs), int(dut->dbg_f));
+                    for (int r = 0; r < 8; r++)
+                        n += snprintf(b + n, sizeof b - n, " %s=%02x", REGNAME[r], iram[dut->dbg_rbs * 8 + r]);
+                    ring[ring_i++ % ring.size()] = b;
+                }
+                if (dut->dbg_unimpl && !unimpl_seen) {
+                    unimpl_seen = true; unimpl_pc = dut->dbg_pc; unimpl_op = dut->dbg_op;
+                    unimpl_op1 = dut->dbg_op1; unimpl_frame = frame;
+                }
+                if (pcfile && dut->dbg_fetch && frame >= 1399 && frame <= 1403)
+                    fprintf(pcfile, "%04X%c", int(dut->dbg_pc), 10);
+                if (dut->dpw && dut->dpw_addr == 8 && dut->dpw_data != last8) {
+                    printf("iomcu: frame %ld (clock %lld) MCU writes offset 8 <= %02x%c", frame, cyc,
+                           int(dut->dpw_data), 10);
+                    last8 = dut->dpw_data;
+                }
+            }
+            const Ev &e = ev[i++];
+            if (e.k == 'F') frame = e.off;
+            else if (e.k == 'I') { if (e.mask & 0xffff0000u) int0_left = 1000; }
+            else if (e.k == 'W') {
+                for (int lane = 0; lane < 4; lane++)
+                    if ((e.mask >> (24 - 8 * lane)) & 0xff)
+                        wq.push_back({(e.off - 0x1f808000u + lane) & 0x7ff, uint8_t(e.data >> (24 - 8 * lane))});
+            } else if (e.k == 'R') {
+                dut->mips_we = 0;
+                dut->mips_addr = 8;
+                tick(); tick();
+                const uint8_t got = dut->mips_rdata;
+                const uint8_t want = uint8_t(e.data >> 24);
+                reads++;
+                if (got != want) rbad++;
+                printf("iomcu: frame %ld MIPS reads offset 8: core %02x, MAME %02x%s%c", frame, int(got),
+                       int(want), got != want ? "  DIFFERS" : "", 10);
+            }
+        }
+        if (pcfile) fclose(pcfile);
+        if (last_fetch < cyc - 1000000)     // stopped well before the end: its last instructions
+            for (size_t k = 0; k < ring.size(); k++)
+                printf("iomcu: %s%c", ring[(ring_i + k) % ring.size()].c_str(), 10);
+        printf("iomcu: last fetch pc=%04x at clock %lld (frame %ld); unimplemented %d (first at pc=%04x, "
+               "op %02x %02x, frame %ld); overrun %d%c", last_pc, last_fetch, last_fetch_frame,
+               int(unimpl_seen), unimpl_pc, unimpl_op, unimpl_op1, unimpl_frame, int(dut->dbg_overrun), 10);
+        printf("iomcu: replay done at frame %ld, %ld reads of offset 8, %ld differ%c", frame, reads, rbad, 10);
+        delete dut;
+        return rbad ? 1 : 0;
+    }
+
+    if (start_at > 0) {
+        uint8_t last[16];
+        for (int k = 0; k < 16; k++) last[k] = 0xAA;
+        long nw = 0;
+        for (long c = 0; c < limit; c++) {
+            dut->in7 = (c >= start_at) ? 0xbf : 0xff;
+            tick();
+            if (dut->dpw) {
+                nw++;
+                if (dut->dpw_addr < 16 && last[dut->dpw_addr] != dut->dpw_data) {
+                    printf("iomcu: clock %lld dual-port[%d] <= %02x%s%c", cyc, int(dut->dpw_addr),
+                           int(dut->dpw_data), c >= start_at ? " (Start held)" : "", 10);
+                    last[dut->dpw_addr] = dut->dpw_data;
+                }
+            }
+        }
+        printf("iomcu: %ld dual-port writes in %ld clocks%c", nw, limit, 10);
+        delete dut;
+        return 0;
     }
 
     size_t idx = 0;

@@ -2,6 +2,7 @@
 #
 #   python scripts/read_issp.py [instance] [clear] [set N] [pulse N]
 #   python scripts/read_issp.py T dump        # the first 4,096 I/O requests since configuration
+#   python scripts/read_issp.py M dump sel S from F count C   # video memory S, dwords F..F+C-1
 #
 # SignalTap acquisition is GUI-only in Quartus Prime Lite 17.0 -- there are no
 # *signaltap* Tcl commands -- so ISSP is what a headless workflow can drive.
@@ -59,6 +60,30 @@ set fields_G {
     {cpu_req_waited 103 118 dec}
     {mcu_int0_pulses 119 127 dec}
 }
+# HyperNG64.sv, instance D: the DDR3 port over the last frame
+set fields_D {
+    {req_clocks       0  21 dec}
+    {busy_clocks     22  43 dec}
+    {reads           44  65 dec}
+    {writes          66  87 dec}
+    {inflight_sum    88 119 dec}
+    {frames         120 127 dec}
+}
+# HyperNG64.sv, instance E: the 3D's time over the last frame (clk2x clocks; clk3d clocks)
+set fields_E {
+    {engine_running   0  20 dec}
+    {flushing        21  41 dec}
+    {finishing       42  62 dec}
+    {swap_wait       63  83 dec}
+    {idle_empty      84 104 dec}
+    {queue_full     105 125 dec}
+    {clk3d_clocks   126 146 dec}
+}
+# HyperNG64.sv, instance K: IN4 and IN7 as the IO MCU reads them (active low)
+set fields_K {
+    {in4              0   7 hex}
+    {in7              8  15 hex}
+}
 # HyperNG64.sv, instance V: video scheduling and DDR3 requests
 set fields_V {
     {frame_start      0   0 bit}
@@ -115,6 +140,71 @@ set fields_T {
     {next_slot       80  91 dec}
     {recorded        92 107 dec}
 }
+# HyperNG64.sv, instance Q: hng64_video dbg_tq (the tilemap engines and their reply tags)
+set fields_Q {
+    {e_ph               0   1 dec}
+    {e_pend             2   3 dec}
+    {e_wait             4   5 dec}
+    {e_busy             6   7 dec}
+    {e_run              8   9 dec}
+    {e_rrd             10  11 dec}
+    {e_vrd             12  13 dec}
+    {rq_n              14  15 dec}
+    {rq_r              16  24 dec}
+    {rq_w              25  33 dec}
+    {vq_r              34  41 dec}
+    {vq_w              42  49 dec}
+    {e0_scroll_got     50  53 dec}
+    {e0_scroll_i       54  57 dec}
+    {e0_qw_r           58  64 dec}
+    {e0_qw_w           65  71 dec}
+    {e0_qh_r           72  78 dec}
+    {e0_qh_w           79  85 dec}
+    {e0_qb_r           86  90 dec}
+    {e0_qb_w           91  95 dec}
+    {e0_qt_w           96 100 dec}
+    {e0_qa_r          101 105 dec}
+    {e0_qa_w          106 110 dec}
+    {e0_b_busy        111 111 bit}
+    {e0_s1_v          112 112 bit}
+    {e0_est           113 114 dec}
+    {e0_ast           115 117 dec}
+    {e1_scroll_got    118 121 dec}
+    {e1_scroll_i      122 125 dec}
+    {e1_qw_r          126 132 dec}
+    {e1_qw_w          133 139 dec}
+    {e1_qh_r          140 146 dec}
+    {e1_qh_w          147 153 dec}
+    {e1_qb_r          154 158 dec}
+    {e1_qb_w          159 163 dec}
+    {e1_qt_w          164 168 dec}
+    {e1_qa_r          169 173 dec}
+    {e1_qa_w          174 178 dec}
+    {e1_b_busy        179 179 bit}
+    {e1_s1_v          180 180 bit}
+    {e1_est           181 182 dec}
+    {e1_ast           183 185 dec}
+}
+# HyperNG64.sv, instance S: hng64_video dbg_sc, sprite pixels in the last frame
+set fields_S {
+    {emitted          0  19 dec}
+    {passed_z        20  39 dec}
+    {mixed           40  59 dec}
+}
+# HyperNG64.sv, instance R: one line of the sprite engine's traffic; `R arm L` then `R dump`
+set fields_R {
+    {data             0  63 hex}
+    {n_req           64  70 dec}
+    {n_rep           71  77 dec}
+    {n_pix           78  85 dec}
+    {armed           86  86 bit}
+    {capturing       87  87 bit}
+}
+# HyperNG64.sv, instance M: one dword of a video memory; `M dump` reads a range
+set fields_M {
+    {data             0  31 hex}
+    {done            32  32 bit}
+}
 # ---------------------------------------------------------------------------
 
 proc bits_to_int {s lo hi} {
@@ -165,7 +255,7 @@ set want ""
 set skip 0
 foreach a $argv {
     if {$skip} { set skip 0; continue }
-    if {$a eq "set" || $a eq "pulse" || $a eq "from" || $a eq "count"} { set skip 1; continue }
+    if {$a eq "set" || $a eq "pulse" || $a eq "from" || $a eq "count" || $a eq "sel" || $a eq "arm"} { set skip 1; continue }
     if {$a ne "clear" && $a ne "dump" && $a ne "ring"} { set want $a }
 }
 set idx [lindex [lindex $insts 0] 0]
@@ -184,6 +274,13 @@ switch -- $inst_id {
     T       { set fields $fields_T }
     P       { set fields $fields_P }
     V       { set fields $fields_V }
+    M       { set fields $fields_M }
+    S       { set fields $fields_S }
+    R       { set fields $fields_R }
+    Q       { set fields $fields_Q }
+    D       { set fields $fields_D }
+    E       { set fields $fields_E }
+    K       { set fields $fields_K }
     default {
         puts "instance id '$inst_id' has no field table -- add one before reading it"
         exit 1
@@ -192,6 +289,61 @@ switch -- $inst_id {
 puts "decoding instance $inst_id"
 
 start_insystem_source_probe -device_name $dev -hardware_name $hw
+
+# R arm L: toggle the arm bit with line L. R dump: the counts, then each request, reply and pixel
+# word (sel 0, 1, 2), the line left in the source.
+if {$inst_id eq "R" && ([lsearch $argv arm] >= 0 || [lsearch $argv dump] >= 0)} {
+    proc rsrc {idx v} { write_source_data -instance_index $idx -value [format %X $v] -value_in_hex }
+    set cur [read_source_data -instance_index $idx -value_in_hex]
+    set cur [expr {"0x$cur"}]
+    set line [expr {($cur >> 10) & 511}]
+    set i [lsearch -exact $argv "arm"]
+    if {$i >= 0} {
+        set line [lindex $argv [expr {$i+1}]]
+        set tg [expr {(($cur >> 19) & 1) ^ 1}]
+        rsrc $idx [expr {($tg << 19) | ($line << 10)}]
+        puts "armed for line $line"
+    } else {
+        set tg [expr {($cur >> 19) & 1}]
+        set raw [read_probe_data -instance_index $idx]
+        set nreq [bits_to_int $raw 64 70]; set nrep [bits_to_int $raw 71 77]; set npix [bits_to_int $raw 78 85]
+        puts "rdump line $line req $nreq rep $nrep pix $npix armed [bits_to_int $raw 86 86] on [bits_to_int $raw 87 87]"
+        foreach {sel n tag} [list 0 $nreq REQ 1 $nrep REP 2 $npix PIX] {
+            for {set k 0} {$k < $n} {incr k} {
+                rsrc $idx [expr {($tg << 19) | ($line << 10) | ($sel << 8) | $k}]
+                rsrc $idx [expr {($tg << 19) | ($line << 10) | ($sel << 8) | $k}]
+                set e [read_probe_data -instance_index $idx]
+                puts [format "%s %3d %08X%08X" $tag $k [bits_to_int $e 32 63] [bits_to_int $e 0 31]]
+            }
+        }
+    }
+    end_insystem_source_probe
+    exit 0
+}
+
+# M dump: one toggle a dword. The core answers between CPU requests, so the game runs on; pause
+# it for a consistent picture. Prints "addr data" in hex, one dword a line.
+if {$inst_id eq "M" && [lsearch $argv dump] >= 0} {
+    set sel 0; set k0 0; set count 1
+    set i [lsearch -exact $argv "sel"];   if {$i >= 0} { set sel   [lindex $argv [expr {$i+1}]] }
+    set i [lsearch -exact $argv "from"];  if {$i >= 0} { set k0    [lindex $argv [expr {$i+1}]] }
+    set i [lsearch -exact $argv "count"]; if {$i >= 0} { set count [lindex $argv [expr {$i+1}]] }
+    set tg [bits_to_int [read_probe_data -instance_index $idx] 32 32]
+    puts "mdump sel $sel from $k0 count $count"
+    for {set k $k0} {$k < $k0 + $count} {incr k} {
+        set tg [expr {1 - $tg}]
+        write_source_data -instance_index $idx -value_in_hex             -value [format %X [expr {($tg << 17) | ($sel << 14) | $k}]]
+        set tries 0
+        while {1} {
+            set e [read_probe_data -instance_index $idx]
+            if {[bits_to_int $e 32 32] == $tg} break
+            if {[incr tries] > 100} { puts "NO ANSWER at $k"; end_insystem_source_probe; exit 1 }
+        }
+        puts [format "%04X %08X" $k [bits_to_int $e 0 31]]
+    }
+    end_insystem_source_probe
+    exit 0
+}
 
 # T dump: stop the capture, read the entries in order, let it run again. `ring` reads a ring
 # capture (source bit 11) oldest first; otherwise the one-shot capture from entry 0.

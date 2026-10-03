@@ -8,6 +8,7 @@
 //         2  video registers, 0x20190000, 14 dwords
 //         3  palette, 0x20200000, 4,096 dwords
 //         4  tcram, 0x20208000, 24 dwords (hng64_io answers the vblank read at 0x48 itself)
+//         5  the sprite engine's copy of sprite RAM, read only (the stp revision's probe M)
 //
 // The CPU side runs on clk1x and the video side on clk2x, twice clk1x from the same PLL: the
 // registers cross as they are, as everywhere else in the core, and the RAMs have a clock per
@@ -67,7 +68,7 @@ module hng64_vbus (
 );
 
     localparam logic [2:0] V_SPR = 3'd0, V_SPRREG = 3'd1, V_VREG = 3'd2, V_PAL = 3'd3,
-                           V_TCRAM = 3'd4;
+                           V_TCRAM = 3'd4, V_SPRE = 3'd5;
 
     function automatic logic [31:0] merge(input logic [31:0] old, input logic [31:0] d,
                                           input logic [3:0] be);
@@ -78,8 +79,6 @@ module hng64_vbus (
     logic [31:0] sprregs [0:4];
     logic [31:0] pal0;                  // palette entry 0, for the background
 
-    assign spriteregs0 = sprregs[0];
-    assign spriteregs1 = sprregs[1];
     assign bg_rgb = fbcontrol0[0] ? pal0[23:0] : 24'd0;
 
     wire wr_spr = v_req && v_we && v_sel == V_SPR;
@@ -99,10 +98,17 @@ module hng64_vbus (
         .a_rdata(spr_cpu_q),
         .b_clk(clk2x), .b_addr(copy_rd), .b_rdata(spr_copy_q));
 
-    hng64_bram #(.AW(14), .DW(32), .WORDS(12288)) u_spr_eng (
-        .a_clk(clk2x), .a_addr(copy_wr2), .a_be({4{copy_wr_en2}}), .a_wdata(copy_d),
-        .a_rdata(),
-        .b_clk(clk2x), .b_addr(sram_addr), .b_rdata(sram_data));
+    // port A reads for v_sel 5 when the copy is not writing
+    logic [31:0] spr_eng_q;
+    // the engine's reads registered at the RAM both ways: from the M10K across the chip into the
+    // engine's word registers they missed clk2x by 1.6 ns, and from its address register to the
+    // M10K by 0.9 ns. A word is four clocks after the engine's ram_addr.
+    logic [13:0] sram_addr_q;
+    always_ff @(posedge clk2x) sram_addr_q <= sram_addr;
+    hng64_bram #(.AW(14), .DW(32), .WORDS(12288), .OUTREG_B(1'b1)) u_spr_eng (
+        .a_clk(clk2x), .a_addr(copy_wr_en2 ? copy_wr2 : v_addr), .a_be({4{copy_wr_en2}}),
+        .a_wdata(copy_d), .a_rdata(spr_eng_q),
+        .b_clk(clk2x), .b_addr(sram_addr_q), .b_rdata(sram_data));
 
     // the vblank copy: read two clocks ahead of the write
     always_ff @(posedge clk2x) begin
@@ -125,6 +131,15 @@ module hng64_vbus (
         // the last write lands two clocks after the last read
         if (copy_wr_en2 && copy_wr2 == 14'd12287) snapshot_done <= 1'b1;
     end
+
+    // The engine's copy of the two it uses is taken with the sprite list, as MAME reads them at
+    // screen_update: the games write them several times a frame, and the bpp bit changing under
+    // a line left the engine's colour and row queues a tile apart, waiting for ever.
+    always_ff @(posedge clk2x)
+        if (snapshot && !copy_run) begin
+            spriteregs0 <= sprregs[0];
+            spriteregs1 <= sprregs[1];
+        end
 
     // ---- palette ------------------------------------------------------------------------------------
     logic [31:0] pal_cpu_q;
@@ -189,6 +204,7 @@ module hng64_vbus (
                     V_SPRREG: v_rdata <= (rd_reg < 5'd5)  ? sprregs[rd_reg[2:0]]   : 32'd0;
                     V_VREG:   v_rdata <= (rd_reg < 5'd14) ? videoregs[rd_reg[3:0]] : 32'd0;
                     V_PAL:    v_rdata <= pal_cpu_q;
+                    V_SPRE:   v_rdata <= spr_eng_q;
                     default:  v_rdata <= (rd_reg < 5'd24) ? tcram[rd_reg]          : 32'd0;
                 endcase
             end

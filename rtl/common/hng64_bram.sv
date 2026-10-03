@@ -14,7 +14,8 @@
 module hng64_bram #(
     parameter int AW = 12,
     parameter int DW = 32,              // a multiple of 8
-    parameter int WORDS = 1 << AW       // fewer than 2^AW takes fewer blocks
+    parameter int WORDS = 1 << AW,      // fewer than 2^AW takes fewer blocks
+    parameter bit OUTREG_B = 1'b0       // port B's data registered again: a clock later
 ) (
     input  logic          a_clk,
     input  logic [AW-1:0] a_addr,
@@ -38,7 +39,16 @@ module hng64_bram #(
             if (a_be[k]) mem[a_addr][8*k +: 8] <= a_wdata[8*k +: 8];
     end
 
-    always_ff @(posedge b_clk) b_rdata <= mem[b_addr];
+    // The chip's mixed-port read during write is DONT_CARE: a port B read of the word port A writes
+    // in that clock returns undefined data. The model returns all ones there, so a design that uses
+    // such a read fails in simulation as it would on the board, instead of reading the old word.
+    logic [DW-1:0] b_q;
+    always_ff @(posedge b_clk) b_q <= (|a_be && a_addr == b_addr) ? '1 : mem[b_addr];
+    if (OUTREG_B) begin : g_breg
+        always_ff @(posedge b_clk) b_rdata <= b_q;
+    end else begin : g_bnoreg
+        assign b_rdata = b_q;
+    end
 `else
     altsyncram #(
         .operation_mode("BIDIR_DUAL_PORT"),
@@ -49,7 +59,7 @@ module hng64_bram #(
         .numwords_b(WORDS), .widthad_b(AW), .width_b(DW),
         .width_byteena_a(DW / 8), .byte_size(8),
         .width_byteena_b(1),
-        .outdata_reg_a("UNREGISTERED"), .outdata_reg_b("UNREGISTERED"),
+        .outdata_reg_a("UNREGISTERED"), .outdata_reg_b(OUTREG_B ? "CLOCK1" : "UNREGISTERED"),
         .address_reg_b("CLOCK1"), .indata_reg_b("CLOCK1"), .wrcontrol_wraddress_reg_b("CLOCK1"),
         .clock_enable_input_a("BYPASS"), .clock_enable_output_a("BYPASS"),
         .clock_enable_input_b("BYPASS"), .clock_enable_output_b("BYPASS"),
