@@ -55,6 +55,7 @@ module hng64_core #(
 
     input  logic  [7:0] inputs [0:7],   // IN0-IN7, active low, as MAME's hng64_fight ports
     input  logic        flip,           // the picture turned 180 degrees, from the next frame
+    input  logic  [2:0] game_speed,     // OSD: 0 full; 1-5 hide 1 frame in 10, 5, 4, 3, 2 (docs/HACKS.md)
 
     // SDRAM
     output logic [12:0] SDRAM_A,
@@ -333,6 +334,7 @@ module hng64_core #(
     logic [31:0] v_wdata, v_rdata;
     logic [31:0] raster_pos;
     logic        vblank_irq, raster_irq, net_irq, vblank_level;
+    logic        vblank_irq_vt, raster_irq_vt, net_irq_vt, vblank_level_vt;     // hng64_vtiming's
     logic        mcu_int0, mcu_irq;
     logic [10:0] dp_addr;
     logic        dp_we;
@@ -411,6 +413,7 @@ module hng64_core #(
     logic  [9:0] vis_x0, vis_y0, vis_w, vis_h;
     logic        screen_dis;
     logic        snapshot, snapshot_done;
+    logic        snapshot_vt, snapshot_done_vt;                                 // hng64_vtiming's
     logic [13:0] sram_addr;
     logic        sram_rd;
     logic [31:0] sram_data;
@@ -464,11 +467,59 @@ module hng64_core #(
         .ce_pix(ce_pix), .hsync(hsync), .vsync(vsync), .hblank(hblank), .vblank(vblank),
         .r(r), .g(g), .b(b),
         .line_start(line_start), .line(line), .frame_start(frame_start), .busy(vbusy),
-        .snapshot(snapshot), .snapshot_done(snapshot_done),
+        .snapshot(snapshot_vt), .snapshot_done(snapshot_done_vt),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb),
-        .raster_pos(raster_pos), .vblank_irq(vblank_irq), .raster_irq(raster_irq),
-        .net_irq(net_irq), .vblank_level(vblank_level),
+        .raster_pos(raster_pos), .vblank_irq(vblank_irq_vt), .raster_irq(raster_irq_vt),
+        .net_irq(net_irq_vt), .vblank_level(vblank_level_vt),
         .dbg_late(vlate), .dbg_sched(vid_sched));
+
+    // ---- game speed (OSD) -----------------------------------------------------------------------------
+    // One video frame in N is hidden from the game and the 3D, so a game frame lasts two video frames
+    // once in N and the game runs at (N-1)/N of its speed, with the 3D's time per game frame raised
+    // in step: its vblank interrupt, vblank status, raster and line-240 interrupts, the 3D's clearing
+    // vblank and the sprite snapshot are all withheld for that frame. The video runs on at 60 Hz and
+    // shows the last finished frames. A frame is hidden or not from its vblank's start; every event is
+    // a clock late so that the decision is in place before any of them shows.
+    logic [3:0] gs_n;                       // N; 0: none hidden
+    always_comb
+        case (game_speed)
+            3'd1:    gs_n = 4'd10;
+            3'd2:    gs_n = 4'd5;
+            3'd3:    gs_n = 4'd4;
+            3'd4:    gs_n = 4'd3;
+            3'd5:    gs_n = 4'd2;
+            default: gs_n = 4'd0;
+        endcase
+    logic [3:0] gs_cnt;
+    logic       gs_hide;                    // this frame, from its vblank's start, is hidden
+    logic       vbl_d1, vbi_d1, rai_d1, nti_d1, snap_d1, snap_fake;
+    always_ff @(posedge clk2x) begin
+        vbl_d1  <= vblank_level_vt;
+        vbi_d1  <= vblank_irq_vt;
+        rai_d1  <= raster_irq_vt;
+        nti_d1  <= net_irq_vt;
+        snap_d1 <= snapshot_vt;
+        snap_fake <= snap_d1 && gs_hide;
+        if (game_reset) begin
+            gs_cnt  <= 4'd0;
+            gs_hide <= 1'b0;
+        end else if (vblank_level_vt && !vbl_d1) begin
+            if (gs_n == 4'd0) begin
+                gs_cnt  <= 4'd0;
+                gs_hide <= 1'b0;
+            end else begin
+                gs_cnt  <= (gs_cnt >= gs_n - 4'd1) ? 4'd0 : gs_cnt + 4'd1;
+                gs_hide <= gs_cnt == gs_n - 4'd2;           // the new count is N - 1
+            end
+        end
+    end
+    assign vblank_level = vbl_d1 && !gs_hide;
+    assign vblank_irq   = vbi_d1 && !gs_hide;
+    assign raster_irq   = rai_d1 && !gs_hide;
+    assign net_irq      = nti_d1 && !gs_hide;
+    assign snapshot     = snap_d1 && !gs_hide;
+    // a withheld snapshot is answered here, or the timing would wait for its copy for ever
+    assign snapshot_done_vt = snapshot_done || snap_fake;
 
     // ---- 3D ---------------------------------------------------------------------------------------------
     assign plane_base[0] = D3_COL0;

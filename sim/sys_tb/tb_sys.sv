@@ -75,7 +75,7 @@ module tb_sys (
         .cpu_irq(cpu_irq), .cpu_reset(cpu_reset),
         .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
         .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-        .rtc(56'h04092612233059), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip),
+        .rtc(56'h04092612233059), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip), .game_speed(3'd0),
         .SDRAM_A(SDRAM_A), .SDRAM_DQ(SDRAM_DQ), .SDRAM_DQML(SDRAM_DQML), .SDRAM_DQMH(SDRAM_DQMH),
         .SDRAM_BA(SDRAM_BA), .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE),
         .SDRAM_nRAS(SDRAM_nRAS), .SDRAM_nCAS(SDRAM_nCAS), .SDRAM_CLK(SDRAM_CLK),

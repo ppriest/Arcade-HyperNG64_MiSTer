@@ -63,6 +63,7 @@ localparam CONF_STR = {
 	"O[65],Flip Screen,Off,On;",
 	"O[114:113],CPU clock (on reset),75 MHz,87.5 MHz,100 MHz;",
 	"O[116:115],3D clock (on reset),100 MHz,83.3 MHz,71.4 MHz;",
+	"O[119:117],Game speed,100%,90%,80%,75%,67%,50%;",
 	"H5O[68:66],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer,HV-Integer;",
 	"H5O[70:69],Crop,Off,432 lines,360 lines;",
 	"H5O[75:71],Crop offset,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
@@ -435,7 +436,7 @@ hng64_core u_core
 
 	.ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-	.rtc(rtc[55:0]), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip),
+	.rtc(rtc[55:0]), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip), .game_speed(status[119:117]),
 
 	.SDRAM_A(SDRAM_A), .SDRAM_DQ(SDRAM_DQ), .SDRAM_DQML(SDRAM_DQML), .SDRAM_DQMH(SDRAM_DQMH),
 	.SDRAM_BA(SDRAM_BA), .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE),
