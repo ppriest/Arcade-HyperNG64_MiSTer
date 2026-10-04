@@ -15,6 +15,7 @@ yet.
 
 ## Contents
 
+- [Screenshots](#screenshots)
 - [Games](#games)
 - [Hardware](#hardware)
 - [Installation](#installation)
@@ -27,6 +28,17 @@ yet.
 - [Acknowledgements](#acknowledgements)
 - [Layout](#layout)
 - [License](#license)
+
+## Screenshots
+
+On the board, MiSTer's native-resolution screenshots (`docs/screenshots/`).
+
+| Set | |
+|-|-|
+| `sams64` | <img src="docs/screenshots/sams64/20261004_174922-screen.png" width="200"> <img src="docs/screenshots/sams64/20261004_174931-screen.png" width="200"> <img src="docs/screenshots/sams64/20261004_174957-screen.png" width="200"> <img src="docs/screenshots/sams64/20261004_175013-screen.png" width="200"> |
+| `sams64_2` | <img src="docs/screenshots/sams64_2/20261004_175215-screen.png" width="200"> <img src="docs/screenshots/sams64_2/20261004_175231-screen.png" width="200"> <img src="docs/screenshots/sams64_2/20261004_175234-screen.png" width="200"> <img src="docs/screenshots/sams64_2/20261004_180330-screen.png" width="200"> |
+| `fatfurwa` | <img src="docs/screenshots/fatfurwa/20261004_173447-screen.png" width="200"> <img src="docs/screenshots/fatfurwa/20261004_173500-screen.png" width="200"> <img src="docs/screenshots/fatfurwa/20261004_181552-screen.png" width="200"> <img src="docs/screenshots/fatfurwa/20261004_181614-screen.png" width="200"> |
+| `buriki` | <img src="docs/screenshots/buriki/20261004_174719-screen.png" width="200"> <img src="docs/screenshots/buriki/20261004_174817-screen.png" width="200"> |
 
 ## Games
 
@@ -108,7 +120,7 @@ Using it:
 
 1. Install once: unzip `releases/hng64snd_YYYYMMDD.zip` in `/media/fat`. That puts the program at
    `games/HyperNG64/hng64snd` and its start script at `Scripts/HNG64_SoundServer.sh`.
-2. After every boot, from the MiSTer main menu, open Scripts and run `HNG64_SoundServer`. Three
+2. After every cold boot, from the MiSTer main menu, open Scripts and run `HNG64_SoundServer`. Three
    seconds later it says "hng64snd started" (or why it failed). Nothing starts it at boot.
 3. Load a set. The program waits until the set starts its sound CPU, goes quiet at every core
    load, and picks up again at the next set; it stays running until the MiSTer restarts.
@@ -146,8 +158,7 @@ Known issues:
   which no capture phase closes at CL2 and 125 MHz (`docs/HACKS.md`), and, depending on placement,
   clk3d, clk2x's hold and the framework scaler's HDMI clock, each met on some placements and missed
   on others. The current build (seed 6649) meets every clock but the SDRAM reads.
-* **sams64** sometimes stops on "I/O INITIALIZE SEQUENCE 1 FAILED!!" after a while.
-* Service mode and the OSD's video options are not yet tried on hardware.
+* **sams64** sometimes stops on "I/O INITIALIZE SEQUENCE 1 FAILED!!" after a while. Haven't seen this since sound hookup.
 
 `docs/ROADMAP.md` is the plan, `docs/HACKS.md` this core's approximations, `docs/MAME_KLUDGES.md`
 what is taken from MAME as is, and `docs/LESSONS_LEARNED.md` what was learnt.
@@ -166,7 +177,7 @@ DSP blocks, 4 of 6 PLLs.
 
 ## Verification
 
-Not PCB-validated. MAME is the accuracy reference.
+Not PCB-validated. MAME, and YouTube recordings of ports are the accuracy reference.
 
 * Main CPU: the BIOS's first 199,998 instructions match MAME in PC and all 31 registers (`sim/boot_tb`)
 * IO MCU: 3,000,000 instructions match MAME's trace (`sim/iomcu_tb`); its decode agrees with MAME's dispatch on every opcode (`scripts/check_tlcs870_dispatch.py`); with MAME's own main-CPU side of the protocol replayed and Start held, the bytes the game reads match MAME's (`iomcu_tb +events`)
