@@ -78,11 +78,11 @@ assign SDRAM_nCS = 0;
 assign SDRAM_CKE = 1;
 assign {SDRAM_DQMH,SDRAM_DQML} = SDRAM_A[12:11];
 
-localparam RASCAS_DELAY   = 3'd2; // tRCD=20ns -> 2 cycles@85MHz
+localparam RASCAS_DELAY   = 3'd2; // tRCD: 16 ns at 125 MHz, under memtest's 3 clocks (docs/HACKS.md)
 localparam BURST_LENGTH   = 3'd2; // 0=1, 1=2, 2=4, 3=8, 7=full page -- 4, for one 64-bit granule
 localparam ACCESS_TYPE    = 1'd0; // 0=sequential, 1=interleaved -- sequential: burst returns
                                    // words in ascending address order, matching gfx ROM layout
-localparam CAS_LATENCY    = 3'd2; // 2/3 allowed
+localparam CAS_LATENCY    = 3'd2; // 2/3 allowed; memtest runs 3 (docs/HACKS.md)
 localparam OP_MODE        = 2'd0; // only 0 (standard operation) allowed
 localparam NO_WRITE_BURST = 1'd1; // 0=write burst enabled, 1=only single access write --
                                    // writes stay single-word; only the HPS byte-at-a-time

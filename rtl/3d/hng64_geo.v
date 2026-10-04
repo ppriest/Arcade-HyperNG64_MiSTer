@@ -1,6 +1,6 @@
 // Generator : SpinalHDL v1.13.0    git head : d9d72474863badf47d8585d187f3e04ae4749c59
 // Component : hng64_geo
-// Git hash  : bc6546a309634e9dd624eb4176d13f873fa329a7
+// Git hash  : 50112e7df801a86a47e1c49247a3b218ac24b9cb
 
 `timescale 1ns/1ps
 
@@ -100,8 +100,42 @@ module hng64_geo (
   wire       [47:0]   _zz_a_1;
   wire       [47:0]   _zz_b;
   wire       [47:0]   _zz_b_1;
+  wire       [5:0]    _zz_eAlu;
+  wire       [5:0]    _zz_eAlu_1;
+  wire                _zz_eMc;
+  wire                _zz_eMc_1;
+  wire       [5:0]    _zz_eMc_2;
+  wire                _zz_eMc_3;
+  wire                _zz_eMc_4;
+  wire       [5:0]    _zz_eMc_5;
+  wire                _zz_eMc_6;
+  wire                _zz_eMc_7;
+  wire       [5:0]    _zz_eMc_8;
+  wire       [5:0]    _zz_eMc_9;
+  wire                _zz_eMc_10;
+  wire       [0:0]    _zz_eMc_11;
+  wire       [2:0]    _zz_eMc_12;
   wire       [47:0]   _zz_alu;
   wire       [47:0]   _zz_alu_1;
+  wire       [47:0]   _zz_alu_2;
+  wire       [47:0]   _zz_alu_3;
+  wire       [47:0]   _zz_alu_4;
+  wire       [47:0]   _zz_alu_5;
+  wire       [47:0]   _zz_alu_6;
+  wire       [47:0]   _zz_alu_7;
+  wire       [47:0]   _zz_alu_8;
+  wire       [47:0]   _zz_alu_9;
+  wire       [47:0]   _zz_alu_10;
+  wire       [47:0]   _zz_alu_11;
+  wire       [47:0]   _zz_alu_12;
+  wire       [47:0]   _zz_alu_13;
+  wire       [47:0]   _zz_alu_14;
+  wire       [47:0]   _zz_alu_15;
+  wire       [47:0]   _zz_alu_16;
+  wire       [47:0]   _zz_alu_17;
+  wire       [47:0]   _zz_alu_18;
+  wire       [47:0]   _zz_alu_19;
+  wire       [47:0]   _zz_alu_20;
   wire       [47:0]   _zz_xAddr;
   wire       [47:0]   _zz_xAddr_1;
   wire                _zz_rfX_port;
@@ -132,55 +166,18 @@ module hng64_geo (
   wire       [7:0]    _zz_slowSh_53;
   wire       [7:0]    _zz_slowSh_54;
   wire       [5:0]    _zz_slowSh_55;
-  wire       [47:0]   _zz_slowR;
-  wire       [47:0]   _zz_slowR_1;
-  wire       [47:0]   _zz_slowR_2;
-  wire       [5:0]    _zz_slowR_3;
-  wire       [7:0]    _zz_slowR_4;
-  wire       [47:0]   _zz_slowR_5;
-  wire       [5:0]    _zz_slowR_6;
-  wire       [7:0]    _zz_slowR_7;
-  wire       [7:0]    _zz_slowR_8;
-  wire       [7:0]    _zz_stSh;
-  wire       [47:0]   _zz_stSh_1;
-  wire       [47:0]   _zz_stSh_2;
-  wire       [7:0]    _zz_stSh_3;
+  wire       [7:0]    _zz__zz_stSh;
+  wire       [7:0]    _zz__zz_stSh_1;
+  wire       [7:0]    _zz__zz_stSh_2;
   wire       [71:0]   _zz_stRound;
   wire       [71:0]   _zz_stRound_1;
   wire       [6:0]    _zz_stRound_2;
   wire       [7:0]    _zz_stRound_3;
   wire       [7:0]    _zz_stRound_4;
-  wire       [71:0]   _zz_mcVal;
-  wire       [71:0]   _zz_mcVal_1;
-  wire       [6:0]    _zz_mcVal_2;
-  wire       [7:0]    _zz_mcVal_3;
-  wire       [71:0]   _zz_mcVal_4;
-  wire       [6:0]    _zz_mcVal_5;
-  wire       [7:0]    _zz_mcVal_6;
-  wire       [7:0]    _zz_mcVal_7;
-  wire       [5:0]    _zz_slowR_9;
-  wire       [15:0]   _zz_slowR_10;
-  wire       [5:0]    _zz_slowR_11;
-  wire       [15:0]   _zz_slowR_12;
-  wire       [47:0]   _zz_slowR_13;
-  wire       [15:0]   _zz_slowR_14;
-  wire       [47:0]   _zz_slowR_15;
-  reg        [7:0]    _zz_slowR_16;
-  wire       [4:0]    _zz_slowR_17;
-  wire       [47:0]   _zz_slowR_18;
   wire       [6:0]    _zz_accSh;
   wire       [47:0]   _zz_accSh_1;
   wire       [6:0]    _zz_accSh_2;
   wire       [15:0]   _zz_accSh_3;
-  wire       [47:0]   _zz_mcVal_8;
-  wire       [47:0]   _zz_mcVal_9;
-  wire       [47:0]   _zz_mcVal_10;
-  wire       [15:0]   _zz_mcVal_11;
-  wire       [47:0]   _zz_mcVal_12;
-  wire       [15:0]   _zz_mcVal_13;
-  wire       [47:0]   _zz_mcVal_14;
-  wire       [47:0]   _zz_mcVal_15;
-  wire       [15:0]   _zz_mcVal_16;
   wire       [71:0]   _zz_divRem;
   wire       [71:0]   _zz_divRem_1;
   wire       [71:0]   _zz_divRem_2;
@@ -192,9 +189,6 @@ module hng64_geo (
   wire       [15:0]   _zz_divLeft;
   wire       [109:0]  _zz_divD;
   wire       [5:0]    _zz_divD_1;
-  wire       [47:0]   _zz_slowR_19;
-  wire       [47:0]   _zz_slowR_20;
-  wire       [47:0]   _zz_slowR_21;
   wire       [47:0]   _zz_divQ;
   wire       [47:0]   _zz_divQ_1;
   wire       [0:0]    _zz_divQ_2;
@@ -211,13 +205,93 @@ module hng64_geo (
   wire       [47:0]   _zz_attr_scrollY;
   wire       [47:0]   _zz_attr_wrapX;
   wire       [47:0]   _zz_attr_wrapY;
+  wire       [47:0]   _zz_slowR;
+  wire       [47:0]   _zz_slowR_1;
+  wire       [47:0]   _zz_slowR_2;
+  wire       [47:0]   _zz_slowR_3;
+  wire       [47:0]   _zz_slowR_4;
+  wire       [47:0]   _zz_slowR_5;
+  wire       [47:0]   _zz_slowR_6;
+  wire       [47:0]   _zz_slowR_7;
+  wire       [47:0]   _zz_slowR_8;
+  wire       [47:0]   _zz_slowR_9;
+  wire       [5:0]    _zz_slowR_10;
+  wire       [7:0]    _zz_slowR_11;
+  wire       [47:0]   _zz_slowR_12;
+  wire       [5:0]    _zz_slowR_13;
+  wire       [7:0]    _zz_slowR_14;
+  wire       [7:0]    _zz_slowR_15;
+  wire       [47:0]   _zz_alu2R;
+  wire       [47:0]   _zz_alu2R_1;
+  wire       [47:0]   _zz_alu2R_2;
+  wire       [47:0]   _zz_alu2R_3;
+  wire       [47:0]   _zz_alu2R_4;
+  wire       [47:0]   _zz_alu2R_5;
+  wire       [47:0]   _zz_alu2R_6;
+  wire       [47:0]   _zz_alu2R_7;
+  wire       [47:0]   _zz_alu2R_8;
+  wire       [47:0]   _zz_alu2R_9;
+  wire       [47:0]   _zz_alu2R_10;
+  wire       [47:0]   _zz_alu2R_11;
+  wire       [5:0]    _zz_alu2R_12;
+  wire       [15:0]   _zz_alu2R_13;
+  wire       [47:0]   _zz_alu2R_14;
+  wire       [47:0]   _zz_alu2R_15;
+  wire       [5:0]    _zz_alu2R_16;
+  wire       [15:0]   _zz_alu2R_17;
+  wire       [47:0]   _zz_alu2R_18;
+  wire       [47:0]   _zz_alu2R_19;
+  wire       [47:0]   _zz_alu2R_20;
+  wire       [47:0]   _zz_alu2R_21;
+  wire       [47:0]   _zz_alu2R_22;
+  wire       [47:0]   _zz_alu2R_23;
+  wire       [47:0]   _zz_alu2R_24;
+  wire       [15:0]   _zz_alu2R_25;
+  wire       [47:0]   _zz_alu2R_26;
+  wire       [47:0]   _zz_alu2R_27;
+  wire       [47:0]   _zz_alu2R_28;
+  reg        [7:0]    _zz_alu2R_29;
+  wire       [4:0]    _zz_alu2R_30;
+  wire       [47:0]   _zz_alu2R_31;
+  wire       [71:0]   _zz_stOut;
+  wire       [71:0]   _zz_stOut_1;
+  wire       [6:0]    _zz_stOut_2;
+  wire       [7:0]    _zz_stOut_3;
+  wire       [71:0]   _zz_stOut_4;
+  wire       [6:0]    _zz_stOut_5;
+  wire       [7:0]    _zz_stOut_6;
+  wire       [7:0]    _zz_stOut_7;
+  wire       [47:0]   _zz_mcVal;
+  wire       [47:0]   _zz_mcVal_1;
+  wire       [47:0]   _zz_mcVal_2;
+  wire       [47:0]   _zz_mcVal_3;
+  wire       [47:0]   _zz_mcVal_4;
+  wire       [47:0]   _zz_mcVal_5;
+  wire       [47:0]   _zz_mcVal_6;
+  wire       [47:0]   _zz_mcVal_7;
+  wire       [47:0]   _zz_mcVal_8;
+  wire       [47:0]   _zz_mcVal_9;
+  wire       [47:0]   _zz_mcVal_10;
+  wire       [47:0]   _zz_mcVal_11;
+  wire       [47:0]   _zz_mcVal_12;
+  wire       [47:0]   _zz_mcVal_13;
+  wire       [47:0]   _zz_mcVal_14;
+  wire       [47:0]   _zz_mcVal_15;
+  wire       [47:0]   _zz_mcVal_16;
+  wire       [15:0]   _zz_mcVal_17;
+  wire       [47:0]   _zz_mcVal_18;
+  wire       [47:0]   _zz_mcVal_19;
+  wire       [47:0]   _zz_mcVal_20;
+  wire       [15:0]   _zz_mcVal_21;
+  wire       [47:0]   _zz_mcVal_22;
+  wire       [47:0]   _zz_mcVal_23;
+  wire       [15:0]   _zz_mcVal_24;
+  wire       [47:0]   _zz_mcVal_25;
+  wire       [47:0]   _zz_mcVal_26;
+  wire       [47:0]   _zz_mcVal_27;
   wire       [35:0]   _zz_prod;
   wire       [35:0]   _zz_prod_1;
   wire       [71:0]   _zz_accVal;
-  wire       [7:0]    _zz_mSh;
-  wire       [47:0]   _zz_mSh_1;
-  wire       [47:0]   _zz_mSh_2;
-  wire       [7:0]    _zz_mSh_3;
   wire       [71:0]   _zz_acc;
   wire       [6:0]    _zz_acc_1;
   wire       [7:0]    _zz_acc_2;
@@ -295,15 +369,22 @@ module hng64_geo (
   wire                usesD;
   wire                stHazard;
   wire                accBranchHazard;
-  reg        [47:0]   alu;
-  reg                 aluWrites;
+  wire       [5:0]    dOp;
+  reg        [6:0]    eAlu;
+  reg        [8:0]    eMc;
+  reg        [7:0]    eAlu2;
+  reg                 eDiv;
+  reg                 eLog2;
+  wire                when_GeoEngine_l160;
+  wire       [47:0]   alu;
+  wire                aluWrites;
   reg        [1:0]    mcStep;
-  reg        [47:0]   mcVal;
   reg                 mcDone;
   reg        [8:0]    xAddr;
   wire       [47:0]   rdXraw;
   reg                 bypX;
   wire       [47:0]   rdX;
+  reg        [47:0]   rdXq;
   wire       [7:0]    _zz_rsqV;
   wire       [16:0]   rsqV;
   wire       [9:0]    _zz_rcpV;
@@ -364,6 +445,7 @@ module hng64_geo (
   wire                isMc;
   wire                mcWrites;
   reg        [7:0]    stSh;
+  reg        [7:0]    stB;
   reg        [71:0]   stRound;
   reg        [47:0]   slowA;
   reg        [7:0]    slowB;
@@ -373,10 +455,10 @@ module hng64_geo (
   reg                 stxWrite;
   reg        [47:0]   stxD;
   wire                mcGo;
-  wire                when_GeoEngine_l242;
-  wire                when_GeoEngine_l246;
-  wire                when_GeoEngine_l247;
-  wire                when_GeoEngine_l251;
+  wire                when_GeoEngine_l257;
+  wire                when_GeoEngine_l261;
+  wire                when_GeoEngine_l262;
+  wire                when_GeoEngine_l266;
   wire       [47:0]   _zz_slowTop;
   reg        [47:0]   _zz_slowTop_1;
   wire       [47:0]   _zz_slowTop_2;
@@ -481,27 +563,29 @@ module hng64_geo (
   wire                _zz_slowSh_49;
   wire                _zz_slowSh_50;
   wire                _zz_slowSh_51;
-  wire                when_GeoEngine_l255;
-  wire                when_GeoEngine_l259;
-  wire                when_GeoEngine_l272;
-  wire                when_GeoEngine_l275;
-  wire                when_GeoEngine_l285;
-  wire                when_GeoEngine_l290;
-  wire                when_GeoEngine_l308;
-  wire                when_GeoEngine_l317;
+  wire                when_GeoEngine_l270;
+  wire                when_GeoEngine_l274;
+  wire                when_GeoEngine_l282;
+  wire       [7:0]    _zz_stSh;
+  wire                when_GeoEngine_l288;
+  wire                when_GeoEngine_l299;
+  wire                when_GeoEngine_l304;
+  wire                when_GeoEngine_l311;
   wire                when_GeoEngine_l320;
   wire                when_GeoEngine_l323;
-  wire                when_GeoEngine_l337;
-  wire                when_GeoEngine_l360;
-  wire                when_GeoEngine_l344;
-  wire                when_GeoEngine_l350;
+  wire                when_GeoEngine_l326;
+  wire                when_GeoEngine_l338;
+  wire                when_GeoEngine_l359;
+  wire                when_GeoEngine_l345;
+  wire                when_GeoEngine_l351;
   wire                when_GeoEngine_l353;
-  wire                when_GeoEngine_l369;
   wire                when_GeoEngine_l370;
-  wire                when_GeoEngine_l373;
-  wire       [4:0]    switch_GeoEngine_l377;
-  wire                when_GeoEngine_l385;
+  wire                when_GeoEngine_l371;
+  wire                when_GeoEngine_l374;
+  wire       [4:0]    switch_GeoEngine_l378;
+  wire                when_GeoEngine_l386;
   wire                eGo;
+  wire                goNotMc;
   reg                 taken;
   reg        [10:0]   retStack_0;
   reg        [10:0]   retStack_1;
@@ -510,23 +594,26 @@ module hng64_geo (
   reg        [1:0]    retSp;
   wire       [3:0]    _zz_7;
   wire       [10:0]   _zz_retStack_0;
-  wire       [3:0]    switch_GeoEngine_l430;
+  wire       [3:0]    switch_GeoEngine_l436;
   wire                isSt;
+  reg        [47:0]   alu2R;
+  wire       [47:0]   stOut;
+  wire       [47:0]   mcVal;
   wire       [8:0]    mDst;
   reg                 wrEn;
   reg        [8:0]    wrAddr;
   reg        [47:0]   wrData;
-  wire                when_GeoEngine_l503;
-  wire                when_GeoEngine_l508;
+  wire                when_GeoEngine_l530;
+  wire                when_GeoEngine_l535;
   wire                mNextGo;
   wire       [8:0]    _zz_selMA;
   wire       [8:0]    _zz_selMB;
-  wire                when_GeoEngine_l536;
-  wire                when_GeoEngine_l544;
+  wire                when_GeoEngine_l563;
+  wire                when_GeoEngine_l571;
   reg        [10:0]   _zz_pcSeq;
-  wire                when_GeoEngine_l552;
-  wire                when_GeoEngine_l554;
-  wire                when_GeoEngine_l555;
+  wire                when_GeoEngine_l579;
+  wire                when_GeoEngine_l581;
+  wire                when_GeoEngine_l582;
   reg                 seeked;
   reg        [25:0]   vReq;
   reg        [5:0]    vDrop;
@@ -544,7 +631,7 @@ module hng64_geo (
   reg        [27:0]   vRdS_rData;
   wire                when_Stream_l477;
   wire                vRdS_fire;
-  wire                when_GeoEngine_l577;
+  wire                when_GeoEngine_l604;
   wire                vWord_fire;
   wire       [25:0]   _zz_vReq;
   wire                io_tri_fire;
@@ -559,8 +646,27 @@ module hng64_geo (
   assign _zz_a_1 = (selWA ? wVal : rdA);
   assign _zz_b = (selMB ? mVal : _zz_b_1);
   assign _zz_b_1 = (selWB ? wVal : rdB);
-  assign _zz_alu = {{32{imm[15]}}, imm};
-  assign _zz_alu_1 = {{32{imm[15]}}, imm};
+  assign _zz_alu = (_zz_alu_1 | _zz_alu_16);
+  assign _zz_alu_1 = (_zz_alu_2 | _zz_alu_13);
+  assign _zz_alu_2 = (_zz_alu_3 | _zz_alu_11);
+  assign _zz_alu_3 = (_zz_alu_4 | _zz_alu_9);
+  assign _zz_alu_4 = (_zz_alu_5 | _zz_alu_7);
+  assign _zz_alu_5 = (eAlu[0] ? _zz_alu_6 : 48'h0);
+  assign _zz_alu_6 = ($signed(a) + $signed(b));
+  assign _zz_alu_7 = (eAlu[1] ? _zz_alu_8 : 48'h0);
+  assign _zz_alu_8 = ($signed(a) - $signed(b));
+  assign _zz_alu_9 = (eAlu[2] ? _zz_alu_10 : 48'h0);
+  assign _zz_alu_10 = (a | b);
+  assign _zz_alu_11 = (eAlu[3] ? _zz_alu_12 : 48'h0);
+  assign _zz_alu_12 = (a & b);
+  assign _zz_alu_13 = (eAlu[4] ? _zz_alu_14 : 48'h0);
+  assign _zz_alu_14 = ($signed(a) + $signed(_zz_alu_15));
+  assign _zz_alu_15 = {{32{imm[15]}}, imm};
+  assign _zz_alu_16 = (eAlu[5] ? _zz_alu_17 : 48'h0);
+  assign _zz_alu_17 = (a & _zz_alu_18);
+  assign _zz_alu_18 = {{32{imm[15]}}, imm};
+  assign _zz_alu_19 = (eAlu[6] ? _zz_alu_20 : 48'h0);
+  assign _zz_alu_20 = {{32{imm[15]}}, imm};
   assign _zz_xAddr = _zz_xAddr_1;
   assign _zz_xAddr_1 = ($signed(a) + $signed(b));
   assign _zz__zz_rsqV = a;
@@ -574,54 +680,18 @@ module hng64_geo (
   assign _zz_slowSh_53 = _zz_slowSh_54;
   assign _zz_slowSh_55 = {_zz_slowSh_51,{_zz_slowSh_50,{_zz_slowSh_49,{_zz_slowSh_48,{_zz_slowSh_47,_zz_slowSh_46}}}}};
   assign _zz_slowSh_54 = {2'd0, _zz_slowSh_55};
-  assign _zz_slowR = _zz_slowR_1;
-  assign _zz_slowR_1 = {42'd0, slowTop};
-  assign _zz_slowR_2 = ($signed(slowA) <<< _zz_slowR_3);
-  assign _zz_slowR_4 = slowSh;
-  assign _zz_slowR_3 = _zz_slowR_4[5:0];
-  assign _zz_slowR_5 = ($signed(slowA) >>> _zz_slowR_6);
-  assign _zz_slowR_7 = _zz_slowR_8;
-  assign _zz_slowR_6 = _zz_slowR_7[5:0];
-  assign _zz_slowR_8 = (- slowSh);
-  assign _zz_stSh_1 = ($signed(b) + $signed(_zz_stSh_2));
-  assign _zz_stSh = _zz_stSh_1[7:0];
-  assign _zz_stSh_2 = {{32{imm[15]}}, imm};
-  assign _zz_stSh_3 = imm[7:0];
-  assign _zz_stRound = ((($signed(8'h0) < $signed(stSh)) && (o != 6'h09)) ? _zz_stRound_1 : 72'h0);
+  assign _zz__zz_stSh = ($signed(stB) + $signed(_zz__zz_stSh_1));
+  assign _zz__zz_stSh_1 = imm[7:0];
+  assign _zz__zz_stSh_2 = imm[7:0];
+  assign _zz_stRound = ((($signed(8'h0) < $signed(_zz_stSh)) && (o != 6'h09)) ? _zz_stRound_1 : 72'h0);
   assign _zz_stRound_1 = ($signed(72'h000000000000000001) <<< _zz_stRound_2);
   assign _zz_stRound_3 = _zz_stRound_4;
   assign _zz_stRound_2 = _zz_stRound_3[6:0];
-  assign _zz_stRound_4 = ($signed(stSh) - $signed(8'h01));
-  assign _zz_mcVal = (($signed(8'h0) <= $signed(stSh)) ? _zz_mcVal_1 : _zz_mcVal_4);
-  assign _zz_mcVal_1 = ($signed(stRound) >>> _zz_mcVal_2);
-  assign _zz_mcVal_3 = stSh;
-  assign _zz_mcVal_2 = _zz_mcVal_3[6:0];
-  assign _zz_mcVal_4 = ($signed(stRound) <<< _zz_mcVal_5);
-  assign _zz_mcVal_6 = _zz_mcVal_7;
-  assign _zz_mcVal_5 = _zz_mcVal_6[6:0];
-  assign _zz_mcVal_7 = (- stSh);
-  assign _zz_slowR_10 = alu2I;
-  assign _zz_slowR_9 = _zz_slowR_10[5:0];
-  assign _zz_slowR_12 = alu2I;
-  assign _zz_slowR_11 = _zz_slowR_12[5:0];
-  assign _zz_slowR_13 = (- slowA);
-  assign _zz_slowR_14 = slowA[15 : 0];
-  assign _zz_slowR_15 = {40'd0, _zz_slowR_16};
-  assign _zz_slowR_18 = slowA;
-  assign _zz_slowR_17 = _zz_slowR_18[4:0];
+  assign _zz_stRound_4 = ($signed(_zz_stSh) - $signed(8'h01));
   assign _zz_accSh_1 = b;
   assign _zz_accSh = _zz_accSh_1[6:0];
   assign _zz_accSh_3 = imm;
   assign _zz_accSh_2 = _zz_accSh_3[6:0];
-  assign _zz_mcVal_8 = {31'd0, rsqV};
-  assign _zz_mcVal_9 = {36'd0, rcpV};
-  assign _zz_mcVal_11 = io_dlData;
-  assign _zz_mcVal_10 = {32'd0, _zz_mcVal_11};
-  assign _zz_mcVal_13 = vWord_payload;
-  assign _zz_mcVal_12 = {{32{_zz_mcVal_13[15]}}, _zz_mcVal_13};
-  assign _zz_mcVal_14 = _zz_mcVal_15;
-  assign _zz_mcVal_16 = vWord_payload;
-  assign _zz_mcVal_15 = {32'd0, _zz_mcVal_16};
   assign _zz_divRem = (acc[71] ? _zz_divRem_1 : acc);
   assign _zz_divRem_1 = (~ acc);
   assign _zz_divRem_3 = acc[71];
@@ -633,11 +703,8 @@ module hng64_geo (
   assign _zz_divLeft = imm;
   assign _zz_divD = {62'd0, divDen};
   assign _zz_divD_1 = (divLeft - 6'h01);
-  assign _zz_slowR_19 = (- _zz_slowR_20);
-  assign _zz_slowR_20 = divQ;
-  assign _zz_slowR_21 = divQ;
   assign _zz_divQ = (divQ <<< 1);
-  assign _zz_divQ_2 = when_GeoEngine_l360;
+  assign _zz_divQ_2 = when_GeoEngine_l359;
   assign _zz_divQ_1 = {47'd0, _zz_divQ_2};
   assign _zz_xAddr_2 = {4'd0, emitCount};
   assign _zz_target = imm;
@@ -651,13 +718,92 @@ module hng64_geo (
   assign _zz_attr_scrollY = a;
   assign _zz_attr_wrapX = a;
   assign _zz_attr_wrapY = a;
+  assign _zz_slowR = (divNeg ? _zz_slowR_1 : _zz_slowR_3);
+  assign _zz_slowR_1 = (- _zz_slowR_2);
+  assign _zz_slowR_2 = divQ;
+  assign _zz_slowR_3 = divQ;
+  assign _zz_slowR_4 = (eLog2 ? _zz_slowR_5 : _zz_slowR_8);
+  assign _zz_slowR_5 = (($signed(48'h0) < $signed(slowA)) ? _zz_slowR_6 : 48'hffffffffffff);
+  assign _zz_slowR_6 = _zz_slowR_7;
+  assign _zz_slowR_7 = {42'd0, slowTop};
+  assign _zz_slowR_8 = (($signed(8'h0) <= $signed(slowSh)) ? _zz_slowR_9 : _zz_slowR_12);
+  assign _zz_slowR_9 = ($signed(slowA) <<< _zz_slowR_10);
+  assign _zz_slowR_11 = slowSh;
+  assign _zz_slowR_10 = _zz_slowR_11[5:0];
+  assign _zz_slowR_12 = ($signed(slowA) >>> _zz_slowR_13);
+  assign _zz_slowR_14 = _zz_slowR_15;
+  assign _zz_slowR_13 = _zz_slowR_14[5:0];
+  assign _zz_slowR_15 = (- slowSh);
+  assign _zz_alu2R = (_zz_alu2R_1 | _zz_alu2R_23);
+  assign _zz_alu2R_1 = (_zz_alu2R_2 | _zz_alu2R_20);
+  assign _zz_alu2R_2 = (_zz_alu2R_3 | _zz_alu2R_18);
+  assign _zz_alu2R_3 = (_zz_alu2R_4 | _zz_alu2R_14);
+  assign _zz_alu2R_4 = (_zz_alu2R_5 | _zz_alu2R_10);
+  assign _zz_alu2R_5 = (_zz_alu2R_6 | _zz_alu2R_8);
+  assign _zz_alu2R_6 = (eAlu2[0] ? _zz_alu2R_7 : 48'h0);
+  assign _zz_alu2R_7 = (($signed(slowA) < $signed(alu2B)) ? slowA : alu2B);
+  assign _zz_alu2R_8 = (eAlu2[1] ? _zz_alu2R_9 : 48'h0);
+  assign _zz_alu2R_9 = (($signed(alu2B) < $signed(slowA)) ? slowA : alu2B);
+  assign _zz_alu2R_10 = (eAlu2[2] ? _zz_alu2R_11 : 48'h0);
+  assign _zz_alu2R_11 = ($signed(slowA) <<< _zz_alu2R_12);
+  assign _zz_alu2R_13 = alu2I;
+  assign _zz_alu2R_12 = _zz_alu2R_13[5:0];
+  assign _zz_alu2R_14 = (eAlu2[3] ? _zz_alu2R_15 : 48'h0);
+  assign _zz_alu2R_15 = ($signed(slowA) >>> _zz_alu2R_16);
+  assign _zz_alu2R_17 = alu2I;
+  assign _zz_alu2R_16 = _zz_alu2R_17[5:0];
+  assign _zz_alu2R_18 = (eAlu2[4] ? _zz_alu2R_19 : 48'h0);
+  assign _zz_alu2R_19 = (- slowA);
+  assign _zz_alu2R_20 = (eAlu2[5] ? _zz_alu2R_21 : 48'h0);
+  assign _zz_alu2R_21 = (($signed(slowA) < $signed(48'h0)) ? _zz_alu2R_22 : slowA);
+  assign _zz_alu2R_22 = (- slowA);
+  assign _zz_alu2R_23 = (eAlu2[6] ? _zz_alu2R_24 : 48'h0);
+  assign _zz_alu2R_25 = slowA[15 : 0];
+  assign _zz_alu2R_24 = {{32{_zz_alu2R_25[15]}}, _zz_alu2R_25};
+  assign _zz_alu2R_26 = (eAlu2[7] ? _zz_alu2R_27 : 48'h0);
+  assign _zz_alu2R_27 = _zz_alu2R_28;
+  assign _zz_alu2R_28 = {40'd0, _zz_alu2R_29};
+  assign _zz_alu2R_31 = slowA;
+  assign _zz_alu2R_30 = _zz_alu2R_31[4:0];
+  assign _zz_stOut = (($signed(8'h0) <= $signed(stSh)) ? _zz_stOut_1 : _zz_stOut_4);
+  assign _zz_stOut_1 = ($signed(stRound) >>> _zz_stOut_2);
+  assign _zz_stOut_3 = stSh;
+  assign _zz_stOut_2 = _zz_stOut_3[6:0];
+  assign _zz_stOut_4 = ($signed(stRound) <<< _zz_stOut_5);
+  assign _zz_stOut_6 = _zz_stOut_7;
+  assign _zz_stOut_5 = _zz_stOut_6[6:0];
+  assign _zz_stOut_7 = (- stSh);
+  assign _zz_mcVal = (_zz_mcVal_1 | _zz_mcVal_26);
+  assign _zz_mcVal_1 = (_zz_mcVal_2 | _zz_mcVal_25);
+  assign _zz_mcVal_2 = (_zz_mcVal_3 | _zz_mcVal_22);
+  assign _zz_mcVal_3 = (_zz_mcVal_4 | _zz_mcVal_18);
+  assign _zz_mcVal_4 = (_zz_mcVal_5 | _zz_mcVal_14);
+  assign _zz_mcVal_5 = (_zz_mcVal_6 | _zz_mcVal_11);
+  assign _zz_mcVal_6 = (_zz_mcVal_7 | _zz_mcVal_8);
+  assign _zz_mcVal_7 = (eMc[0] ? rdX : 48'h0);
+  assign _zz_mcVal_8 = (eMc[1] ? _zz_mcVal_9 : 48'h0);
+  assign _zz_mcVal_9 = _zz_mcVal_10;
+  assign _zz_mcVal_10 = {31'd0, rsqV};
+  assign _zz_mcVal_11 = (eMc[2] ? _zz_mcVal_12 : 48'h0);
+  assign _zz_mcVal_12 = _zz_mcVal_13;
+  assign _zz_mcVal_13 = {36'd0, rcpV};
+  assign _zz_mcVal_14 = (eMc[3] ? _zz_mcVal_15 : 48'h0);
+  assign _zz_mcVal_15 = _zz_mcVal_16;
+  assign _zz_mcVal_17 = io_dlData;
+  assign _zz_mcVal_16 = {32'd0, _zz_mcVal_17};
+  assign _zz_mcVal_18 = (eMc[4] ? _zz_mcVal_19 : 48'h0);
+  assign _zz_mcVal_19 = _zz_mcVal_20;
+  assign _zz_mcVal_21 = vWord_payload;
+  assign _zz_mcVal_20 = {32'd0, _zz_mcVal_21};
+  assign _zz_mcVal_22 = (eMc[5] ? _zz_mcVal_23 : 48'h0);
+  assign _zz_mcVal_24 = vWord_payload;
+  assign _zz_mcVal_23 = {{32{_zz_mcVal_24[15]}}, _zz_mcVal_24};
+  assign _zz_mcVal_25 = (eMc[6] ? slowR : 48'h0);
+  assign _zz_mcVal_26 = (eMc[7] ? stOut : 48'h0);
+  assign _zz_mcVal_27 = (eMc[8] ? alu2R : 48'h0);
   assign _zz_prod = a[35:0];
   assign _zz_prod_1 = b[35:0];
   assign _zz_accVal = {{24{slowA[47]}}, slowA};
-  assign _zz_mSh_1 = ($signed(b) + $signed(_zz_mSh_2));
-  assign _zz_mSh = _zz_mSh_1[7:0];
-  assign _zz_mSh_2 = {{32{imm[15]}}, imm};
-  assign _zz_mSh_3 = imm[7:0];
   assign _zz_acc = ($signed(acc) <<< _zz_acc_1);
   assign _zz_acc_2 = mSh;
   assign _zz_acc_1 = _zz_acc_2[6:0];
@@ -687,6 +833,21 @@ module hng64_geo (
   assign _zz_rfB_port_1 = wrData;
   assign _zz_rdXraw = 1'b1;
   assign _zz_rfX_port_1 = wrData;
+  assign _zz_eAlu = 6'h0d;
+  assign _zz_eAlu_1 = 6'h0c;
+  assign _zz_eMc = ((((dOp == 6'h0e) || (dOp == 6'h0f)) || (dOp == 6'h14)) || (dOp == 6'h15));
+  assign _zz_eMc_1 = (dOp == 6'h18);
+  assign _zz_eMc_2 = 6'h19;
+  assign _zz_eMc_3 = (dOp == 6'h08);
+  assign _zz_eMc_4 = (dOp == 6'h09);
+  assign _zz_eMc_5 = 6'h0a;
+  assign _zz_eMc_6 = ((dOp == 6'h0b) || (dOp == 6'h16));
+  assign _zz_eMc_7 = (dOp == 6'h1b);
+  assign _zz_eMc_8 = 6'h1c;
+  assign _zz_eMc_9 = 6'h25;
+  assign _zz_eMc_10 = (dOp == 6'h24);
+  assign _zz_eMc_11 = (dOp == 6'h22);
+  assign _zz_eMc_12 = {(dOp == 6'h20),{(dOp == 6'h1f),(dOp == 6'h1d)}};
   assign _zz_isMc = (o == 6'h1d);
   assign _zz_isMc_1 = (o == 6'h1e);
   assign _zz_isMc_2 = 6'h1f;
@@ -900,7 +1061,7 @@ module hng64_geo (
     rom[198] = 49'b0101110001011000000000000000000000000000000000000;
     rom[199] = 49'b0101110001011010000000000000000000000000000000000;
     rom[200] = 49'b0101110001011100000000000000000000000000000000000;
-    rom[201] = 49'b0110000001010100000010010000000000000000000000000;
+    rom[201] = 49'b0011010001010100000000000000010010000000000000000;
     rom[202] = 49'b0011010100001100100000000011111110000000000000000;
     rom[203] = 49'b0011010100001110100000010100000100000000000000000;
     rom[204] = 49'b0101111101110100000000000000000000000000000000000;
@@ -2073,7 +2234,7 @@ module hng64_geo (
     rom[1371] = 49'b0100100100010000100010000000000001111111111100010;
     rom[1372] = 49'b0101010100010000100010000000000000000000000000001;
     rom[1373] = 49'b0101000100010000100010000000000000000000000000001;
-    rom[1374] = 49'b0110000100010010100010000000000000000000000000000;
+    rom[1374] = 49'b0011010100010010000000000100010000000000000000000;
     rom[1375] = 49'b0101100100010011101011110100010010000000000000000;
     rom[1376] = 49'b0101010100010100100010010000000000000000000011000;
     rom[1377] = 49'b0111111101100000100010100000000000000000000000000;
@@ -2175,7 +2336,7 @@ module hng64_geo (
     rom[1473] = 49'b0000010000000000111111100111111010000000000000000;
     rom[1474] = 49'b0000110000000001000000110111111000000000000000000;
     rom[1475] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1476] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1476] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1477] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1478] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1479] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2185,7 +2346,7 @@ module hng64_geo (
     rom[1483] = 49'b0000010000000001000000110111110100000000000000000;
     rom[1484] = 49'b0000110000000000111111100111110110000000000000000;
     rom[1485] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1486] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1486] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1487] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1488] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1489] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2195,7 +2356,7 @@ module hng64_geo (
     rom[1493] = 49'b0000010000000000111111110111111010000000000000000;
     rom[1494] = 49'b0000110000000001000001000111111000000000000000000;
     rom[1495] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1496] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1496] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1497] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1498] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1499] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2205,7 +2366,7 @@ module hng64_geo (
     rom[1503] = 49'b0000010000000001000001000111110100000000000000000;
     rom[1504] = 49'b0000110000000000111111110111110110000000000000000;
     rom[1505] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1506] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1506] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1507] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1508] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1509] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2215,7 +2376,7 @@ module hng64_geo (
     rom[1513] = 49'b0000010000000001000000000111111010000000000000000;
     rom[1514] = 49'b0000110000000001000001010111111000000000000000000;
     rom[1515] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1516] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1516] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1517] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1518] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1519] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2225,7 +2386,7 @@ module hng64_geo (
     rom[1523] = 49'b0000010000000001000001010111110100000000000000000;
     rom[1524] = 49'b0000110000000001000000000111110110000000000000000;
     rom[1525] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1526] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1526] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1527] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1528] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1529] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2235,7 +2396,7 @@ module hng64_geo (
     rom[1533] = 49'b0000010000000001000000010111111010000000000000000;
     rom[1534] = 49'b0000110000000001000001100111111000000000000000000;
     rom[1535] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1536] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1536] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1537] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1538] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1539] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2245,7 +2406,7 @@ module hng64_geo (
     rom[1543] = 49'b0000010000000001000001100111110100000000000000000;
     rom[1544] = 49'b0000110000000001000000010111110110000000000000000;
     rom[1545] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1546] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1546] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1547] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1548] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1549] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2255,7 +2416,7 @@ module hng64_geo (
     rom[1553] = 49'b0000010000000001000000100111111010000000000000000;
     rom[1554] = 49'b0000110000000001000001110111111000000000000000000;
     rom[1555] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1556] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1556] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1557] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1558] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1559] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2265,7 +2426,7 @@ module hng64_geo (
     rom[1563] = 49'b0000010000000001000001110111110100000000000000000;
     rom[1564] = 49'b0000110000000001000000100111110110000000000000000;
     rom[1565] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1566] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1566] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1567] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1568] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1569] = 49'b0000010000000001000011101000011000000000000000000;
@@ -2276,7 +2437,7 @@ module hng64_geo (
     rom[1574] = 49'b0000010000000000111111100111111010000000000000000;
     rom[1575] = 49'b0000110000000001000000110111111000000000000000000;
     rom[1576] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1577] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1577] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1578] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1579] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1580] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2286,7 +2447,7 @@ module hng64_geo (
     rom[1584] = 49'b0000010000000001000000110111110100000000000000000;
     rom[1585] = 49'b0000110000000000111111100111110110000000000000000;
     rom[1586] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1587] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1587] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1588] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1589] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1590] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2296,7 +2457,7 @@ module hng64_geo (
     rom[1594] = 49'b0000010000000000111111110111111010000000000000000;
     rom[1595] = 49'b0000110000000001000001000111111000000000000000000;
     rom[1596] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1597] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1597] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1598] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1599] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1600] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2306,7 +2467,7 @@ module hng64_geo (
     rom[1604] = 49'b0000010000000001000001000111110100000000000000000;
     rom[1605] = 49'b0000110000000000111111110111110110000000000000000;
     rom[1606] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1607] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1607] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1608] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1609] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1610] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2316,7 +2477,7 @@ module hng64_geo (
     rom[1614] = 49'b0000010000000001000000000111111010000000000000000;
     rom[1615] = 49'b0000110000000001000001010111111000000000000000000;
     rom[1616] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1617] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1617] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1618] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1619] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1620] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2326,7 +2487,7 @@ module hng64_geo (
     rom[1624] = 49'b0000010000000001000001010111110100000000000000000;
     rom[1625] = 49'b0000110000000001000000000111110110000000000000000;
     rom[1626] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1627] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1627] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1628] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1629] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1630] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2336,7 +2497,7 @@ module hng64_geo (
     rom[1634] = 49'b0000010000000001000000010111111010000000000000000;
     rom[1635] = 49'b0000110000000001000001100111111000000000000000000;
     rom[1636] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1637] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1637] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1638] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1639] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1640] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2346,7 +2507,7 @@ module hng64_geo (
     rom[1644] = 49'b0000010000000001000001100111110100000000000000000;
     rom[1645] = 49'b0000110000000001000000010111110110000000000000000;
     rom[1646] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1647] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1647] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1648] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1649] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1650] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2356,7 +2517,7 @@ module hng64_geo (
     rom[1654] = 49'b0000010000000001000000100111111010000000000000000;
     rom[1655] = 49'b0000110000000001000001110111111000000000000000000;
     rom[1656] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1657] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1657] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1658] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1659] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1660] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2366,7 +2527,7 @@ module hng64_geo (
     rom[1664] = 49'b0000010000000001000001110111110100000000000000000;
     rom[1665] = 49'b0000110000000001000000100111110110000000000000000;
     rom[1666] = 49'b0010011000011100000000000000000000000000000100011;
-    rom[1667] = 49'b0110001000100001000011100000000000000000000000000;
+    rom[1667] = 49'b0011011000100000000000001000011100000000000000000;
     rom[1668] = 49'b0001010000000001000100000000000000000000000100011;
     rom[1669] = 49'b0010011000011110000000000000000000000000000000000;
     rom[1670] = 49'b0000010000000001000011111000011000000000000000000;
@@ -2374,16 +2535,16 @@ module hng64_geo (
     rom[1672] = 49'b0000100000000001000011101000011000000000000000000;
     rom[1673] = 49'b1110000111010010000000001000010101111111111100110;
     rom[1674] = 49'b1011000000000001000011010000000000000011010010101;
-    rom[1675] = 49'b0110000111000000111000000000000000000000000000000;
-    rom[1676] = 49'b0110000111000010111000010000000000000000000000000;
-    rom[1677] = 49'b0110000111000100111000100000000000000000000000000;
-    rom[1678] = 49'b0110000111000110111000110000000000000000000000000;
-    rom[1679] = 49'b0110000111001000111001000000000000000000000000000;
-    rom[1680] = 49'b0110000111001010111001010000000000000000000000000;
-    rom[1681] = 49'b0110000111001100111001100000000000000000000000000;
-    rom[1682] = 49'b0110000111001110111001110000000000000000000000000;
-    rom[1683] = 49'b0110000111010000111010000000000000000000000000000;
-    rom[1684] = 49'b0110000111010010111010010000000000000000000000000;
+    rom[1675] = 49'b0011010111000000000000000111000000000000000000000;
+    rom[1676] = 49'b0011010111000010000000000111000010000000000000000;
+    rom[1677] = 49'b0011010111000100000000000111000100000000000000000;
+    rom[1678] = 49'b0011010111000110000000000111000110000000000000000;
+    rom[1679] = 49'b0011010111001000000000000111001000000000000000000;
+    rom[1680] = 49'b0011010111001010000000000111001010000000000000000;
+    rom[1681] = 49'b0011010111001100000000000111001100000000000000000;
+    rom[1682] = 49'b0011010111001110000000000111001110000000000000000;
+    rom[1683] = 49'b0011010111010000000000000111010000000000000000000;
+    rom[1684] = 49'b0011010111010010000000000111010010000000000000000;
     rom[1685] = 49'b1010000000000000110101000000000000000000000000000;
     rom[1686] = 49'b1010110000000000000000000000000000000000000000000;
     rom[1687] = 49'b0000000000000000000000000000000000000000000000000;
@@ -4100,48 +4261,48 @@ module hng64_geo (
     .reset           (reset                     )  //i
   );
   always @(*) begin
-    case(_zz_slowR_17)
-      5'b00000 : _zz_slowR_16 = io_wrap_0;
-      5'b00001 : _zz_slowR_16 = io_wrap_1;
-      5'b00010 : _zz_slowR_16 = io_wrap_2;
-      5'b00011 : _zz_slowR_16 = io_wrap_3;
-      5'b00100 : _zz_slowR_16 = io_wrap_4;
-      5'b00101 : _zz_slowR_16 = io_wrap_5;
-      5'b00110 : _zz_slowR_16 = io_wrap_6;
-      5'b00111 : _zz_slowR_16 = io_wrap_7;
-      5'b01000 : _zz_slowR_16 = io_wrap_8;
-      5'b01001 : _zz_slowR_16 = io_wrap_9;
-      5'b01010 : _zz_slowR_16 = io_wrap_10;
-      5'b01011 : _zz_slowR_16 = io_wrap_11;
-      5'b01100 : _zz_slowR_16 = io_wrap_12;
-      5'b01101 : _zz_slowR_16 = io_wrap_13;
-      5'b01110 : _zz_slowR_16 = io_wrap_14;
-      5'b01111 : _zz_slowR_16 = io_wrap_15;
-      5'b10000 : _zz_slowR_16 = io_wrap_16;
-      5'b10001 : _zz_slowR_16 = io_wrap_17;
-      5'b10010 : _zz_slowR_16 = io_wrap_18;
-      5'b10011 : _zz_slowR_16 = io_wrap_19;
-      5'b10100 : _zz_slowR_16 = io_wrap_20;
-      5'b10101 : _zz_slowR_16 = io_wrap_21;
-      5'b10110 : _zz_slowR_16 = io_wrap_22;
-      5'b10111 : _zz_slowR_16 = io_wrap_23;
-      5'b11000 : _zz_slowR_16 = io_wrap_24;
-      5'b11001 : _zz_slowR_16 = io_wrap_25;
-      5'b11010 : _zz_slowR_16 = io_wrap_26;
-      5'b11011 : _zz_slowR_16 = io_wrap_27;
-      5'b11100 : _zz_slowR_16 = io_wrap_28;
-      5'b11101 : _zz_slowR_16 = io_wrap_29;
-      5'b11110 : _zz_slowR_16 = io_wrap_30;
-      default : _zz_slowR_16 = io_wrap_31;
-    endcase
-  end
-
-  always @(*) begin
     case(_zz_target_2)
       2'b00 : _zz_target_1 = retStack_0;
       2'b01 : _zz_target_1 = retStack_1;
       2'b10 : _zz_target_1 = retStack_2;
       default : _zz_target_1 = retStack_3;
+    endcase
+  end
+
+  always @(*) begin
+    case(_zz_alu2R_30)
+      5'b00000 : _zz_alu2R_29 = io_wrap_0;
+      5'b00001 : _zz_alu2R_29 = io_wrap_1;
+      5'b00010 : _zz_alu2R_29 = io_wrap_2;
+      5'b00011 : _zz_alu2R_29 = io_wrap_3;
+      5'b00100 : _zz_alu2R_29 = io_wrap_4;
+      5'b00101 : _zz_alu2R_29 = io_wrap_5;
+      5'b00110 : _zz_alu2R_29 = io_wrap_6;
+      5'b00111 : _zz_alu2R_29 = io_wrap_7;
+      5'b01000 : _zz_alu2R_29 = io_wrap_8;
+      5'b01001 : _zz_alu2R_29 = io_wrap_9;
+      5'b01010 : _zz_alu2R_29 = io_wrap_10;
+      5'b01011 : _zz_alu2R_29 = io_wrap_11;
+      5'b01100 : _zz_alu2R_29 = io_wrap_12;
+      5'b01101 : _zz_alu2R_29 = io_wrap_13;
+      5'b01110 : _zz_alu2R_29 = io_wrap_14;
+      5'b01111 : _zz_alu2R_29 = io_wrap_15;
+      5'b10000 : _zz_alu2R_29 = io_wrap_16;
+      5'b10001 : _zz_alu2R_29 = io_wrap_17;
+      5'b10010 : _zz_alu2R_29 = io_wrap_18;
+      5'b10011 : _zz_alu2R_29 = io_wrap_19;
+      5'b10100 : _zz_alu2R_29 = io_wrap_20;
+      5'b10101 : _zz_alu2R_29 = io_wrap_21;
+      5'b10110 : _zz_alu2R_29 = io_wrap_22;
+      5'b10111 : _zz_alu2R_29 = io_wrap_23;
+      5'b11000 : _zz_alu2R_29 = io_wrap_24;
+      5'b11001 : _zz_alu2R_29 = io_wrap_25;
+      5'b11010 : _zz_alu2R_29 = io_wrap_26;
+      5'b11011 : _zz_alu2R_29 = io_wrap_27;
+      5'b11100 : _zz_alu2R_29 = io_wrap_28;
+      5'b11101 : _zz_alu2R_29 = io_wrap_29;
+      5'b11110 : _zz_alu2R_29 = io_wrap_30;
+      default : _zz_alu2R_29 = io_wrap_31;
     endcase
   end
 
@@ -4171,187 +4332,66 @@ module hng64_geo (
   assign usesD = (o == 6'h1e);
   assign stHazard = (((mValid && mIsSt) && (mInstr[42 : 34] != 9'h0)) && (((mInstr[42 : 34] == ra) || (mInstr[42 : 34] == rb)) || (usesD && (mInstr[42 : 34] == d))));
   assign accBranchHazard = ((mValid && mAccOp) && (((o == 6'h34) || (o == 6'h35)) || (o == 6'h0b)));
-  always @(*) begin
-    alu = 48'h0;
-    case(o)
-      6'h0c : begin
-        alu = ($signed(a) + $signed(b));
-      end
-      6'h0d : begin
-        alu = ($signed(a) - $signed(b));
-      end
-      6'h10 : begin
-        alu = (a | b);
-      end
-      6'h11 : begin
-        alu = (a & b);
-      end
-      6'h12 : begin
-        alu = ($signed(a) + $signed(_zz_alu));
-      end
-      6'h13 : begin
-        alu = (a & _zz_alu_1);
-      end
-      6'h17 : begin
-        alu = {{32{imm[15]}}, imm};
-      end
-      default : begin
-      end
-    endcase
-  end
-
-  always @(*) begin
-    aluWrites = 1'b0;
-    case(o)
-      6'h0c : begin
-        aluWrites = 1'b1;
-      end
-      6'h0d : begin
-        aluWrites = 1'b1;
-      end
-      6'h10 : begin
-        aluWrites = 1'b1;
-      end
-      6'h11 : begin
-        aluWrites = 1'b1;
-      end
-      6'h12 : begin
-        aluWrites = 1'b1;
-      end
-      6'h13 : begin
-        aluWrites = 1'b1;
-      end
-      6'h17 : begin
-        aluWrites = 1'b1;
-      end
-      default : begin
-      end
-    endcase
-  end
-
-  always @(*) begin
-    mcVal = 48'h0;
-    if(mcGo) begin
-      case(o)
-        6'h1d : begin
-          if(!when_GeoEngine_l242) begin
-            mcVal = rdX;
-          end
-        end
-        6'h16, 6'h1b, 6'h1c : begin
-          if(!when_GeoEngine_l251) begin
-            if(!when_GeoEngine_l255) begin
-              if(!when_GeoEngine_l259) begin
-                mcVal = slowR;
-              end
-            end
-          end
-        end
-        6'h08, 6'h09, 6'h0a, 6'h38 : begin
-          if(!when_GeoEngine_l272) begin
-            if(!when_GeoEngine_l275) begin
-              mcVal = _zz_mcVal[47:0];
-            end
-          end
-        end
-        6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
-          if(!when_GeoEngine_l285) begin
-            if(!when_GeoEngine_l290) begin
-              mcVal = slowR;
-            end
-          end
-        end
-        6'h1f : begin
-          if(!when_GeoEngine_l317) begin
-            mcVal = _zz_mcVal_8;
-          end
-        end
-        6'h20 : begin
-          if(!when_GeoEngine_l320) begin
-            mcVal = _zz_mcVal_9;
-          end
-        end
-        6'h22 : begin
-          if(!when_GeoEngine_l323) begin
-            mcVal = _zz_mcVal_10;
-          end
-        end
-        6'h24, 6'h25 : begin
-          if(vWord_valid) begin
-            mcVal = ((o == 6'h25) ? _zz_mcVal_12 : _zz_mcVal_14);
-          end
-        end
-        6'h0b : begin
-          if(!when_GeoEngine_l337) begin
-            if(!when_GeoEngine_l344) begin
-              if(when_GeoEngine_l350) begin
-                mcVal = slowR;
-              end
-            end
-          end
-        end
-        default : begin
-        end
-      endcase
-    end
-  end
-
+  assign dOp = instrD[48 : 43];
+  assign when_GeoEngine_l160 = (! stall);
+  assign alu = (_zz_alu | _zz_alu_19);
+  assign aluWrites = (|eAlu);
   always @(*) begin
     mcDone = 1'b0;
     if(mcGo) begin
       case(o)
         6'h1d : begin
-          if(!when_GeoEngine_l242) begin
+          if(!when_GeoEngine_l257) begin
             mcDone = 1'b1;
           end
         end
         6'h1e : begin
-          if(!when_GeoEngine_l246) begin
-            if(!when_GeoEngine_l247) begin
+          if(!when_GeoEngine_l261) begin
+            if(!when_GeoEngine_l262) begin
               mcDone = 1'b1;
             end
           end
         end
         6'h16, 6'h1b, 6'h1c : begin
-          if(!when_GeoEngine_l251) begin
-            if(!when_GeoEngine_l255) begin
-              if(!when_GeoEngine_l259) begin
+          if(!when_GeoEngine_l266) begin
+            if(!when_GeoEngine_l270) begin
+              if(!when_GeoEngine_l274) begin
                 mcDone = 1'b1;
               end
             end
           end
         end
         6'h08, 6'h09, 6'h0a, 6'h38 : begin
-          if(!when_GeoEngine_l272) begin
-            if(!when_GeoEngine_l275) begin
+          if(!when_GeoEngine_l282) begin
+            if(!when_GeoEngine_l288) begin
               mcDone = 1'b1;
             end
           end
         end
         6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
-          if(!when_GeoEngine_l285) begin
-            if(!when_GeoEngine_l290) begin
+          if(!when_GeoEngine_l299) begin
+            if(!when_GeoEngine_l304) begin
               mcDone = 1'b1;
             end
           end
         end
         6'h04, 6'h05, 6'h06 : begin
-          if(!when_GeoEngine_l308) begin
+          if(!when_GeoEngine_l311) begin
             mcDone = 1'b1;
           end
         end
         6'h1f : begin
-          if(!when_GeoEngine_l317) begin
-            mcDone = 1'b1;
-          end
-        end
-        6'h20 : begin
           if(!when_GeoEngine_l320) begin
             mcDone = 1'b1;
           end
         end
-        6'h22 : begin
+        6'h20 : begin
           if(!when_GeoEngine_l323) begin
+            mcDone = 1'b1;
+          end
+        end
+        6'h22 : begin
+          if(!when_GeoEngine_l326) begin
             mcDone = 1'b1;
           end
         end
@@ -4361,17 +4401,17 @@ module hng64_geo (
           end
         end
         6'h0b : begin
-          if(!when_GeoEngine_l337) begin
-            if(!when_GeoEngine_l344) begin
-              if(when_GeoEngine_l350) begin
+          if(!when_GeoEngine_l338) begin
+            if(!when_GeoEngine_l345) begin
+              if(when_GeoEngine_l351) begin
                 mcDone = 1'b1;
               end
             end
           end
         end
         6'h28 : begin
-          if(!when_GeoEngine_l369) begin
-            if(when_GeoEngine_l385) begin
+          if(!when_GeoEngine_l370) begin
+            if(when_GeoEngine_l386) begin
               mcDone = 1'b1;
             end
           end
@@ -4387,12 +4427,12 @@ module hng64_geo (
     if(mcGo) begin
       case(o)
         6'h1e : begin
-          if(when_GeoEngine_l246) begin
+          if(when_GeoEngine_l261) begin
             xAddr = d;
           end
         end
         6'h28 : begin
-          if(!when_GeoEngine_l369) begin
+          if(!when_GeoEngine_l370) begin
             xAddr = (ra + _zz_xAddr_2);
           end
         end
@@ -4429,14 +4469,14 @@ module hng64_geo (
   assign alu2 = ((((((((o == 6'h0e) || (o == 6'h0f)) || (o == 6'h14)) || (o == 6'h15)) || (o == 6'h18)) || (o == 6'h19)) || (o == 6'h1a)) || (o == 6'h21));
   assign accLd = (((o == 6'h04) || (o == 6'h05)) || (o == 6'h06));
   assign isMc = ((((((((((((_zz_isMc || _zz_isMc_1) || (o == _zz_isMc_2)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || (o == 6'h28)) || slowAlu) || stOp) || alu2) || accLd);
-  assign mcWrites = ((((((((((o == 6'h1d) || (o == 6'h1f)) || (o == 6'h20)) || (o == 6'h22)) || (o == 6'h24)) || (o == 6'h25)) || (o == 6'h0b)) || slowAlu) || stOp) || alu2);
+  assign mcWrites = (|eMc);
   always @(*) begin
     stxWrite = 1'b0;
     if(mcGo) begin
       case(o)
         6'h1e : begin
-          if(!when_GeoEngine_l246) begin
-            if(!when_GeoEngine_l247) begin
+          if(!when_GeoEngine_l261) begin
+            if(!when_GeoEngine_l262) begin
               stxWrite = 1'b1;
             end
           end
@@ -4448,10 +4488,10 @@ module hng64_geo (
   end
 
   assign mcGo = (((eLive && isMc) && (! stHazard)) && (! accBranchHazard));
-  assign when_GeoEngine_l242 = (mcStep == 2'b00);
-  assign when_GeoEngine_l246 = (mcStep == 2'b00);
-  assign when_GeoEngine_l247 = (mcStep == 2'b01);
-  assign when_GeoEngine_l251 = (mcStep == 2'b00);
+  assign when_GeoEngine_l257 = (mcStep == 2'b00);
+  assign when_GeoEngine_l261 = (mcStep == 2'b00);
+  assign when_GeoEngine_l262 = (mcStep == 2'b01);
+  assign when_GeoEngine_l266 = (mcStep == 2'b00);
   assign _zz_slowTop = slowA;
   always @(*) begin
     _zz_slowTop_1[0] = _zz_slowTop[47];
@@ -4756,31 +4796,33 @@ module hng64_geo (
   assign _zz_slowSh_49 = ((((((((((((((((_zz__zz_slowSh_49 || _zz_slowSh_23) || _zz_slowSh_24) || _zz_slowSh_25) || _zz_slowSh_26) || _zz_slowSh_27) || _zz_slowSh_28) || _zz_slowSh_29) || _zz_slowSh_30) || _zz_slowSh_38) || _zz_slowSh_39) || _zz_slowSh_40) || _zz_slowSh_41) || _zz_slowSh_42) || _zz_slowSh_43) || _zz_slowSh_44) || _zz_slowSh_45);
   assign _zz_slowSh_50 = (((((((((((((((_zz_slowSh_2[16] || _zz_slowSh_16) || _zz_slowSh_17) || _zz_slowSh_18) || _zz_slowSh_19) || _zz_slowSh_20) || _zz_slowSh_21) || _zz_slowSh_22) || _zz_slowSh_23) || _zz_slowSh_24) || _zz_slowSh_25) || _zz_slowSh_26) || _zz_slowSh_27) || _zz_slowSh_28) || _zz_slowSh_29) || _zz_slowSh_30);
   assign _zz_slowSh_51 = (((((((((((((((_zz_slowSh_2[32] || _zz_slowSh_31) || _zz_slowSh_32) || _zz_slowSh_33) || _zz_slowSh_34) || _zz_slowSh_35) || _zz_slowSh_36) || _zz_slowSh_37) || _zz_slowSh_38) || _zz_slowSh_39) || _zz_slowSh_40) || _zz_slowSh_41) || _zz_slowSh_42) || _zz_slowSh_43) || _zz_slowSh_44) || _zz_slowSh_45);
-  assign when_GeoEngine_l255 = (mcStep == 2'b01);
-  assign when_GeoEngine_l259 = (mcStep == 2'b10);
-  assign when_GeoEngine_l272 = (mcStep == 2'b00);
-  assign when_GeoEngine_l275 = (mcStep == 2'b01);
-  assign when_GeoEngine_l285 = (mcStep == 2'b00);
-  assign when_GeoEngine_l290 = (mcStep == 2'b01);
-  assign when_GeoEngine_l308 = (mcStep == 2'b00);
-  assign when_GeoEngine_l317 = (mcStep == 2'b00);
+  assign when_GeoEngine_l270 = (mcStep == 2'b01);
+  assign when_GeoEngine_l274 = (mcStep == 2'b10);
+  assign when_GeoEngine_l282 = (mcStep == 2'b00);
+  assign _zz_stSh = (((o == 6'h0a) || (o == 6'h38)) ? _zz__zz_stSh : _zz__zz_stSh_2);
+  assign when_GeoEngine_l288 = (mcStep == 2'b01);
+  assign when_GeoEngine_l299 = (mcStep == 2'b00);
+  assign when_GeoEngine_l304 = (mcStep == 2'b01);
+  assign when_GeoEngine_l311 = (mcStep == 2'b00);
   assign when_GeoEngine_l320 = (mcStep == 2'b00);
   assign when_GeoEngine_l323 = (mcStep == 2'b00);
-  assign when_GeoEngine_l337 = (mcStep == 2'b00);
-  assign when_GeoEngine_l360 = ((divD[109 : 72] == 38'h0) && (divD[71 : 0] <= divRem));
-  assign when_GeoEngine_l344 = (mcStep == 2'b01);
-  assign when_GeoEngine_l350 = (mcStep == 2'b11);
+  assign when_GeoEngine_l326 = (mcStep == 2'b00);
+  assign when_GeoEngine_l338 = (mcStep == 2'b00);
+  assign when_GeoEngine_l359 = ((divD[109 : 72] == 38'h0) && (divD[71 : 0] <= divRem));
+  assign when_GeoEngine_l345 = (mcStep == 2'b01);
+  assign when_GeoEngine_l351 = (mcStep == 2'b11);
   assign when_GeoEngine_l353 = (divLeft == 6'h0);
-  assign when_GeoEngine_l369 = (mcStep == 2'b00);
-  assign when_GeoEngine_l370 = (! triValid);
-  assign when_GeoEngine_l373 = (emitCount != 5'h0);
-  assign switch_GeoEngine_l377 = (emitCount - 5'h01);
-  assign when_GeoEngine_l385 = (emitCount == 5'h16);
+  assign when_GeoEngine_l370 = (mcStep == 2'b00);
+  assign when_GeoEngine_l371 = (! triValid);
+  assign when_GeoEngine_l374 = (5'h02 <= emitCount);
+  assign switch_GeoEngine_l378 = (emitCount - 5'h02);
+  assign when_GeoEngine_l386 = (emitCount == 5'h17);
   assign stall = ((eLive && ((stHazard || accBranchHazard) || (isMc && (! mcDone)))) || (cfgStep != 2'b00));
   assign eGo = (eLive && (! stall));
+  assign goNotMc = (((eLive && (! stHazard)) && (! accBranchHazard)) && (cfgStep == 2'b00));
   always @(*) begin
     taken = 1'b0;
-    if(eGo) begin
+    if(goNotMc) begin
       case(o)
         6'h29 : begin
           taken = 1'b1;
@@ -4835,7 +4877,7 @@ module hng64_geo (
 
   always @(*) begin
     target = _zz_target[10:0];
-    if(eGo) begin
+    if(goNotMc) begin
       case(o)
         6'h2b : begin
           target = _zz_target_1;
@@ -4851,19 +4893,21 @@ module hng64_geo (
 
   assign _zz_7 = ({3'd0,1'b1} <<< retSp);
   assign _zz_retStack_0 = (pcE + 11'h001);
-  assign switch_GeoEngine_l430 = d[3:0];
+  assign switch_GeoEngine_l436 = d[3:0];
   assign flush = taken;
   assign isSt = 1'b0;
+  assign stOut = _zz_stOut[47:0];
+  assign mcVal = (_zz_mcVal | _zz_mcVal_27);
   assign mDst = mInstr[42 : 34];
   always @(*) begin
     wrEn = ((mValid && mWrites) && (mDst != 9'h0));
     if(stxWrite) begin
       wrEn = 1'b1;
     end
-    if(when_GeoEngine_l503) begin
+    if(when_GeoEngine_l530) begin
       wrEn = 1'b1;
     end
-    if(when_GeoEngine_l508) begin
+    if(when_GeoEngine_l535) begin
       wrEn = 1'b1;
     end
   end
@@ -4873,10 +4917,10 @@ module hng64_geo (
     if(stxWrite) begin
       wrAddr = xAddr;
     end
-    if(when_GeoEngine_l503) begin
+    if(when_GeoEngine_l530) begin
       wrAddr = 9'h00d;
     end
-    if(when_GeoEngine_l508) begin
+    if(when_GeoEngine_l535) begin
       wrAddr = 9'h00e;
     end
   end
@@ -4886,23 +4930,23 @@ module hng64_geo (
     if(stxWrite) begin
       wrData = stxD;
     end
-    if(when_GeoEngine_l503) begin
+    if(when_GeoEngine_l530) begin
       wrData = _zz_wrData;
     end
-    if(when_GeoEngine_l508) begin
+    if(when_GeoEngine_l535) begin
       wrData = _zz_wrData_2;
     end
   end
 
-  assign when_GeoEngine_l503 = (cfgStep == 2'b01);
-  assign when_GeoEngine_l508 = (cfgStep == 2'b10);
+  assign when_GeoEngine_l530 = (cfgStep == 2'b01);
+  assign when_GeoEngine_l535 = (cfgStep == 2'b10);
   assign rdAddrA = (stall ? ra : instrD[33 : 25]);
   assign rdAddrB = (stall ? rb : instrD[24 : 16]);
   assign mNextGo = ((eLive && (aluWrites || mcWrites)) && (! isSt));
   assign _zz_selMA = instrD[33 : 25];
   assign _zz_selMB = instrD[24 : 16];
-  assign when_GeoEngine_l536 = (! stall);
-  assign when_GeoEngine_l544 = ((io_start && (! running)) && (cfgStep == 2'b00));
+  assign when_GeoEngine_l563 = (! stall);
+  assign when_GeoEngine_l571 = ((io_start && (! running)) && (cfgStep == 2'b00));
   always @(*) begin
     case(io_entry)
       2'b00 : begin
@@ -4917,10 +4961,10 @@ module hng64_geo (
     endcase
   end
 
-  assign when_GeoEngine_l552 = (io_entry == 2'b00);
-  assign when_GeoEngine_l554 = (cfgStep == 2'b01);
-  assign when_GeoEngine_l555 = (cfgStep == 2'b10);
-  assign seek = (eGo && (o == 6'h23));
+  assign when_GeoEngine_l579 = (io_entry == 2'b00);
+  assign when_GeoEngine_l581 = (cfgStep == 2'b01);
+  assign when_GeoEngine_l582 = (cfgStep == 2'b10);
+  assign seek = (goNotMc && (o == 6'h23));
   assign room = (_zz_room < vFifo_io_availability);
   assign vRdS_valid = ((seeked && room) && (! seek));
   assign vRdS_payload = (io_vBase + _zz_vRdS_payload);
@@ -4939,7 +4983,7 @@ module hng64_geo (
   assign io_vRd_payload = vRdS_m2sPipe_payload;
   assign vRdS_fire = (vRdS_valid && vRdS_ready);
   assign vFifo_io_push_valid = ((io_vData_valid && (vDrop == 6'h0)) && (! seek));
-  assign when_GeoEngine_l577 = (io_vData_valid && (vDrop != 6'h0));
+  assign when_GeoEngine_l604 = (io_vData_valid && (vDrop != 6'h0));
   assign vWord_valid = vFifo_io_pop_valid;
   assign vWord_payload = _zz_vWord_payload;
   assign vWord_fire = (vWord_valid && vWord_ready);
@@ -4994,6 +5038,11 @@ module hng64_geo (
       selWB <= 1'b0;
       zeroA <= 1'b0;
       zeroB <= 1'b0;
+      eAlu <= 7'h0;
+      eMc <= 9'h0;
+      eAlu2 <= 8'h0;
+      eDiv <= 1'b0;
+      eLog2 <= 1'b0;
       mcStep <= 2'b00;
       bypX <= 1'b0;
       triValid <= 1'b0;
@@ -5004,81 +5053,88 @@ module hng64_geo (
       vSkip <= 2'b00;
       vRdS_rValid <= 1'b0;
     end else begin
+      if(when_GeoEngine_l160) begin
+        eDiv <= (dOp == 6'h0b);
+        eLog2 <= (dOp == 6'h1b);
+        eAlu <= {(dOp == 6'h17),{(dOp == 6'h13),{(dOp == 6'h12),{(dOp == 6'h11),{(dOp == 6'h10),{(dOp == _zz_eAlu),(dOp == _zz_eAlu_1)}}}}}};
+        eMc <= {((((_zz_eMc || _zz_eMc_1) || (dOp == _zz_eMc_2)) || (dOp == 6'h1a)) || (dOp == 6'h21)),{(((_zz_eMc_3 || _zz_eMc_4) || (dOp == _zz_eMc_5)) || (dOp == 6'h38)),{((_zz_eMc_6 || _zz_eMc_7) || (dOp == _zz_eMc_8)),{(dOp == _zz_eMc_9),{_zz_eMc_10,{_zz_eMc_11,_zz_eMc_12}}}}}};
+        eAlu2 <= {(dOp == 6'h21),{(dOp == 6'h1a),{(dOp == 6'h19),{(dOp == 6'h18),{(dOp == 6'h15),{(dOp == 6'h14),{(dOp == 6'h0f),(dOp == 6'h0e)}}}}}}};
+      end
       if(mcGo) begin
         case(o)
           6'h1d : begin
-            if(when_GeoEngine_l242) begin
+            if(when_GeoEngine_l257) begin
               mcStep <= 2'b01;
             end
           end
           6'h1e : begin
-            if(when_GeoEngine_l246) begin
+            if(when_GeoEngine_l261) begin
               mcStep <= 2'b01;
             end else begin
-              if(when_GeoEngine_l247) begin
+              if(when_GeoEngine_l262) begin
                 mcStep <= 2'b10;
               end
             end
           end
           6'h16, 6'h1b, 6'h1c : begin
-            if(when_GeoEngine_l251) begin
+            if(when_GeoEngine_l266) begin
               mcStep <= 2'b01;
             end else begin
-              if(when_GeoEngine_l255) begin
+              if(when_GeoEngine_l270) begin
                 mcStep <= 2'b10;
               end else begin
-                if(when_GeoEngine_l259) begin
+                if(when_GeoEngine_l274) begin
                   mcStep <= 2'b11;
                 end
               end
             end
           end
           6'h08, 6'h09, 6'h0a, 6'h38 : begin
-            if(when_GeoEngine_l272) begin
+            if(when_GeoEngine_l282) begin
               mcStep <= 2'b01;
             end else begin
-              if(when_GeoEngine_l275) begin
+              if(when_GeoEngine_l288) begin
                 mcStep <= 2'b10;
               end
             end
           end
           6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
-            if(when_GeoEngine_l285) begin
+            if(when_GeoEngine_l299) begin
               mcStep <= 2'b01;
             end else begin
-              if(when_GeoEngine_l290) begin
+              if(when_GeoEngine_l304) begin
                 mcStep <= 2'b10;
               end
             end
           end
           6'h04, 6'h05, 6'h06 : begin
-            if(when_GeoEngine_l308) begin
+            if(when_GeoEngine_l311) begin
               mcStep <= 2'b01;
             end
           end
           6'h1f : begin
-            if(when_GeoEngine_l317) begin
-              mcStep <= 2'b01;
-            end
-          end
-          6'h20 : begin
             if(when_GeoEngine_l320) begin
               mcStep <= 2'b01;
             end
           end
-          6'h22 : begin
+          6'h20 : begin
             if(when_GeoEngine_l323) begin
               mcStep <= 2'b01;
             end
           end
+          6'h22 : begin
+            if(when_GeoEngine_l326) begin
+              mcStep <= 2'b01;
+            end
+          end
           6'h0b : begin
-            if(when_GeoEngine_l337) begin
+            if(when_GeoEngine_l338) begin
               mcStep <= 2'b01;
             end else begin
-              if(when_GeoEngine_l344) begin
+              if(when_GeoEngine_l345) begin
                 mcStep <= 2'b10;
               end else begin
-                if(!when_GeoEngine_l350) begin
+                if(!when_GeoEngine_l351) begin
                   if(when_GeoEngine_l353) begin
                     mcStep <= 2'b11;
                   end
@@ -5087,12 +5143,12 @@ module hng64_geo (
             end
           end
           6'h28 : begin
-            if(when_GeoEngine_l369) begin
-              if(when_GeoEngine_l370) begin
+            if(when_GeoEngine_l370) begin
+              if(when_GeoEngine_l371) begin
                 mcStep <= 2'b01;
               end
             end else begin
-              if(when_GeoEngine_l385) begin
+              if(when_GeoEngine_l386) begin
                 triValid <= 1'b1;
               end
             end
@@ -5104,7 +5160,7 @@ module hng64_geo (
       if(mcDone) begin
         mcStep <= 2'b00;
       end
-      if(eGo) begin
+      if(goNotMc) begin
         case(o)
           6'h2a : begin
             retSp <= (retSp + 2'b01);
@@ -5119,7 +5175,7 @@ module hng64_geo (
           end
         endcase
       end
-      brPending <= (eGo && taken);
+      brPending <= (goNotMc && taken);
       mValid <= eGo;
       if(eGo) begin
         mInstr <= instrE;
@@ -5193,33 +5249,33 @@ module hng64_geo (
       selMB <= ((! stall) && (mNextGo && (d == _zz_selMB)));
       selWB <= (wrEn && (stall ? (wrAddr == rb) : (wrAddr == _zz_selMB)));
       zeroB <= (stall ? (rb == 9'h0) : (_zz_selMB == 9'h0));
-      if(when_GeoEngine_l536) begin
+      if(when_GeoEngine_l563) begin
         validD <= running;
         pcSeq <= (fetch + 11'h001);
         validE <= (validD && (! brPending));
         instrE <= instrD;
       end
-      if(when_GeoEngine_l544) begin
+      if(when_GeoEngine_l571) begin
         pcSeq <= _zz_pcSeq;
         validD <= 1'b0;
         validE <= 1'b0;
         retSp <= 2'b00;
         running <= 1'b1;
-        if(when_GeoEngine_l552) begin
+        if(when_GeoEngine_l579) begin
           cfgStep <= 2'b01;
         end
       end
-      if(when_GeoEngine_l554) begin
+      if(when_GeoEngine_l581) begin
         cfgStep <= 2'b10;
       end
-      if(when_GeoEngine_l555) begin
+      if(when_GeoEngine_l582) begin
         cfgStep <= 2'b00;
       end
       if(vRdS_ready) begin
         vRdS_rValid <= vRdS_valid;
       end
       vOut <= (_zz_vOut - _zz_vOut_3);
-      if(when_GeoEngine_l577) begin
+      if(when_GeoEngine_l604) begin
         vDrop <= (vDrop - 6'h01);
       end
       if(vWord_fire) begin
@@ -5237,84 +5293,46 @@ module hng64_geo (
   end
 
   always @(posedge clk) begin
+    rdXq <= rdX;
     if(mcGo) begin
       case(o)
         6'h1e : begin
-          if(!when_GeoEngine_l246) begin
-            if(when_GeoEngine_l247) begin
+          if(!when_GeoEngine_l261) begin
+            if(when_GeoEngine_l262) begin
               stxD <= ((d == 9'h0) ? 48'h0 : rdX);
             end
           end
         end
         6'h16, 6'h1b, 6'h1c : begin
-          if(when_GeoEngine_l251) begin
+          if(when_GeoEngine_l266) begin
             slowA <= a;
             slowB <= ((o == 6'h16) ? _zz_slowB : _zz_slowB_1);
           end else begin
-            if(when_GeoEngine_l255) begin
+            if(when_GeoEngine_l270) begin
               slowTop <= {_zz_slowTop_51,{_zz_slowTop_50,{_zz_slowTop_49,{_zz_slowTop_48,{_zz_slowTop_47,_zz_slowTop_46}}}}};
               slowSh <= ((o == 6'h16) ? slowB : _zz_slowSh_52);
-            end else begin
-              if(when_GeoEngine_l259) begin
-                case(o)
-                  6'h1b : begin
-                    slowR <= (($signed(48'h0) < $signed(slowA)) ? _zz_slowR : 48'hffffffffffff);
-                  end
-                  default : begin
-                    slowR <= (($signed(8'h0) <= $signed(slowSh)) ? _zz_slowR_2 : _zz_slowR_5);
-                  end
-                endcase
-              end
             end
           end
         end
         6'h08, 6'h09, 6'h0a, 6'h38 : begin
-          if(when_GeoEngine_l272) begin
-            stSh <= (((o == 6'h0a) || (o == 6'h38)) ? _zz_stSh : _zz_stSh_3);
+          if(when_GeoEngine_l282) begin
+            stB <= b[7:0];
           end else begin
-            if(when_GeoEngine_l275) begin
+            if(when_GeoEngine_l288) begin
+              stSh <= _zz_stSh;
               stRound <= ($signed(acc) + $signed(_zz_stRound));
             end
           end
         end
         6'h0e, 6'h0f, 6'h14, 6'h15, 6'h18, 6'h19, 6'h1a, 6'h21 : begin
-          if(when_GeoEngine_l285) begin
+          if(when_GeoEngine_l299) begin
             slowA <= a;
             alu2B <= b;
             alu2I <= imm;
-          end else begin
-            if(when_GeoEngine_l290) begin
-              case(o)
-                6'h0e : begin
-                  slowR <= (($signed(slowA) < $signed(alu2B)) ? slowA : alu2B);
-                end
-                6'h0f : begin
-                  slowR <= (($signed(alu2B) < $signed(slowA)) ? slowA : alu2B);
-                end
-                6'h14 : begin
-                  slowR <= ($signed(slowA) <<< _zz_slowR_9);
-                end
-                6'h15 : begin
-                  slowR <= ($signed(slowA) >>> _zz_slowR_11);
-                end
-                6'h18 : begin
-                  slowR <= (- slowA);
-                end
-                6'h19 : begin
-                  slowR <= (($signed(slowA) < $signed(48'h0)) ? _zz_slowR_13 : slowA);
-                end
-                6'h1a : begin
-                  slowR <= {{32{_zz_slowR_14[15]}}, _zz_slowR_14};
-                end
-                default : begin
-                  slowR <= _zz_slowR_15;
-                end
-              endcase
-            end
           end
         end
         6'h04, 6'h05, 6'h06 : begin
-          if(when_GeoEngine_l308) begin
+          if(when_GeoEngine_l311) begin
             slowA <= a;
             alu2B <= b;
             alu2I <= imm;
@@ -5322,21 +5340,19 @@ module hng64_geo (
           end
         end
         6'h0b : begin
-          if(when_GeoEngine_l337) begin
+          if(when_GeoEngine_l338) begin
             divRem <= (_zz_divRem + _zz_divRem_2);
             divDen <= (_zz_divDen + _zz_divDen_2);
             divNeg <= (($signed(acc) < $signed(72'h0)) != ($signed(b) < $signed(48'h0)));
             divQ <= 48'h0;
             divLeft <= _zz_divLeft[5:0];
           end else begin
-            if(when_GeoEngine_l344) begin
+            if(when_GeoEngine_l345) begin
               divD <= (_zz_divD <<< _zz_divD_1);
             end else begin
-              if(!when_GeoEngine_l350) begin
-                if(when_GeoEngine_l353) begin
-                  slowR <= (divNeg ? _zz_slowR_19 : _zz_slowR_21);
-                end else begin
-                  if(when_GeoEngine_l360) begin
+              if(!when_GeoEngine_l351) begin
+                if(!when_GeoEngine_l353) begin
+                  if(when_GeoEngine_l359) begin
                     divRem <= (divRem - divD[71 : 0]);
                   end
                   divQ <= (_zz_divQ | _zz_divQ_1);
@@ -5348,85 +5364,85 @@ module hng64_geo (
           end
         end
         6'h28 : begin
-          if(when_GeoEngine_l369) begin
-            if(when_GeoEngine_l370) begin
+          if(when_GeoEngine_l370) begin
+            if(when_GeoEngine_l371) begin
               emitCount <= 5'h0;
             end
           end else begin
-            if(when_GeoEngine_l373) begin
-              case(switch_GeoEngine_l377)
+            if(when_GeoEngine_l374) begin
+              case(switch_GeoEngine_l378)
                 5'h06 : begin
-                  triOut_neg <= rdX[0];
+                  triOut_neg <= rdXq[0];
                 end
                 5'h0 : begin
-                  triOut_v_0_0 <= rdX[23:0];
+                  triOut_v_0_0 <= rdXq[23:0];
                 end
                 5'h01 : begin
-                  triOut_v_0_1 <= rdX[23:0];
+                  triOut_v_0_1 <= rdXq[23:0];
                 end
                 5'h02 : begin
-                  triOut_v_1_0 <= rdX[23:0];
+                  triOut_v_1_0 <= rdXq[23:0];
                 end
                 5'h03 : begin
-                  triOut_v_1_1 <= rdX[23:0];
+                  triOut_v_1_1 <= rdXq[23:0];
                 end
                 5'h04 : begin
-                  triOut_v_2_0 <= rdX[23:0];
+                  triOut_v_2_0 <= rdXq[23:0];
                 end
                 5'h05 : begin
-                  triOut_v_2_1 <= rdX[23:0];
+                  triOut_v_2_1 <= rdXq[23:0];
                 end
                 5'h07 : begin
-                  triOut_p0_v_0 <= rdX[29:0];
+                  triOut_p0_v_0 <= rdXq[29:0];
                 end
                 5'h08 : begin
-                  triOut_p0_v_1 <= rdX[33:0];
+                  triOut_p0_v_1 <= rdXq[33:0];
                 end
                 5'h09 : begin
-                  triOut_p0_v_2 <= rdX[23:0];
+                  triOut_p0_v_2 <= rdXq[23:0];
                 end
                 5'h0a : begin
-                  triOut_p0_v_3 <= rdX[31:0];
+                  triOut_p0_v_3 <= rdXq[31:0];
                 end
                 5'h0b : begin
-                  triOut_p0_v_4 <= rdX[31:0];
+                  triOut_p0_v_4 <= rdXq[31:0];
                 end
                 5'h0c : begin
-                  triOut_dx_v_0 <= rdX[41:0];
+                  triOut_dx_v_0 <= rdXq[41:0];
                 end
                 5'h0d : begin
-                  triOut_dx_v_1 <= rdX[45:0];
+                  triOut_dx_v_1 <= rdXq[45:0];
                 end
                 5'h0e : begin
-                  triOut_dx_v_2 <= rdX[35:0];
+                  triOut_dx_v_2 <= rdXq[35:0];
                 end
                 5'h0f : begin
-                  triOut_dx_v_3 <= rdX[43:0];
+                  triOut_dx_v_3 <= rdXq[43:0];
                 end
                 5'h10 : begin
-                  triOut_dx_v_4 <= rdX[43:0];
+                  triOut_dx_v_4 <= rdXq[43:0];
                 end
                 5'h11 : begin
-                  triOut_dy_v_0 <= rdX[41:0];
+                  triOut_dy_v_0 <= rdXq[41:0];
                 end
                 5'h12 : begin
-                  triOut_dy_v_1 <= rdX[45:0];
+                  triOut_dy_v_1 <= rdXq[45:0];
                 end
                 5'h13 : begin
-                  triOut_dy_v_2 <= rdX[35:0];
+                  triOut_dy_v_2 <= rdXq[35:0];
                 end
                 5'h14 : begin
-                  triOut_dy_v_3 <= rdX[43:0];
+                  triOut_dy_v_3 <= rdXq[43:0];
                 end
                 5'h15 : begin
-                  triOut_dy_v_4 <= rdX[43:0];
+                  triOut_dy_v_4 <= rdXq[43:0];
                 end
                 default : begin
                 end
               endcase
             end
             emitCount <= (emitCount + 5'h01);
-            if(when_GeoEngine_l385) begin
+            if(when_GeoEngine_l386) begin
               triOut_attr <= {attr_wrapY,{attr_wrapX,{attr_scrollY,{attr_scrollX,{attr_pal,{attr_voff,{attr_hoff,{attr_sub,{attr_texIndex,{attr_tex4bpp,{attr_blend,attr_flat}}}}}}}}}}};
             end
           end
@@ -5435,7 +5451,7 @@ module hng64_geo (
         end
       endcase
     end
-    if(eGo) begin
+    if(goNotMc) begin
       case(o)
         6'h2a : begin
           if(_zz_7[0]) begin
@@ -5452,7 +5468,7 @@ module hng64_geo (
           end
         end
         6'h26 : begin
-          case(switch_GeoEngine_l430)
+          case(switch_GeoEngine_l436)
             4'b0000 : begin
               attr_flat <= a[0];
             end
@@ -5500,15 +5516,17 @@ module hng64_geo (
     if(eGo) begin
       brTarget <= target;
     end
-    mVal <= (mcWrites ? mcVal : alu);
+    slowR <= (eDiv ? _zz_slowR : _zz_slowR_4);
+    alu2R <= (_zz_alu2R | _zz_alu2R_26);
+    mVal <= (mcVal | alu);
     if(eGo) begin
       prod <= ($signed(_zz_prod) * $signed(_zz_prod_1));
       accVal <= ($signed(_zz_accVal) <<< accSh);
-      mSh <= (((o == 6'h0a) || (o == 6'h38)) ? _zz_mSh : _zz_mSh_3);
+      mSh <= imm[7:0];
     end
     wReg <= wrAddr;
     wVal <= wrData;
-    if(when_GeoEngine_l536) begin
+    if(when_GeoEngine_l563) begin
       pcD <= fetch;
       pcE <= pcD;
     end

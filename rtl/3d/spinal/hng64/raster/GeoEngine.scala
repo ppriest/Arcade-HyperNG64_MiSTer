@@ -21,7 +21,7 @@ import scala.io.Source
   * An instruction using the value of the store just before it waits a clock (the store's value
   * exists only at M), as does an accumulator branch or DIV straight after an accumulator op.
   * LDX, STX, TRSQ, TRCP, DL, SHLV, LOG2 and NORM take a clock more (copy X of the register file serves the indexed
-  * reads), DIV its quotient bits and one, VRD until its word is there, EMIT 23 while the setup
+  * reads), DIV its quotient bits and one, VRD until its word is there, EMIT 24 while the setup
   * record (22 words, TriangleSetup.Input: the rasteriser's gradients are computed in microcode)
   * is read out through copy X.
   */
@@ -118,7 +118,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   val mulOp = RegInit(U(0, 2 bits))                  // 0 none, 1 MUL, 2 MAC, 3 MSB
   val accOp = RegInit(U(0, 2 bits))                  // 0 none, 1 set, 2 add, 3 shift
   val accVal = Reg(SInt(AW bits))
-  val mSh = Reg(SInt(8 bits))                        // ASHL's or a store's shift
+  val mSh = Reg(SInt(8 bits))                        // ASHL's shift
 
   // ---- E -----------------------------------------------------------------------------------------------
   val eLive = validE && !brPending                   // the instruction after a taken branch is dropped
@@ -143,28 +143,42 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
     ((fD(mInstr) === ra) || (fD(mInstr) === rb) || (usesD && fD(mInstr) === d))
   val accBranchHazard = mValid && mAccOp && (o === op("BACCN") || o === op("BACCNN") || o === op("DIV"))
 
+  // E's op classes, decoded from D's instruction and loaded with it, so what selects M's value is
+  // registers and not E's opcode: from instrE through the decode, the multi-cycle steps and the
+  // result select into mVal it missed clk3d by 0.37 ns (176837c seed 1). mVal is used only on the
+  // clock an op completes, so the class alone picks it.
+  //   eAlu: ADD SUB OR AND ADDI ANDI MOVI
+  //   eMc:  LDX TRSQ TRCP DL VRD VRDS, the slowR ops (DIV SHLV LOG2 NORM), the stores, the alu2 ones
+  //   eAlu2: MIN MAX SHLI SHRI NEG ABS SEXT16 WRAP
+  def opIn(v: UInt, ns: String*): Bool = ns.map(n => v === op(n)).reduce(_ || _)
+  val dOp = fOp(instrD)
+  val alu2Ops = Seq("MIN", "MAX", "SHLI", "SHRI", "NEG", "ABS", "SEXT16", "WRAP")
+  val eAlu = Reg(Bits(7 bits)) init (0)
+  val eMc = Reg(Bits(9 bits)) init (0)
+  val eAlu2 = Reg(Bits(8 bits)) init (0)
+  val eDiv, eLog2 = Reg(Bool()) init (False)
+  when(!stall) {
+    eDiv := opIn(dOp, "DIV")
+    eLog2 := opIn(dOp, "LOG2")
+    eAlu := Vec(Seq("ADD", "SUB", "OR", "AND", "ADDI", "ANDI", "MOVI").map(n => opIn(dOp, n))).asBits
+    eMc := Vec(Seq(opIn(dOp, "LDX"), opIn(dOp, "TRSQ"), opIn(dOp, "TRCP"), opIn(dOp, "DL"), opIn(dOp, "VRD"),
+      opIn(dOp, "VRDS"), opIn(dOp, "DIV", "SHLV", "LOG2", "NORM"), opIn(dOp, "ST", "STF", "STV", "STVW"),
+      opIn(dOp, alu2Ops: _*))).asBits
+    eAlu2 := Vec(alu2Ops.map(n => opIn(dOp, n))).asBits
+  }
+  def pick(sel: Bits, vs: Seq[SInt]): SInt =
+    vs.zipWithIndex.map { case (v, i) => sel(i) ? v | S(0, W bits) }.reduce(_ | _)
+
   // ALU
-  val alu = SInt(W bits)
-  alu := 0
-  val aluWrites = Bool()
-  aluWrites := False
   def topBit(v: SInt): UInt = OHToUInt(OHMasking.last(v.asBits))
   def shiftBy(v: SInt, sh: SInt): SInt =             // sh > 0 left, < 0 arithmetic right
     (sh >= 0) ? (v |<< sh.asUInt.resize(6 bits)) | (v >> (-sh).asUInt.resize(6 bits))
-  switch(o) {
-    is(op("ADD")) { alu := a + b; aluWrites := True }
-    is(op("SUB")) { alu := a - b; aluWrites := True }
-    is(op("OR")) { alu := a | b; aluWrites := True }
-    is(op("AND")) { alu := a & b; aluWrites := True }
-    is(op("ADDI")) { alu := a + imm.resize(W bits); aluWrites := True }
-    is(op("ANDI")) { alu := a & imm.resize(W bits); aluWrites := True }
-    is(op("MOVI")) { alu := imm.resize(W bits); aluWrites := True }
-  }
+  val alu = pick(eAlu, Seq(a + b, a - b, a | b, a & b, a + imm.resize(W bits), a & imm.resize(W bits),
+    imm.resize(W bits)))
+  val aluWrites = eAlu.orR
 
   // ---- multi-cycle operations ------------------------------------------------------------------------
   val mcStep = RegInit(U(0, 2 bits))
-  val mcVal = SInt(W bits)                           // the result, on the clock it completes
-  mcVal := 0
   val mcDone = Bool()
   mcDone := False
   val xAddr = UInt(9 bits)
@@ -175,6 +189,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   // RegNext(xAddr) (from wReg through it into the STX write and wVal missed clk2x by 3.1 ns)
   val bypX = RegInit(False)                          // set after wrEn, below
   val rdX = bypX ? wVal | rdXraw
+  val rdXq = RegNext(rdX)                            // EMIT's copy, a clock later
   val rsqV = rsqRom.readSync(a.asUInt.resize(8 bits))
   val rcpV = rcpRom.readSync(a.asUInt.resize(10 bits))
   io.dlAddr := a.asUInt.resize(8 bits)
@@ -219,9 +234,9 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   val accLd = o === op("LDA") || o === op("ADA") || o === op("ADAV")
   val isMc = o === op("LDX") || o === op("STX") || o === op("TRSQ") || o === op("TRCP") ||
     o === op("DL") || o === op("VRD") || o === op("VRDS") || o === op("DIV") || o === op("EMIT") || slowAlu || stOp || alu2 || accLd
-  val mcWrites = o === op("LDX") || o === op("TRSQ") || o === op("TRCP") || o === op("DL") ||
-    o === op("VRD") || o === op("VRDS") || o === op("DIV") || slowAlu || stOp || alu2
+  val mcWrites = eMc.orR
   val stSh = Reg(SInt(8 bits))
+  val stB = Reg(SInt(8 bits))
   val stRound = Reg(SInt(AW bits))
   val slowA = Reg(SInt(W bits))
   val slowB = Reg(SInt(8 bits))
@@ -239,7 +254,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   when(mcGo) {
     switch(o) {
       is(op("LDX")) {
-        when(mcStep === 0) { mcStep := 1 }.otherwise { mcVal := rdX; mcDone := True }
+        when(mcStep === 0) { mcStep := 1 }.otherwise { mcDone := True }
       }
       is(op("STX")) {
         // step 0: read the value (d) through copy X; step 1: hold it; step 2: write it at a + b
@@ -257,27 +272,26 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
           slowSh := (o === op("SHLV")) ? slowB | (slowB - topBit(slowA).resize(8 bits).asSInt)
           mcStep := 2
         }.elsewhen(mcStep === 2) {
-          // into slowR and out the step after: the shift straight into mVal missed clk2x by 2.9 ns
-          switch(o) {
-            is(op("LOG2")) { slowR := (slowA > 0) ? slowTop.resize(W bits).asSInt | S(-1, W bits) }
-            default { slowR := shiftBy(slowA, slowSh) }
-          }
+          // into slowR (below) and out the step after: the shift straight into mVal missed clk2x by 2.9 ns
           mcStep := 3
         }.otherwise {
-          mcVal := slowR
           mcDone := True
         }
       }
       is(op("ST"), op("STF"), op("STV"), op("STVW")) {
         when(mcStep === 0) {
-          stSh := (o === op("STV") || o === op("STVW")) ? (b + imm.resize(W bits)).resize(8 bits) | imm.resize(8 bits)
+          // STV's shift is b + imm: b's low byte is taken here and the add made at step 1, ahead of
+          // the rounding. From the forwarded b through the add into stSh it missed clk3d by 0.24
+          // ns (20b5e7d seed 2); the rounding had 1.4 ns to spare.
+          stB := b.resize(8 bits)
           mcStep := 1
         }.elsewhen(mcStep === 1) {
-          val half = (stSh > 0 && o =/= op("STF")) ? (S(1, AW bits) |<< (stSh - 1).asUInt.resize(7 bits)) | S(0, AW bits)
+          val sh = (o === op("STV") || o === op("STVW")) ? (stB + imm.resize(8 bits)) | imm.resize(8 bits)
+          stSh := sh
+          val half = (sh > 0 && o =/= op("STF")) ? (S(1, AW bits) |<< (sh - 1).asUInt.resize(7 bits)) | S(0, AW bits)
           stRound := acc + half
           mcStep := 2
         }.otherwise {
-          mcVal := ((stSh >= 0) ? (stRound >> stSh.asUInt.resize(7 bits)) | (stRound |<< (-stSh).asUInt.resize(7 bits))).resize(W bits)
           mcDone := True
         }
       }
@@ -288,19 +302,8 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
           alu2I := imm.asBits
           mcStep := 1
         }.elsewhen(mcStep === 1) {
-          switch(o) {
-            is(op("MIN")) { slowR := (slowA < alu2B) ? slowA | alu2B }
-            is(op("MAX")) { slowR := (slowA > alu2B) ? slowA | alu2B }
-            is(op("SHLI")) { slowR := slowA |<< alu2I.asUInt.resize(6 bits) }
-            is(op("SHRI")) { slowR := slowA >> alu2I.asUInt.resize(6 bits) }
-            is(op("NEG")) { slowR := -slowA }
-            is(op("ABS")) { slowR := (slowA < 0) ? -slowA | slowA }
-            is(op("SEXT16")) { slowR := slowA(15 downto 0).resize(W bits) }
-            default { slowR := io.wrap(slowA.asUInt.resize(5 bits)).resize(W bits).asSInt }
-          }
-          mcStep := 2
+          mcStep := 2                                // alu2R is loaded this clock (below)
         }.otherwise {
-          mcVal := slowR
           mcDone := True
         }
       }
@@ -314,21 +317,19 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
         }.otherwise { mcDone := True }
       }
       is(op("TRSQ")) {
-        when(mcStep === 0) { mcStep := 1 }.otherwise { mcVal := rsqV.resize(W bits).asSInt; mcDone := True }
+        when(mcStep === 0) { mcStep := 1 }.otherwise { mcDone := True }
       }
       is(op("TRCP")) {
-        when(mcStep === 0) { mcStep := 1 }.otherwise { mcVal := rcpV.resize(W bits).asSInt; mcDone := True }
+        when(mcStep === 0) { mcStep := 1 }.otherwise { mcDone := True }
       }
       is(op("DL")) {
         when(mcStep === 0) { mcStep := 1 }.otherwise {
-          mcVal := io.dlData.asUInt.resize(W bits).asSInt
           mcDone := True
         }
       }
       is(op("VRD"), op("VRDS")) {
         when(vWord.valid) {
           vWord.ready := True
-          mcVal := (o === op("VRDS")) ? vWord.payload.asSInt.resize(W bits) | vWord.payload.asUInt.resize(W bits).asSInt
           mcDone := True
         }
       }
@@ -348,12 +349,10 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
           divD := divDen.resize(110 bits) |<< (divLeft - 1).resize(6 bits)
           mcStep := 2
         }.elsewhen(mcStep === 3) {
-          mcVal := slowR
           mcDone := True
         }.elsewhen(divLeft === 0) {
-          // the signed quotient into slowR, out the step after: the last step's test, the negate
-          // and the result select into mVal missed clk3d by 0.7 ns
-          slowR := divNeg ? (-(divQ.asSInt)).resize(W bits) | divQ.asSInt.resize(W bits)
+          // the signed quotient into slowR (below), out the step after: the last step's test, the
+          // negate and the result select into mVal missed clk3d by 0.7 ns
           mcStep := 3
         }.otherwise {
           val take = divD(109 downto AW) === 0 && divRem >= divD(AW - 1 downto 0)
@@ -365,24 +364,26 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
       }
       is(op("EMIT")) {
         // step 0: wait for the output to be free; 1: read the setup record, R[a .. a + 21], out
-        // through copy X (address at count c, data at c + 1); then offer the triangle
+        // through copy X and rdXq (address at count c, data at c + 2); then offer the triangle.
+        // Straight from rdX, through the bypass select and the field decode into triOut, it
+        // missed clk3d by 0.93 ns (176837c seed 2); the register costs a clock a triangle.
         when(mcStep === 0) {
           when(!triValid) { emitCount := 0; mcStep := 1 }
         }.otherwise {
           xAddr := ra + emitCount.resize(9 bits)
-          when(emitCount =/= 0) {
+          when(emitCount >= 2) {
             val t = triOut
             val words = Seq(t.v(0)(0), t.v(0)(1), t.v(1)(0), t.v(1)(1), t.v(2)(0), t.v(2)(1)) ++
               t.p0.v ++ t.dx.v ++ t.dy.v
-            switch(emitCount - 1) {
-              is(6) { t.neg := rdX(0) }
+            switch(emitCount - 2) {
+              is(6) { t.neg := rdXq(0) }
               for ((f, n) <- words.zipWithIndex) is(if (n < 6) n else n + 1) {
-                f := rdX.resize(f.getWidth bits)
+                f := rdXq.resize(f.getWidth bits)
               }
             }
           }
           emitCount := emitCount + 1
-          when(emitCount === 22) {
+          when(emitCount === 23) {
             triOut.attr := attr.asBits
             triValid := True
             mcDone := True
@@ -396,13 +397,18 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   // ---- E's hold, branches, and the hand-over to M ----------------------------------------------------------
   stall := eLive && (stHazard || accBranchHazard || (isMc && !mcDone)) || cfgStep =/= 0
   val eGo = eLive && !stall
+  // The go of an op that is not multi-cycle: for it isMc is false and stall is the hazards alone,
+  // so it is eGo without the multi-cycle ops' completion in front. The branches, AOUT and VSEEK go
+  // on it: from EMIT's count through stall and eGo into the vertex requests missed clk3d by 0.09 ns
+  // over 45 endpoints, and the branch compares share brPending's path with it (04c8ca2 seed 2).
+  val goNotMc = eLive && !stHazard && !accBranchHazard && cfgStep === 0
 
   val taken = Bool()
   taken := False
   target := imm.asUInt.resize(11 bits)
   val retStack = Reg(Vec(UInt(11 bits), 4))
   val retSp = Reg(UInt(2 bits)) init (0)
-  when(eGo) {
+  when(goNotMc) {
     switch(o) {
       is(op("J")) { taken := True }
       is(op("JAL")) {
@@ -446,7 +452,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
     }
   }
   flush := taken
-  brPending := eGo && taken
+  brPending := goNotMc && taken
   // brTarget is read only while brPending is set, so it loads on every eGo and the branch compares
   // reach brPending alone (into brTarget's enable they missed clk3d by 1.1 ns)
   when(eGo) { brTarget := target }
@@ -456,7 +462,28 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   when(eGo) { mInstr := instrE }
   mWrites := eGo && (aluWrites || mcWrites || isSt)
   mIsSt := eGo && isSt
-  mVal := mcWrites ? mcVal | alu
+  // slowR, DIV's quotient or SHLV, LOG2 and NORM's result, every clock by E's class: each reads it the
+  // clock after the step that makes it, so the step need not pick the load. Picked there through
+  // the opcode's decode, from instrE into slowR it missed clk3d by 0.03 ns (50112e7 seed 1).
+  slowR := eDiv ? (divNeg ? (-(divQ.asSInt)).resize(W bits) | divQ.asSInt.resize(W bits)) |
+    (eLog2 ? ((slowA > 0) ? slowTop.resize(W bits).asSInt | S(-1, W bits)) | shiftBy(slowA, slowSh))
+
+  // The alu2 ops' result, from their operands latched at step 0, every clock and picked by E's class:
+  // into slowR, through its enables and the other ops' writes, it missed clk3d by 0.48 ns over 53
+  // endpoints (6063e54 seed 2 with the stronger fitter settings). Taken at step 2.
+  val alu2R = Reg(SInt(W bits))
+  alu2R := pick(eAlu2, Seq((slowA < alu2B) ? slowA | alu2B, (slowA > alu2B) ? slowA | alu2B,
+    slowA |<< alu2I.asUInt.resize(6 bits), slowA >> alu2I.asUInt.resize(6 bits), -slowA,
+    (slowA < 0) ? -slowA | slowA, slowA(15 downto 0).resize(W bits),
+    io.wrap(slowA.asUInt.resize(5 bits)).resize(W bits).asSInt))
+
+  // the multi-cycle result, by class: taken only on the clock the op completes
+  val stOut = ((stSh >= 0) ? (stRound >> stSh.asUInt.resize(7 bits)) |
+    (stRound |<< (-stSh).asUInt.resize(7 bits))).resize(W bits)
+  val mcVal = pick(eMc, Seq(rdX, rsqV.resize(W bits).asSInt, rcpV.resize(W bits).asSInt,
+    io.dlData.asUInt.resize(W bits).asSInt, vWord.payload.asUInt.resize(W bits).asSInt,
+    vWord.payload.asSInt.resize(W bits), slowR, stOut, alu2R))
+  mVal := mcVal | alu
   mulOp := 0
   accOp := 0
   mAccOp := False
@@ -471,7 +498,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
     }
     prod := (a.resize(36 bits) * b.resize(36 bits)).resize(AW bits)
     accVal := slowA.resize(AW bits) |<< accSh
-    mSh := (o === op("STV") || o === op("STVW")) ? (b + imm.resize(W bits)).resize(8 bits) | imm.resize(8 bits)
+    mSh := imm.resize(8 bits)                       // only ASHL uses it
   }
 
   // ---- M ------------------------------------------------------------------------------------------------
@@ -561,7 +588,7 @@ case class GeoEngine(ucodeDir: String, c: RasterConfig = RasterConfig()) extends
   val vOut = RegInit(U(0, 6 bits))                   // requests in flight
   val vFifo = StreamFifo(Bits(64 bits), 16)
   val vSkip = RegInit(U(0, 2 bits))                  // words of the head beat already used
-  val seek = eGo && o === op("VSEEK")
+  val seek = goNotMc && o === op("VSEEK")
   val room = vFifo.io.availability > vOut.resize(vFifo.io.availability.getWidth bits)
   // a request goes out through a register (m2sPipe): its valid follows E's stall logic through
   // seek, which reached the DDR3 arbiter in the same clock (2.9 ns over clk2x). One held there is

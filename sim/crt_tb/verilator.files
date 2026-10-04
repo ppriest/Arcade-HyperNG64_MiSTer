@@ -1,3 +1,4 @@
 rtl/video/crt_adjust.sv
 rtl/video/hng64_crt.sv
+rtl/video/hng64_vidcdc.sv
 sim/crt_tb/tb_crt.sv

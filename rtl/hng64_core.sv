@@ -55,7 +55,7 @@ module hng64_core #(
 
     input  logic  [7:0] inputs [0:7],   // IN0-IN7, active low, as MAME's hng64_fight ports
     input  logic        flip,           // the picture turned 180 degrees, from the next frame
-    input  logic  [2:0] game_speed,     // OSD: 0 full; 1-5 hide 1 frame in 10, 5, 4, 3, 2 (docs/HACKS.md)
+    input  logic  [2:0] game_speed,     // OSD: 0 auto; 1 full; 2-6 hide 1 frame in 10, 5, 4, 3, 2 (docs/HACKS.md)
 
     // SDRAM
     output logic [12:0] SDRAM_A,
@@ -480,20 +480,25 @@ module hng64_core #(
     // vblank and the sprite snapshot are all withheld for that frame. The video runs on at 60 Hz and
     // shows the last finished frames. A frame is hidden or not from its vblank's start; every event is
     // a clock late so that the decision is in place before any of them shows.
+    // Auto (0, the default) hides a frame when the 3D held the game back (dl_full, interrupt 3 withheld) at any
+    // time since the last frame's start: the game then has a frame more to make the uploads its
+    // clearing vblank would otherwise cut, the cause of frames shown part drawn (docs/ROADMAP.md).
     logic [3:0] gs_n;                       // N; 0: none hidden
     always_comb
         case (game_speed)
-            3'd1:    gs_n = 4'd10;
-            3'd2:    gs_n = 4'd5;
-            3'd3:    gs_n = 4'd4;
-            3'd4:    gs_n = 4'd3;
-            3'd5:    gs_n = 4'd2;
+            3'd2:    gs_n = 4'd10;
+            3'd3:    gs_n = 4'd5;
+            3'd4:    gs_n = 4'd4;
+            3'd5:    gs_n = 4'd3;
+            3'd6:    gs_n = 4'd2;
             default: gs_n = 4'd0;
         endcase
     logic [3:0] gs_cnt;
     logic       gs_hide;                    // this frame, from its vblank's start, is hidden
     logic       vbl_d1, vbi_d1, rai_d1, nti_d1, snap_d1, snap_fake;
+    logic       held_2x, held_seen;         // dl_full, and seen since the last frame's start
     always_ff @(posedge clk2x) begin
+        held_2x <= dl_full;
         vbl_d1  <= vblank_level_vt;
         vbi_d1  <= vblank_irq_vt;
         rai_d1  <= raster_irq_vt;
@@ -501,16 +506,23 @@ module hng64_core #(
         snap_d1 <= snapshot_vt;
         snap_fake <= snap_d1 && gs_hide;
         if (game_reset) begin
-            gs_cnt  <= 4'd0;
-            gs_hide <= 1'b0;
+            gs_cnt    <= 4'd0;
+            gs_hide   <= 1'b0;
+            held_seen <= 1'b0;
         end else if (vblank_level_vt && !vbl_d1) begin
-            if (gs_n == 4'd0) begin
+            held_seen <= 1'b0;
+            if (game_speed == 3'd0) begin
+                gs_cnt  <= 4'd0;
+                gs_hide <= held_seen || held_2x;
+            end else if (gs_n == 4'd0) begin
                 gs_cnt  <= 4'd0;
                 gs_hide <= 1'b0;
             end else begin
                 gs_cnt  <= (gs_cnt >= gs_n - 4'd1) ? 4'd0 : gs_cnt + 4'd1;
                 gs_hide <= gs_cnt == gs_n - 4'd2;           // the new count is N - 1
             end
+        end else if (held_2x) begin
+            held_seen <= 1'b1;
         end
     end
     assign vblank_level = vbl_d1 && !gs_hide;

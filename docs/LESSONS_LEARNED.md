@@ -391,6 +391,14 @@ The decisive measurement for the reset bug was counting real commands on `{SDRAM
 SDRAM_nWE}`. Delivery counters and FSM accept-condition counters both looked perfect; only the pin
 count showed zero writes. Measure the last observable stage.
 
+### [HyperNG64] crt_adjust's picture position depends on the pixel's phase against its enable
+
+`crt_adjust.sv` (rmonic79's) finds the HSync edge on every clock and takes pixels on `pxl_cen`.
+Fed from registers that change on the enable's own clock (data and enable together), CRT Adjust
+on with nothing moved put the picture a pixel right of CRT Adjust off; with the enable a clock
+behind the data the two matched (`sim/crt_tb`, all five phases of a clk2x enable through
+`hng64_vidcdc`). Compare on against off whenever its clock or its source changes.
+
 ## Memory transport: req/valid contracts, latency, byte order
 
 ### Give a registered RAM its full read latency before consuming the data
@@ -962,6 +970,32 @@ kernel: the side project's `.sdc` had never been copied. Move the constraint, no
 the same commit as the measurement. "All worst paths inside one vendored module" is a missing
 constraint, not a design problem.
 
+### [HyperNG64] Burst read data takes `-setup 2` alone, not `-hold 1` with it
+
+The SDRAM read capture carried `-setup 2` and `-hold 1` from the Psikyo, Seta and MS32 `.sdc`.
+`-hold 1` puts the hold check on the edge two clocks before the setup capture, which suits data
+held for two clocks; a burst changes its word every clock, and its hold belongs on the edge just
+before the capture. The fast corner read +8.4 ns of hold that was +0.54 (`3023dda`). Read data
+also crosses the board twice, clock out and data back: count the trace twice in the input delay.
+
+### [HyperNG64] At 125 MHz no capture phase closes SDRAM reads with an FPGA-made clock
+
+With SDRAM_CLK from a DDIO output and the data captured in the I/O cell, the round trip through
+the FPGA's clock output and input buffer was 6.7 ns at the slow corner and 3.7 at the fast
+(`20b5e7d`). Against an 8 ns clock at CL2 (tAC 6.0, tOH 2.7) the slow corners need the capture
+later and the fast corners need it earlier, by more than the window allows: the best phase left
+-0.71 ns at both. Moving to the falling edge, which looked like the fix from setup alone, failed
+hold by 1.5 to 3.6 ns. Work out every corner's window before choosing a capture edge.
+
+### [HyperNG64] "Validated at N MHz" on an SDRAM module means memtest's timings, not yours
+
+Module vendors quote MiSTer's memtest, which runs CL3, a 3-clock tRCD, the clock inverted through a
+DDIO and the capture 1.5 clocks after the chip edge that drives the data
+(MiSTer-devel/Memtest_MiSTer `rtl/sdram.v`); MiSTer accepts a module at 130 MHz. A pass covers a
+core whose timings are those or slower, not CL2 or a 2-clock tRCD at 125 MHz. Here memtest's
+timings cost 15.5% of `sys_tb`'s uncached replay and took the busiest line pass from 3,083 to 3,323
+clocks of 3,840, and CL2 was kept.
+
 ### [Seta] Relaxing a constraint that is no longer the bottleneck measures WORSE
 
 Kernel multicycle 4 -> 6 (which the enable ratio supports) took slack from -1.816 to -1.969 ns: the
@@ -1347,6 +1381,15 @@ asynchronous opcode dispatch). Check the map report's block memory bits after wr
   frame apart is not a difference in the hardware.
 - **[Seta] Drive the plain `mame.exe`, not a fork build.** A fork (`arcade64.exe` and the like) is
   not the driver reference the notes cite and its Lua surface can differ.
+
+- **[HyperNG64] Driving the OSD blind: the cursor starts at the top on every open, and arrows do
+  not change options.** Main_MiSTer's menu (`menu.cpp`) changes an option on Enter, Space, `+` or
+  `-`; Left goes back a page and Right does nothing to an `O` item. A change takes effect at once
+  and is written to `config/<set>.CFG` only by "Save settings", so a test leaves the saved value
+  alone and cannot be read back from the file. Prove the cursor's position with an option a
+  screenshot shows (Flip Screen) before trusting a sequence: one assumed to carry the cursor over
+  from the last open set the aspect ratio and Flip Screen instead of Game speed, and two captures
+  ran at the saved 50%.
 
 ## Tooling and workflow (Quartus, ModelSim, Verilator, and the shell around them)
 

@@ -10,7 +10,7 @@ module  pll_0002(
 	// clk3d, 100 MHz: the 3D pipeline (rtl/hng64_3d.sv). The CPU has its own PLL now
 	// (rtl/pll/pll_cpu.v); the device's 50 MHz pin reaches only three fractional PLLs, the HDMI
 	// one, this and the CPU's, so the 3D's clock is this PLL's spare output. VCO 1000 MHz, the
-	// counters fed 500: outclk_0 divides by 5, or 6 or 7 from the OSD (83.3, 71.4 MHz).
+	// counters fed 500: outclk_0 divides by 5.
 	output wire outclk_0,
 	// clk1x, 62.5 MHz: the bus, I/O and hps_io.
 	output wire outclk_1,
@@ -19,11 +19,14 @@ module  pll_0002(
 	// SDRAM_CLK: clk2x at 180 degrees, the phase the Seta, Psikyo and Fuuki cores run their
 	// SDRAM at on hardware. No simulation checks it; the chip model has no clock phase.
 	output wire outclk_3,
+	// CLK_VIDEO, 50 MHz: sys's video and CRT Adjust; rising edges meet clk2x's every 40 ns, one
+	// pixel (rtl/video/hng64_vidcdc.sv).
+	output wire outclk_4,
 
 	// interface 'locked'
 	output wire locked,
 
-	// reconfiguration (sys/pll_cfg): hng64_pllsel rewrites outclk_0's divider, the 3D's clock
+	// reconfiguration: unused, held idle (HyperNG64.sv, PLL_IDLE)
 	input wire [63:0] reconfig_to_pll,
 	output wire [63:0] reconfig_from_pll
 );
@@ -34,7 +37,7 @@ module  pll_0002(
 		.pll_fractional_cout(32),
 		.pll_dsm_out_sel("1st_order"),
 		.operation_mode("direct"),
-		.number_of_clocks(4),
+		.number_of_clocks(5),
 		.output_clock_frequency0("100.000000 MHz"),
 		.phase_shift0("0 ps"),
 		.duty_cycle0(50),
@@ -47,7 +50,7 @@ module  pll_0002(
 		.output_clock_frequency3("125.000000 MHz"),
 		.phase_shift3("4000 ps"),
 		.duty_cycle3(50),
-		.output_clock_frequency4("0 MHz"),
+		.output_clock_frequency4("50.000000 MHz"),
 		.phase_shift4("0 ps"),
 		.duty_cycle4(50),
 		.output_clock_frequency5("0 MHz"),
@@ -127,12 +130,12 @@ module  pll_0002(
 		.c_cnt_in_src3("ph_mux_clk"),
 		.c_cnt_bypass_en3("false"),
 		.c_cnt_odd_div_duty_en3("false"),
-		.c_cnt_hi_div4(1),
-		.c_cnt_lo_div4(1),
+		.c_cnt_hi_div4(5),
+		.c_cnt_lo_div4(5),
 		.c_cnt_prst4(1),
 		.c_cnt_ph_mux_prst4(0),
 		.c_cnt_in_src4("ph_mux_clk"),
-		.c_cnt_bypass_en4("true"),
+		.c_cnt_bypass_en4("false"),
 		.c_cnt_odd_div_duty_en4("false"),
 		.c_cnt_hi_div5(1),
 		.c_cnt_lo_div5(1),
@@ -237,7 +240,7 @@ module  pll_0002(
 		.pll_slf_rst("false")
 	) altera_pll_i (
 		.rst	(rst),
-		.outclk	({outclk_3, outclk_2, outclk_1, outclk_0}),
+		.outclk	({outclk_4, outclk_3, outclk_2, outclk_1, outclk_0}),
 		.locked	(locked),
 		.reconfig_to_pll	(reconfig_to_pll),
 		.fboutclk	( ),

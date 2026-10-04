@@ -25,6 +25,9 @@ Changes made in this repository are recorded below with the reason and the evide
 - **The read data through a second register, `dq_in2`,** in the fabric after the I/O cell's
   `dq_in`, and the four lanes taken from it; `STATE_READ0` is `+4`. From the I/O cell straight
   into the lanes' registers it missed 125 MHz by 1.06 ns (`063e9f2`). Same benches unchanged.
+- **Comments only on `RASCAS_DELAY` and `CAS_LATENCY`**, which stay 2 and 2: what they are at
+  125 MHz against MiSTer's memtest. CL3 and a 3-clock tRCD were tried and not kept (user
+  decision); `docs/HACKS.md`, SDRAM row, has the measurements.
 
 ## Why this controller
 

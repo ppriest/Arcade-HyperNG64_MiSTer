@@ -4,8 +4,8 @@ A MiSTer FPGA core for SNK's Hyper NeoGeo 64 arcade hardware (MAME's `hng64`), b
 Prime 17.0.2 Lite for the DE10-nano.
 
 **Status: in development, not for playing yet.** All four fight sets boot on hardware, run their
-attract modes, and take a coin and Start into a game. There is no sound. Heavy 3D scenes run slow
-and flicker, and timing is not yet closed. There is no released `.rbf`.
+attract modes, and take a coin and Start into a game. There is no sound. Heavy 3D scenes run slower
+than on the board, and timing is not yet closed. There is no released `.rbf`.
 
 ## Contents
 
@@ -31,8 +31,8 @@ module.
 |-|-|-|-|
 | Samurai Shodown 64 / Samurai Spirits / Paewang Jeonseol 64 | 1997 | `sams64` | attract and play |
 | Samurai Shodown 64: Warriors Rage / Samurai Spirits 2: Asura Zanmaden | 1998 | `sams64_2` | attract and play |
-| Fatal Fury: Wild Ambition / Garou Densetsu: Wild Ambition (rev.A) | 1998 | `fatfurwa` | attract and play; heavy 3D scenes slow, flicker |
-| Buriki One: World Grapple Tournament '99 in Tokyo (rev.B) | 1999 | `buriki` | attract and play; heavy 3D scenes slow, objects missing |
+| Fatal Fury: Wild Ambition / Garou Densetsu: Wild Ambition (rev.A) | 1998 | `fatfurwa` | attract and play; heavy 3D scenes slow |
+| Buriki One: World Grapple Tournament '99 in Tokyo (rev.B) | 1999 | `buriki` | attract and play; heavy 3D scenes slow |
 
 Not planned for now: the drive sets (Roads Edge, Xtreme Rally: wheel, pedals, network board) and
 Beast Busters: Second Nightmare (light guns).
@@ -50,7 +50,8 @@ Beast Busters: Second Nightmare (light guns).
 | KL5C80A12 | network board | not implemented (`docs/HACKS.md`) |
 
 Video: 25 MHz pixel clock, 512 x 448 visible of 768 x 528, 61.65 Hz, as MAME's screen; MAME gives
-no sync positions, so those are this core's (`docs/HACKS.md`).
+no sync positions, so those are this core's (`docs/HACKS.md`). There is no composite or S-video output, and
+the scaler has no adaptive scanline filters, to save area.
 
 ## Installation
 
@@ -80,24 +81,25 @@ Service and Test have no default pad button; map them in the MiSTer input setup 
 
 ## OSD speeds
 
-* **CPU clock**: 75 MHz (default) is the only setting timing analysis checks. The real board runs
-  its VR4300 at 100 MHz; 87.5 and 100 MHz are offered as unchecked overclocks.
-* **3D clock**: 100 MHz (default), 83.3 or 71.4 MHz. The 3D is this core's own design; lower
-  settings trade 3D speed for timing margin.
-* **Game speed**: 100% (default) down to 50%. Below 100% one video frame in N is hidden from the
-  game, which runs slower and gives the 3D more time per frame; for seeing heavy 3D scenes whole.
-  The video stays at 60 Hz.
+The CPU runs at 75 MHz (the real board's VR4300 runs at 100) and the 3D at 100 MHz; neither is
+an OSD setting.
+
+* **Game speed**: Auto (default), or 100% down to 50%. Auto hides a video frame from the game
+  only where the 3D has fallen behind it, so the game slows there and every frame is drawn whole; at
+  100% those frames are shown with polygons missing. Below 100% one frame in N is hidden whatever
+  the 3D is doing. The video stays at 60 Hz.
 
 ## Status
 
 Known issues:
 
 * **No sound**: the V53A and L7A1045 are not implemented.
-* **3D throughput**: where the 3D is slower than the game, the game slows and frames are shown part
-  drawn (fatfurwa's intro, buriki's character intros). `docs/ROADMAP.md` has the measurements.
-* **Timing not closed** at full speed (clk2x 125 MHz, clk3d 100 MHz): the remaining failures are in
-  the core's video and memory paths, the SDRAM data inputs, sys's video output on `CLK_VIDEO`, and
-  the 3D, depending on placement.
+* **3D throughput**: the geometry engine is slower than the real board in heavy scenes (fatfurwa's
+  intro, buriki's character intros), so the game slows there; with Game speed at 100% those frames
+  lose polygons instead. `docs/ROADMAP.md` has the measurements.
+* **Timing not closed** at full speed (clk2x 125 MHz, clk3d 100 MHz): the SDRAM data inputs' capture,
+  which no capture phase closes at CL2 and 125 MHz (`docs/HACKS.md`), and, depending on placement,
+  the geometry engine's pipeline control (clk3d -0.03 to -0.6 ns).
 * Service mode and the OSD's video options are not yet tried on hardware.
 
 `docs/ROADMAP.md` is the plan, `docs/HACKS.md` this core's approximations, `docs/MAME_KLUDGES.md`
@@ -110,8 +112,8 @@ Todo:
 - [ ] Sound (V53A, L7A1045)
 - [ ] Savestates, cheats (optional)
 
-Resource use, master `8abe3b5` (seed 2): 35,174 of 41,910 ALMs (84%), 466 of 553 RAM blocks, 77 of
-112 DSP blocks, 4 of 6 PLLs.
+Resource use (seed 2): 33,852 of 41,910 ALMs (81%), 463 of 553 RAM blocks, 71 of 112 DSP blocks,
+4 of 6 PLLs.
 
 ## Verification
 

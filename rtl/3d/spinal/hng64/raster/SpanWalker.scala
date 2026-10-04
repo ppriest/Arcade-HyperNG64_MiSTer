@@ -62,10 +62,13 @@ case class SpanWalker(c: RasterConfig) extends Component {
     for (n <- 0 until 3) dst.e(n) := src.e(n) + (tri.b(n).resize(c.edgeBits bits) |<< c.xyFrac)
   }
 
-  // SpinalVoodoo's clip, enabled, to the buffer
-  val visibleStart = Mux(tri.x0 > 0, tri.x0, S(0, c.pixBits bits))
-  val visibleEnd = Mux(tri.x1 < c.clipW, tri.x1, S(c.clipW, c.pixBits bits))
-  val lastRow = Mux(tri.y1 < c.clipH, tri.y1, S(c.clipH, c.pixBits bits))
+  // SpinalVoodoo's clip, enabled, to the buffer. Registered as the triangle is taken (Decide, the
+  // state after, does not use it): worked out from the setup's output on every clock, from x0
+  // through the clip, the compare with the probe, the next state and the edge values' select it
+  // missed clk3d by 0.29 ns (20b5e7d seed 2).
+  val visibleStart = Reg(SInt(c.pixBits bits))
+  val visibleEnd = Reg(SInt(c.pixBits bits))
+  val lastRow = Reg(SInt(c.pixBits bits))
   io.i.ready := state === W.AdvanceRow && nextRowBase.y + 1 >= lastRow && io.drained
   val emitVisibleX = leftEdge.x <= emitRight && emitRight >= 0 && leftEdge.x < c.clipW
   val emitVisibleY = leftEdge.y >= 0 && leftEdge.y < c.clipH
@@ -98,6 +101,9 @@ case class SpanWalker(c: RasterConfig) extends Component {
       k.y := io.i.payload.y0
       k.e := io.i.payload.edge
     }
+    visibleStart := Mux(tri.x0 > 0, tri.x0, S(0, c.pixBits bits))
+    visibleEnd := Mux(tri.x1 < c.clipW, tri.x1, S(c.clipW, c.pixBits bits))
+    lastRow := Mux(tri.y1 < c.clipH, tri.y1, S(c.clipH, c.pixBits bits))
     firstSpanPending := True
     state := W.Decide
   }

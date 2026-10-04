@@ -466,6 +466,8 @@ int main(int argc, char **argv) {
     printf("sys: nvram download: %ld of 16384 bytes read back wrong, %ld of 4096 CPU dwords wrong\n",
            nv_bad_dl, nv_bad_cpu);
 
+    printf("sys: %ld clk2x in all; %u line passes, the longest %u clk2x (tilemaps busy %u of them), "
+           "%u late\n", cyc, dut->passes, dut->pass_max, dut->pass_max_tm, dut->late_passes);
     printf("sys: faults %02x; %ld compared reads differ; %ld frames differ\n", dut->dbg_fault,
            bad_reads, frames_bad);
     const bool fail = bad_reads || frames_bad || (dut->dbg_fault & 0x1f) || nv_bad ||

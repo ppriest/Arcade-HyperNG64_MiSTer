@@ -2,8 +2,9 @@
 //
 // HyperNG64 for MiSTer: the framework glue around rtl/hng64_core.sv (the board less its CPU) and
 // rtl/cpu/hng64_cpu.vhd (the VR4300). Clocks: clk1x the bus and hps_io, clk2x SDRAM, DDR3, video
-// and the IO MCU; the CPU on its own PLL (c93, c1x, c2x) and the 3D on its own (clk3d), each
-// crossing to the board through FIFOs (docs/ROADMAP.md, clock plan). No sound yet.
+// and the IO MCU, clk_vid (50 MHz) CLK_VIDEO; the CPU on its own PLL (c93, c1x, c2x) and the 3D on
+// its own (clk3d), each crossing to the board through FIFOs (docs/ROADMAP.md, clock plan). No
+// sound yet.
 //
 // Download indices: 0 the ROM set, which the HPS writes straight into DDR3 (.mra address=);
 // 1 the layout blob (rtl/memory/hng64_romcfg.sv); 2 the IO MCU's ROM; 4 the NVRAM (.nvm), which
@@ -61,9 +62,7 @@ localparam CONF_STR = {
 	// H5: the HDMI scaler's options, hidden under direct video where they do nothing
 	"H5O[122:121],Aspect ratio,Original,Full Screen,[ARC1],[ARC2];",
 	"O[65],Flip Screen,Off,On;",
-	"O[114:113],CPU clock (on reset),75 MHz,87.5 MHz,100 MHz;",
-	"O[116:115],3D clock (on reset),100 MHz,83.3 MHz,71.4 MHz;",
-	"O[119:117],Game speed,100%,90%,80%,75%,67%,50%;",
+	"O[119:117],Game speed,Auto,100%,90%,80%,75%,67%,50%;",
 	"H5O[68:66],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer,HV-Integer;",
 	"H5O[70:69],Crop,Off,432 lines,360 lines;",
 	"H5O[75:71],Crop offset,0,+1,+2,+3,+4,+5,+6,+7,+8,+9,+10,+11,+12,+13,+14,+15,-16,-15,-14,-13,-12,-11,-10,-9,-8,-7,-6,-5,-4,-3,-2,-1;",
@@ -161,8 +160,12 @@ assign joystick_1 = joy_pad_1 | key_1;
 
 ///////////////////////   CLOCKS   ///////////////////////////////
 
-wire clk3d, clk1x, clk2x, clk_sdram, pll_locked;
-wire [63:0] main_to_pll, main_from_pll;
+// Both PLLs are generated reconfigurable, and nothing reconfigures them: their reconfiguration
+// blocks are held as altera_pll.v holds a PLL generated without one (mdiodis, rstn and
+// sershiftload high: bits 29, 1 and 28), which keeps the counters, and their names in the SDC.
+localparam [63:0] PLL_IDLE = 64'h0000_0000_3000_0002;
+
+wire clk3d, clk1x, clk2x, clk_sdram, clk_vid, pll_locked;
 pll pll
 (
 	.refclk(CLK_50M),
@@ -171,37 +174,12 @@ pll pll
 	.outclk_1(clk1x),
 	.outclk_2(clk2x),
 	.outclk_3(clk_sdram),
+	.outclk_4(clk_vid),
 	.locked(pll_locked),
-	.reconfig_to_pll(main_to_pll),
-	.reconfig_from_pll(main_from_pll)
+	.reconfig_to_pll(PLL_IDLE),
+	.reconfig_from_pll()
 );
 
-// The 3D's clock from the OSD, applied at a reset: outclk_0's divider of the PLL's 500 MHz
-// counters, 5, 6 or 7 (100, 83.3, 71.4 MHz). Built and timed at 100, so the slower ones only gain
-// slack. The core is held in reset (clk3d_hold) until it is done.
-wire        maincfg_wait, maincfg_write, clk3d_hold;
-wire  [5:0] maincfg_addr;
-wire [31:0] maincfg_data;
-pll_cfg pll_cfg_main
-(
-	.mgmt_clk(CLK_50M),
-	.mgmt_reset(0),
-	.mgmt_waitrequest(maincfg_wait),
-	.mgmt_read(0),
-	.mgmt_write(maincfg_write),
-	.mgmt_readdata(),
-	.mgmt_address(maincfg_addr),
-	.mgmt_writedata(maincfg_data),
-	.reconfig_to_pll(main_to_pll),
-	.reconfig_from_pll(main_from_pll)
-);
-
-hng64_pllsel #(.ADDR(6'd5), .V0(32'h0002_0302), .V1(32'h0000_0303), .V2(32'h0002_0403)) u_3dclk
-(
-	.clk(CLK_50M), .sel(status[116:115]), .apply(reset), .locked(pll_locked), .hold(clk3d_hold),
-	.mgmt_waitrequest(maincfg_wait), .mgmt_write(maincfg_write), .mgmt_address(maincfg_addr),
-	.mgmt_writedata(maincfg_data)
-);
 // SDRAM_CLK through a DDIO output, so it leaves from the I/O cell as the data does: as a plain
 // assign the PLL output reached the pin through fabric routing and the read capture missed clk2x
 // by 2.4 ns. datain_h 1, datain_l 0: the pin follows clk_sdram, whose phase stays the PLL's.
@@ -233,7 +211,7 @@ sdramclk_ddr
 assign DDRAM_CLK = clk2x;
 
 // held through every download: hng64_core's loader copies the BIOS on its release
-wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download | clk3d_hold;
+wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download;
 
 ///////////////////////   INPUTS   ////////////////////////////////
 
@@ -289,11 +267,9 @@ wire dbg_pause;                         // ISSP source bit 1, stp revision only
 ///////////////////////   CPU   ///////////////////////////////////
 
 // The CPU on its own PLL (rtl/pll/pll_cpu.v): c93 its pipeline, c1x and c2x its memory port, in
-// the 3:2:4 the vendored VR4300 needs, at 75 MHz as built and timed, or 87.5 or 100 MHz from the
-// OSD (hng64_pllsel, applied at a reset). hng64_cpu_cdc carries its port to the board's clk1x and
-// clk2x. The board side keeps the mem_* names; the CPU's are c_*.
+// the 3:2:4 the vendored VR4300 needs, at 75 MHz (docs/HACKS.md). hng64_cpu_cdc carries its port
+// to the board's clk1x and clk2x. The board side keeps the mem_* names; the CPU's are c_*.
 wire        c93, c1x, c2x, cpu_locked;
-wire [63:0] cpu_to_pll, cpu_from_pll;
 pll_cpu pll_cpu
 (
 	.refclk(CLK_50M),
@@ -302,32 +278,8 @@ pll_cpu pll_cpu
 	.outclk_1(c1x),
 	.outclk_2(c2x),
 	.locked(cpu_locked),
-	.reconfig_to_pll(cpu_to_pll),
-	.reconfig_from_pll(cpu_from_pll)
-);
-
-wire        cpucfg_wait, cpucfg_write, cpuclk_hold;
-wire  [5:0] cpucfg_addr;
-wire [31:0] cpucfg_data;
-pll_cfg pll_cfg_cpu
-(
-	.mgmt_clk(CLK_50M),
-	.mgmt_reset(0),
-	.mgmt_waitrequest(cpucfg_wait),
-	.mgmt_read(0),
-	.mgmt_write(cpucfg_write),
-	.mgmt_readdata(),
-	.mgmt_address(cpucfg_addr),
-	.mgmt_writedata(cpucfg_data),
-	.reconfig_to_pll(cpu_to_pll),
-	.reconfig_from_pll(cpu_from_pll)
-);
-
-hng64_pllsel #(.ADDR(6'd4), .V0(32'h0000_0303), .V1(32'h0002_0403), .V2(32'h0000_0404)) u_cpuclk
-(
-	.clk(CLK_50M), .sel(status[114:113]), .apply(reset), .locked(cpu_locked), .hold(cpuclk_hold),
-	.mgmt_waitrequest(cpucfg_wait), .mgmt_write(cpucfg_write), .mgmt_address(cpucfg_addr),
-	.mgmt_writedata(cpucfg_data)
+	.reconfig_to_pll(PLL_IDLE),
+	.reconfig_from_pll()
 );
 
 wire        mem_request, mem_rnw, mem_req64, mem_done, rdram_granted2x, ddr3_DOUT_READY;
@@ -345,14 +297,13 @@ wire [31:0] cpu_pc;
 wire [127:0] cpu_cop0;
 
 // hng64_cpu wants the reset-state load (ss_reset) to fall while its reset is still held, then
-// rewrites COP0 Status and Config two and three c93 cycles later. The core's cpu_reset (clk1x),
-// and hng64_pllsel's hold while the clock changes, are taken into c93 through two registers, where
-// ss_reset falls with them and the CPU's reset 16 cycles after; the CPU's c1x reset is that one
-// taken across.
+// rewrites COP0 Status and Config two and three c93 cycles later. The core's cpu_reset (clk1x)
+// is taken into c93 through two registers, where ss_reset falls with it and the CPU's reset 16
+// cycles after; the CPU's c1x reset is that one taken across.
 reg       rst93_a = 1'b1, rst93_s = 1'b1, ss_reset = 1'b1, cpu_rst93 = 1'b1, cpu_rst1x = 1'b1;
 reg [3:0] rst93_cnt = 4'd0;
 always @(posedge c93) begin
-	rst93_a <= cpu_reset | cpuclk_hold;
+	rst93_a <= cpu_reset;
 	rst93_s <= rst93_a;
 	if (rst93_s) begin
 		ss_reset  <= 1'b1;
@@ -890,33 +841,60 @@ assign dbg_raddr = 14'd0;
 ///////////////////////   VIDEO   /////////////////////////////////
 
 // 512 x 448 at 25 MHz, 32.55 kHz progressive: no scandoubler (docs/HACKS.md, sync positions).
-// CRT Adjust (rtl/video/hng64_crt.sv) is in the path when it is on; HDMI follows it.
+// The display leaves clk2x for CLK_VIDEO, 50 MHz (rtl/video/hng64_vidcdc.sv): sys's video logic
+// runs on CLK_VIDEO and does not close at 125. CRT Adjust (rtl/video/hng64_crt.sv) is in the path
+// when it is on; HDMI follows it.
+wire [7:0] vid_r, vid_g, vid_b;
+wire       vid_ce, vid_hs, vid_vs, vid_hb, vid_vb;
+
+hng64_vidcdc u_vidcdc
+(
+	.clk2x(clk2x), .ce_in(ce_pix),
+	.r_in(r), .g_in(g), .b_in(b),
+	.hs_in(hsync), .vs_in(vsync), .hb_in(hblank), .vb_in(vblank),
+	.clk_vid(clk_vid), .ce_out(vid_ce),
+	.r_out(vid_r), .g_out(vid_g), .b_out(vid_b),
+	.hs_out(vid_hs), .vs_out(vid_vs), .hb_out(vid_hb), .vb_out(vid_vb)
+);
+
 wire [7:0] crt_r, crt_g, crt_b;
 wire       crt_hs, crt_vs, crt_hb, crt_vb, crt_on, crt_ce;
 
 hng64_crt u_crt
 (
-	.clk(clk2x), .ce(ce_pix), .adjust(status[94]),
+	.clk(clk_vid), .ce(vid_ce), .adjust(status[94]),
 	.hsize_idx(status[99:95]), .hpos_idx(status[106:100]), .vshift_idx(status[112:107]),
-	.r_in(r), .g_in(g), .b_in(b),
-	.hs_in(hsync), .vs_in(vsync), .hb_in(hblank), .vb_in(vblank),
+	.r_in(vid_r), .g_in(vid_g), .b_in(vid_b),
+	.hs_in(vid_hs), .vs_in(vid_vs), .hb_in(vid_hb), .vb_in(vid_vb),
 	.active(crt_on), .ce_out(crt_ce),
 	.r_out(crt_r), .g_out(crt_g), .b_out(crt_b),
 	.hs_out(crt_hs), .vs_out(crt_vs), .hb_out(crt_hb), .vb_out(crt_vb)
 );
 
-assign CLK_VIDEO = clk2x;
-assign CE_PIXEL  = crt_on ? crt_ce : ce_pix;
-assign VGA_HS    = crt_on ? crt_hs : hsync;
-assign VGA_VS    = crt_on ? crt_vs : vsync;
-assign VGA_R     = crt_on ? crt_r  : r;
-assign VGA_G     = crt_on ? crt_g  : g;
-assign VGA_B     = crt_on ? crt_b  : b;
-wire   vga_de    = crt_on ? ~(crt_hb | crt_vb) : ~(hblank | vblank);
+assign CLK_VIDEO = clk_vid;
+assign CE_PIXEL  = crt_on ? crt_ce : vid_ce;
+assign VGA_HS    = crt_on ? crt_hs : vid_hs;
+assign VGA_VS    = crt_on ? crt_vs : vid_vs;
+assign VGA_R     = crt_on ? crt_r  : vid_r;
+assign VGA_G     = crt_on ? crt_g  : vid_g;
+assign VGA_B     = crt_on ? crt_b  : vid_b;
+wire   vga_de    = crt_on ? ~(crt_hb | crt_vb) : ~(vid_hb | vid_vb);
+
+// video_freak's OSD settings (clk1x) registered at CLK_VIDEO before its arithmetic: the closest
+// edge pair is 4 ns apart.
+reg [1:0] vf_ar = 2'd0, vf_crop = 2'd0;
+reg [4:0] vf_off = 5'd0;
+reg [2:0] vf_scale = 3'd0;
+always @(posedge clk_vid) begin
+	vf_ar    <= ar;
+	vf_crop  <= status[70:69];
+	vf_off   <= status[75:71];
+	vf_scale <= status[68:66];
+end
 
 // Crop keeps 432 lines of 448 (5x on 2160) or 360 (3x on 1080, 2x on 720, 4x on 1440).
-wire [11:0] crop_size = (status[70:69] == 2'd1) ? 12'd432 :
-                        (status[70:69] == 2'd2) ? 12'd360 : 12'd0;
+wire [11:0] crop_size = (vf_crop == 2'd1) ? 12'd432 :
+                        (vf_crop == 2'd2) ? 12'd360 : 12'd0;
 
 // The picture is 4:3 whatever its pixel count: the board drove a 4:3 monitor.
 video_freak video_freak
@@ -931,11 +909,11 @@ video_freak video_freak
 	.VIDEO_ARY(VIDEO_ARY),
 
 	.VGA_DE_IN(vga_de),
-	.ARX((!ar) ? 12'd4 : (ar - 1'd1)),
-	.ARY((!ar) ? 12'd3 : 12'd0),
+	.ARX((!vf_ar) ? 12'd4 : (vf_ar - 1'd1)),
+	.ARY((!vf_ar) ? 12'd3 : 12'd0),
 	.CROP_SIZE(crop_size),
-	.CROP_OFF(status[75:71]),
-	.SCALE(status[68:66])
+	.CROP_OFF(vf_off),
+	.SCALE(vf_scale)
 );
 
 // cpu_error is the CPU's (c93), taken into clk1x before it leaves for sys's 50 MHz

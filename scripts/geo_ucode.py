@@ -126,6 +126,7 @@ def program():
         A.add(D2, a=den, b=den)
         A.div(q, b=D2, imm=bits)
 
+    # r0 reads 0: SUB d, r0, x is NEG d, x in one clock (NEG is a two-step ALU op in GeoEngine.scala)
     R0 = 0
 
     # ---- init, clear --------------------------------------------------------------------------------
@@ -243,7 +244,7 @@ def program():
     A.st(NEAR, imm=0)
     for k in range(16):
         A.movi(PROJ[k], imm=0)
-    A.neg(PROJ[11], a=P20)
+    A.sub(PROJ[11], a=R0, b=P20)
     A.sub(T[7], a=RIGHT, b=LEFT)                     # rl
     A.sub(T[8], a=TOP, b=BOT)                        # tb
     # far = rdiv(-(sz near), sz - 2 near)
@@ -842,7 +843,7 @@ def program():
     A.addi(T[9], a=T[9], imm=-30)
     A.shri(T[9], a=T[9], imm=1)
     A.shli(T[9], a=T[9], imm=1)                      # k, even, floor
-    A.neg(T[10], a=T[9])
+    A.sub(T[10], a=R0, b=T[9])
     A.shlv(T[10], a=RSQ_IN, b=T[10])                 # nn in [2^30, 2^32)
     A.shri(T[11], a=T[10], imm=24)
     A.trsq(RSQ_Y, a=T[11])                           # y0
@@ -926,7 +927,7 @@ def program():
                 A.mul(a=a1, b=b1)
                 A.msb(a=a2, b=b2)
                 A.stf(S_HI, imm=35)
-                A.neg(S_NH, a=S_HI)
+                A.sub(S_NH, a=R0, b=S_HI)
                 A.ada(a=S_NH, imm=35)
                 A.stf(S_LO, imm=0)
                 if big:
@@ -947,7 +948,7 @@ def program():
     A.here("setup_sign")
     A.bz(a=S_NEGF, imm="setup_emit")
     for k in range(10):
-        A.neg(G[12 + k], a=G[12 + k])
+        A.sub(G[12 + k], a=R0, b=G[12 + k])
     A.here("setup_emit")
     A.emit("EMIT", a=G[0])
     A.here("setup_none")

@@ -461,15 +461,20 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
 
 ## Next steps
 
-1. Timing closure at full speed (user decision: clk2x 125, clk3d 100, CPU on its own PLL). The
-   release build misses clk2x inside the core as well as in sys's scaler; failing core paths have
-   shown up on the board as wrong behaviour (`71bb684`'s stp build kept 256 sprite candidates
-   where the RTL keeps 8). Failing clk2x core endpoints in the 2,000 worst: 2,000+ (`17161cd`),
-   1,343, 987, 687, 642 (`063e9f2`), 897 and 679 (`00a9080`, seeds 1 and 2), 392 (`a10b85c`
-   seed 1). clk3d: the geometry engine's STX bypass into its register
-   files (about -1.6 ns, GeoEngine.scala). The SDRAM read pins fail setup by 1.44 ns against the
-   SDC's two-cycle relationship (hold +10.2, the outputs' setup +0.08, so the clock phase cannot
-   take it); reads work on the board, so whether the SDC names the edge the RTL samples is open.
+1. Timing closure at full speed (user decision: clk2x 125, clk3d 100, CPU on its own PLL). With
+   CLK_VIDEO at 50 MHz and YC disabled (user decision, `bad3a3a`), `20b5e7d` seed 2 passes every
+   clk2x path in the core, CLK_VIDEO and clk1x. Left: SDRAM reads, which the SDC times on the edge
+   the RTL samples and which no capture phase closes at CL2 and 125 MHz with its chip numbers
+   (`docs/HACKS.md`; setup -1.95 slow, hold +0.54 fast, `3023dda`); they work on the board. CL3
+   and a 3-clock tRCD, memtest's timings, cost 15.5% on `sys_tb` and are not used (user decision).
+   clk3d: the paths each placement failed were taken off in turn (`176837c` to `cef30f5`, no clock
+   moved but EMIT's one a triangle), and the OSD clock options and the scaler's adaptive scanline
+   filter removed for area (`04c8ca2`). Best: `50112e7` seed 1 -0.032 ns, one endpoint (fixed in
+   `cef30f5`), and `cef30f5` seed 2 -0.096, one, both with PHYSICAL_SYNTHESIS_EFFORT EXTRA,
+   ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM and PLACEMENT_EFFORT_MULTIPLIER 2.0 (`build_staged.py
+   --set`); other seeds -0.3 to -0.9, one seed in four does not fit. What fails now is the geometry
+   engine's pipeline control (stall and eGo into accOp, the forwarding selects, bypX) and the
+   accumulator. Lite has no LogicLock regions (warning 292013) or partitions.
 2. All four sets run their attract modes with sprites since `c17f1fb` (sprite list read latency).
    To compare with MAME: fatfurwa's helicopter cabin (two of three men missing on the board, the
    third without his face; g3d_tb renders MAME's f1600 exactly, at 2.59 M clk2x clocks a frame
@@ -479,20 +484,21 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
 3. 3D throughput. Where the engine is slower than the game, the upload queue (32) fills, interrupt
    3 is held, the game's uploads run past the vblank and the clearing vblank's event lands among
    them, so a frame is shown part drawn: buriki's Ducalis intro cut off at a line, fatfurwa's cabin
-   with models missing, and the game slowed: on `00a9080` fatfurwa's intro reached MAME's f2760
-   about 1,000 MAME frames after its f1600-1920, in 2,400 board frames
-   (`debug/hw/ff_00as2_sheet.png` against `debug/mame_ff/sheet.png`). In g3d_tb (+prof, latency
-   60, 20% busy; clk3d, 1.67 M in a 60 Hz frame): fatfurwa f1600 took 2.01 M, the engine and the
-   rasteriser waiting on each other; with the triangle FIFO (`5e5c585`) 1.49 M, the rasteriser
-   busy for 1.48 M. sams64 f2500 (a 3D frame every other video frame, 3.33 M) takes 3.72 M, the
-   engine busy 3.57 M: of that, 0.77 M are stalls on stores and two-operand ALU ops (ST, STF,
-   STV, SHRI, NEG), several clocks each in GeoEngine.scala where docs/phase3_3d.md's 2.46 M
-   estimate has one, and 0.07 M on DIV.
+   with models missing. OSD Game speed Auto (`d23a492`) hides a frame from the game when interrupt
+   3 was held: on the board fatfurwa's intro is then whole, where at 100% it loses two of three
+   men, the legs and a head (`debug/hw/ff_auto_compare.png`). In g3d_tb (+prof, latency 60, 20%
+   busy; clk3d, 1.67 M in a 60 Hz frame), `6063e54`: fatfurwa f1600 1.49 M, the rasteriser busy for
+   1.48 M; sams64 f2500 (a 3D frame every other video frame, 3.33 M) 3.65 M, the engine busy
+   3.50 M, most of the excess the accumulator stores (ST, STF, STV) and SHRI, multi-cycle in
+   GeoEngine.scala for timing where docs/phase3_3d.md's 2.46 M estimate has one clock each.
 4. Hangs. The tilemap engine busy for ever with nothing owed by DDR3 (`5626a76`, `74f4d60`, and
    fatfurwa's intro on the stp build of `bc6546a`) was a layer's mode written by the CPU mid-pass,
    not placement: fixed in `b9e8900` (LESSONS_LEARNED). The sprite engine's (per-line zoom test,
    copy after the passes) were fixed before. Not yet explained: on the same stp build fatfurwa once
    stopped with the CPU idle at 0x04000008, interrupts pending and its error flag set, the 3D and
    video running (that build misses the CPU clock by 0.141 ns).
+   Also seen once: buriki at 100% stopped on Ducalis's intro for at least 2.5 minutes (`3b5372e`
+   seed 1, `debug/hw/bfull_bk_sheet.png`); not again in a later run or a 10-minute soak at 100%
+   on `6063e54` seed 1, whose placement is the same (`debug/hw/soak_bk_sheet.png`).
 5. A mosaic sprite on a synthetic capture (`debug/sams64-wide`) draws its runs a pixel off the
    model's; no MAME capture has shown it.

@@ -311,13 +311,18 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   val px = rF.f.x(3 downto 0)
   def same(v: Bool, f: RenderBuf.Waiting) = v && f.slot === rF.slot && f.f.x(3 downto 0) === px
   val readWord = Vec(bankRd)(px)
-  val word = Bits(32 bits)
-  word := readWord
-  when(lastWr && lastSlot === rF.slot && lastPx === px) { word := lastWord }
-  when(same(cValid && cPass, cF)) { word := cWord }
-  when(same(sValid && sPass, sF)) { word := sWord }
-  val storedZ = (word(31 downto 24).asUInt === tag) ? word(23 downto 0).asUInt.resize(25 bits) | U(1 << 24, 25 bits)
-  val pass = rF.f.z.resize(25 bits) < storedZ
+  // The depth test made on each candidate word, then the result picked by the same priority: picked
+  // as a word ahead of the tag and depth compares, from sPass through the bypass select into sPass it
+  // missed clk3d by 0.44 ns (6063e54 seed 2 with the stronger fitter settings).
+  def passOf(w: Bits): Bool = {
+    val storedZ = (w(31 downto 24).asUInt === tag) ? w(23 downto 0).asUInt.resize(25 bits) | U(1 << 24, 25 bits)
+    rF.f.z.resize(25 bits) < storedZ
+  }
+  val pass = Bool()
+  pass := passOf(readWord)
+  when(lastWr && lastSlot === rF.slot && lastPx === px) { pass := passOf(lastWord) }
+  when(same(cValid && cPass, cF)) { pass := passOf(cWord) }
+  when(same(sValid && sPass, sF)) { pass := passOf(sWord) }
   when(rMove) {
     sF := rF
     sPass := pass

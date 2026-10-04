@@ -48,8 +48,36 @@ module tb_sys (
     output logic  [7:0] b,
     output logic  [5:0] dbg_fault,
     output logic  [9:0] dbg_ldr,        // the loading and reset state, for the bench's messages
-    output logic  [7:0] dbg_copy        // the copy engine's state and handshakes
+    output logic  [7:0] dbg_copy,       // the copy engine's state and handshakes
+
+    // The board's ISSP V measurement (HyperNG64.sv): the longest line pass in clk2x clocks (a
+    // line is 3840) with the tilemap engines' busy clocks in it, the passes and the late ones.
+    output logic [15:0] pass_max = 16'd0,
+    output logic [15:0] pass_max_tm = 16'd0,
+    output logic [31:0] passes = 32'd0,
+    output logic [31:0] late_passes = 32'd0
 );
+
+    logic [31:0] dvid;
+    logic [15:0] p_len = 16'd0, p_tm = 16'd0;
+    logic        pass_q = 1'b0;
+    always_ff @(posedge clk2x) begin
+        pass_q <= dvid[10];
+        if (dvid[10] && !pass_q) begin
+            p_len <= 16'd1;
+            p_tm  <= 16'(|dvid[7:4]);
+        end else if (dvid[10]) begin
+            p_len <= p_len + 16'd1;
+            p_tm  <= p_tm + 16'(|dvid[7:4]);
+        end else if (pass_q) begin
+            passes <= passes + 32'd1;
+            if (p_len > pass_max) begin
+                pass_max    <= p_len;
+                pass_max_tm <= p_tm;
+            end
+        end
+        if (dvid[13]) late_passes <= late_passes + 32'd1;
+    end
 
     assign dbg_copy = {dut.u_ldr.st, dut.ldr_rd, dut.ldr_ready, dut.ldr_valid, dut.ldr_swe,
                        dut.ldr_sready, dut.DDRAM_RD};
@@ -75,7 +103,7 @@ module tb_sys (
         .cpu_irq(cpu_irq), .cpu_reset(cpu_reset),
         .ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
         .ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-        .rtc(56'h04092612233059), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip), .game_speed(3'd0),
+        .rtc(56'h04092612233059), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip), .game_speed(3'd1),
         .SDRAM_A(SDRAM_A), .SDRAM_DQ(SDRAM_DQ), .SDRAM_DQML(SDRAM_DQML), .SDRAM_DQMH(SDRAM_DQMH),
         .SDRAM_BA(SDRAM_BA), .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE),
         .SDRAM_nRAS(SDRAM_nRAS), .SDRAM_nCAS(SDRAM_nCAS), .SDRAM_CLK(SDRAM_CLK),
@@ -87,7 +115,7 @@ module tb_sys (
         .ce_pix(ce_pix), .hsync(hsync), .vsync(vsync), .hblank(hblank), .vblank(vblank),
         .r(r), .g(g), .b(b),
         .lamp_we(), .lamp_addr(), .lamp_data(),
-        .dbg_fault(dbg_fault), .dbg_layer_off(6'd0), .dbg_load(), .dbg_mcu_pc(),
+        .dbg_fault(dbg_fault), .dbg_vid(dvid), .dbg_layer_off(6'd0), .dbg_load(), .dbg_mcu_pc(),
         .dbg_mcu_fetch(), .dbg_rd(1'b0), .dbg_rsel(3'd0), .dbg_raddr(14'd0));
 
     sdram_chip_model_wide #(.MB(32)) u_chip (

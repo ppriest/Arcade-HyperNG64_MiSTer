@@ -192,6 +192,7 @@ KEYS = {
     "p2b1": 30, "p2b2": 31, "p2b3": 16, "p2b4": 17,     # A S Q W
     "start2": 3, "coin2": 7,                            # 2, 6
     "pause": 25, "service": 10, "test": 60,             # P, 9, F2
+    "enter": 28,                                        # the OSD: changes the option under the cursor
 }
 
 
