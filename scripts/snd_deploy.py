@@ -2,18 +2,24 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build the sound process (sw/hng64snd) for the MiSTer and install it.
 
-    python scripts/snd_deploy.py [--no-pgo]
+    python scripts/snd_deploy.py [--no-pgo | --reuse-pgo] [--package] [--no-install]
 
 Cross-compiles with WSL's arm-linux-gnueabihf-g++ (static). With profile feedback, the default,
 it first builds the bench instrumented, runs it on the board at 16 MHz on the fatfurwa capture
 (scripts/mame_sound_trace.py fatfurwa 1200; scripts/snd_arm_bench.py uploads it), and builds the
 process from that profile: 11% faster there (docs/ROADMAP.md Phase 4).
 
-Installs /media/fat/games/HyperNG64/hng64snd and, per set, games/<set>/_handler.sh, which MiSTer
-Frontier's Master_Daemon.sh runs while that set is loaded (/tmp/CORENAME is the .mra's setname).
+Installs /media/fat/games/HyperNG64/hng64snd; Scripts/HNG64_SoundServer.sh, which starts it in the
+background from the Scripts menu (nothing starts it at boot); and, per set, games/<set>/_handler.sh,
+which MiSTer Frontier's Master_Daemon.sh runs while that set is loaded (/tmp/CORENAME is the .mra's
+setname). --package also writes releases/hng64snd_<YYYYMMDD>.zip, the binary and the script where
+they go under /media/fat, to unzip there (docs/RELEASE_PROCESS.md); --no-install leaves the board
+alone.
 """
 import argparse
 import shutil
+import time
+import zipfile
 import subprocess
 import sys
 from pathlib import Path
@@ -62,17 +68,48 @@ def put(m, local, remote):
         sys.exit(f"upload failed: {local}\n{p.stderr.strip()}")
 
 
+START = SRC / "HNG64_SoundServer.sh"
+REMOTE_START = "/media/fat/Scripts/HNG64_SoundServer.sh"
+
+
+def start_script():
+    """the start script with LF line ends, whatever the checkout gave it"""
+    return START.read_bytes().replace(b"\r\n", b"\n")
+
+
+def package(binary):
+    """releases/hng64snd_<YYYYMMDD>.zip: the binary and the start script where they go under
+    /media/fat, executable"""
+    out = REPO / "releases" / f"hng64snd_{time.strftime('%Y%m%d')}.zip"
+    with zipfile.ZipFile(out, "w") as z:
+        for path, data in ((REMOTE_DIR + "/hng64snd", binary.read_bytes()), (REMOTE_START, start_script())):
+            zi = zipfile.ZipInfo(path.removeprefix("/media/fat/"), time.localtime()[:6])
+            zi.create_system = 3                # Unix, so the mode below is kept
+            zi.external_attr = 0o100755 << 16
+            zi.compress_type = zipfile.ZIP_DEFLATED
+            z.writestr(zi, data)
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-pgo", action="store_true")
+    ap.add_argument("--reuse-pgo", action="store_true",
+                    help="the profile in obj_hng64snd/pgo from the last run; nothing run on the board")
+    ap.add_argument("--package", action="store_true", help="write releases/hng64snd_<YYYYMMDD>.zip")
+    ap.add_argument("--no-install", action="store_true", help="build (and package) only")
     a = ap.parse_args()
     OBJ.mkdir(parents=True, exist_ok=True)
     m = Mister(load_env())
     profile = ""
-    if not a.no_pgo:
+    gcda = REPO / "obj_hng64snd" / "pgo"
+    if a.reuse_pgo:
+        if not gcda.exists():
+            sys.exit(f"no profile in {gcda}")
+        profile = f"-fprofile-use={wsl_path(gcda)} -fprofile-correction -Wno-missing-profile"
+    elif not a.no_pgo:
         if "fatfurwa_sound.trace" not in m.sh(f"ls {TRAIN} 2>/dev/null", check=False):
             sys.exit(f"no capture in {TRAIN}: run scripts/snd_arm_bench.py fatfurwa first")
-        gcda = REPO / "obj_hng64snd" / "pgo"
         build(f"-fprofile-generate={TRAIN}/pgo -fprofile-update=single", CORE, "bench", OBJ / "bench_gen")
         put(m, OBJ / "bench_gen", f"{TRAIN}/bench_gen")
         print(m.sh(f"cd {TRAIN} && rm -rf pgo && chmod +x bench_gen && BENCH_CPU_DIV=2 ./bench_gen "
@@ -86,18 +123,28 @@ def main():
             m.get_file(f"{TRAIN}/pgo/{n[2:]}", dst)
         profile = f"-fprofile-use={wsl_path(gcda)} -fprofile-correction -Wno-missing-profile"
     build(profile, CORE, "mister", OBJ / "hng64snd")
+    if a.package:
+        print(f"-> {package(OBJ / 'hng64snd')}{'' if profile else ' (no profile feedback)'}")
+    if a.no_install:
+        return 0
 
     m.sh(f"mkdir -p {REMOTE_DIR}")
-    m.sh(f"pkill -x hng64snd; sleep 1; true", check=False)
+    # every copy, whatever its file's name (BusyBox's pkill -x matches none, pidof only the exact one)
+    m.sh("for p in $(ps | grep '[h]ng64snd' | awk '{print $1}'); do kill $p; done; sleep 1; true", check=False)
     put(m, OBJ / "hng64snd", f"{REMOTE_DIR}/hng64snd")
     m.sh(f"chmod +x {REMOTE_DIR}/hng64snd")
+    start = OBJ / START.name
+    start.write_bytes(start_script())
+    m.sh(f"mkdir -p {Path(REMOTE_START).parent.as_posix()}")
+    put(m, start, REMOTE_START)
+    m.sh(f"chmod +x {REMOTE_START}")
     for s in SETS:
         h = OBJ / f"_handler_{s}.sh"
         h.write_bytes(HANDLER.format(dir=REMOTE_DIR).encode())
         m.sh(f"mkdir -p /media/fat/games/{s}")
         put(m, h, f"/media/fat/games/{s}/_handler.sh")
         m.sh(f"chmod +x /media/fat/games/{s}/_handler.sh")
-    print(f"-> {REMOTE_DIR}/hng64snd, handlers for {', '.join(SETS)}"
+    print(f"-> {REMOTE_DIR}/hng64snd, {REMOTE_START}, handlers for {', '.join(SETS)}"
           f"{'' if profile else ' (no profile feedback)'}")
     return 0
 

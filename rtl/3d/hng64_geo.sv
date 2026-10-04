@@ -13,10 +13,13 @@
 //      the clock after: two instructions dropped), the multiplier
 //   M  the accumulator (MUL MAC MSB LDA ADA ADAV ASHL), and every register write
 // The multi-cycle ops hold E: LDX STX TRSQ TRCP DL a clock more (copy X of the register file
-// serves the indexed reads); SHLV LOG2 NORM three; the accumulator stores (ST STF STV STVW) and
-// MIN MAX SHLI SHRI NEG ABS SEXT16 WRAP two; LDA ADA ADAV one; DIV its quotient bits and three;
-// VRD VRDS until their word is there; EMIT 24 while the setup record (22 words) is read out
-// through copy X. An accumulator branch or DIV straight after an accumulator op waits a clock.
+// serves the indexed reads); SHLV LOG2 NORM three; MIN MAX SHLI SHRI NEG ABS SEXT16 WRAP two; LDA
+// ADA ADAV one; DIV its quotient bits and three; VRD VRDS until their word is there; EMIT 24 while
+// the setup record (22 words) is read out through copy X. An accumulator branch or DIV straight
+// after an accumulator op waits a clock. The accumulator stores (ST STF STV STVW) go in a clock to
+// the store unit beside E, whose result is M's three clocks after; what reads or writes it waits
+// for that, LDX STX EMIT for every store in the unit, and an op writing through M on that clock
+// one more.
 //
 // Ports keep the names the SpinalHDL version had, which rtl/hng64_3d.sv connects.
 
@@ -120,7 +123,9 @@ module hng64_geo (
     logic signed [7:0]    mSh;
 
     logic stall;                            // E holds: F, D and E keep their instructions
-    assign io_busy = running || cfgStep != 2'd0;
+    logic suV1, suV2, mSu, suHaz;           // the store unit (below)
+    logic [8:0] suD1, suD2, mSuD;
+    assign io_busy = running || cfgStep != 2'd0 || suV1 || suV2 || mSu;
 
     wire [10:0] fetch = brPending ? brTarget : pcSeq;
     always_ff @(posedge clk) if (!stall) instrD <= rom[fetch];
@@ -139,29 +144,45 @@ module hng64_geo (
     logic selMA, selMB, selWA, selWB, zeroA, zeroB;
     wire signed [W-1:0] a = zeroA ? '0 : (selMA ? mVal : (selWA ? wVal : rdA));
     wire signed [W-1:0] b = zeroB ? '0 : (selMB ? mVal : (selWB ? wVal : rdB));
+    // A register branch's operands without M's value: mVal reaches everything, and through the
+    // compares into brPending it missed clk3d (2373ebe seed 1, -0.099 ns). A branch whose operand
+    // is M's result waits a clock (brFwd) and takes it from W.
+    logic brFwd;
+    wire signed [W-1:0] aBr = zeroA ? '0 : (selWA ? wVal : rdA);
+    wire signed [W-1:0] bBr = zeroB ? '0 : (selWB ? wVal : rdB);
 
     // E's op classes, decoded from D's instruction and loaded with it, so what picks a result is
     // registers and not E's opcode.
     //   eAlu: ADD SUB OR AND ADDI ANDI MOVI
-    //   eMc:  LDX TRSQ TRCP DL VRD VRDS, slowR's ops (DIV SHLV LOG2 NORM), the stores, the alu2 ones
+    //   eMc:  LDX TRSQ TRCP DL VRD VRDS, slowR's ops (DIV SHLV LOG2 NORM), the alu2 ones
     //   eAlu2: MIN MAX SHLI SHRI NEG ABS SEXT16 WRAP
     //   eIsMc: every op that holds E (header); eAccBr: BACCN BACCNN DIV, which wait on M's accumulator
+    //   eSt: the stores; eWrM: an op that writes a register through M (eAlu or eMc)
+    function automatic logic regBr(input logic [5:0] op);
+        regBr = op == BZ || op == BNZ || op == BLTZ || op == BGEZ || op == BGTZ || twoBr(op);
+    endfunction
+    function automatic logic twoBr(input logic [5:0] op);
+        twoBr = op == BLT || op == BGE || op == BEQ || op == BNE;
+    endfunction
+    function automatic logic isSt(input logic [5:0] op);
+        isSt = op == ST || op == STF || op == STV || op == STVW;
+    endfunction
     function automatic logic isMcOp(input logic [5:0] op);
         case (op)
-            LDX, STX, TRSQ, TRCP, DL, VRD, VRDS, DIV, EMIT, SHLV, LOG2, NORM, ST, STF, STV, STVW,
+            LDX, STX, TRSQ, TRCP, DL, VRD, VRDS, DIV, EMIT, SHLV, LOG2, NORM,
             MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP, LDA, ADA, ADAV: isMcOp = 1'b1;
             default:                                                       isMcOp = 1'b0;
         endcase
     endfunction
     wire  [5:0] dOp = fOp(instrD);
     logic [6:0] eAlu;
-    logic [8:0] eMc;
+    logic [7:0] eMc;
     logic [7:0] eAlu2;
-    logic       eDiv, eLog2, eIsMc, eAccBr, eStx, eEmit;
+    logic       eDiv, eLog2, eIsMc, eAccBr, eStx, eEmit, eSt, eWrM;
     always_ff @(posedge clk)
         if (reset) begin
             eAlu <= '0; eMc <= '0; eAlu2 <= '0; eDiv <= 1'b0; eLog2 <= 1'b0;
-            eIsMc <= 1'b0; eAccBr <= 1'b0; eStx <= 1'b0; eEmit <= 1'b0;
+            eIsMc <= 1'b0; eAccBr <= 1'b0; eStx <= 1'b0; eEmit <= 1'b0; eSt <= 1'b0; eWrM <= 1'b0;
         end else if (!stall) begin
             eDiv   <= dOp == DIV;
             eLog2  <= dOp == LOG2;
@@ -169,10 +190,13 @@ module hng64_geo (
             eAccBr <= dOp == BACCN || dOp == BACCNN || dOp == DIV;
             eStx   <= dOp == STX;
             eEmit  <= dOp == EMIT;
+            eSt    <= isSt(dOp);
+            eWrM   <= dOp == MOVI || dOp == ANDI || dOp == ADDI || dOp == AND_ || dOp == OR_ || dOp == SUB ||
+                      dOp == ADD || (isMcOp(dOp) && !(dOp == STX || dOp == EMIT || dOp == LDA || dOp == ADA ||
+                      dOp == ADAV));
             eAlu  <= {dOp == MOVI, dOp == ANDI, dOp == ADDI, dOp == AND_, dOp == OR_, dOp == SUB, dOp == ADD};
             eMc   <= {dOp == MIN || dOp == MAX || dOp == SHLI || dOp == SHRI || dOp == NEG || dOp == ABS ||
                           dOp == SEXT16 || dOp == WRAP,
-                      dOp == ST || dOp == STF || dOp == STV || dOp == STVW,
                       dOp == DIV || dOp == SHLV || dOp == LOG2 || dOp == NORM,
                       dOp == VRDS, dOp == VRD, dOp == DL, dOp == TRCP, dOp == TRSQ, dOp == LDX};
             eAlu2 <= {dOp == WRAP, dOp == SEXT16, dOp == ABS, dOp == NEG, dOp == SHRI, dOp == SHLI,
@@ -252,10 +276,8 @@ module hng64_geo (
     logic        triValid;
 
     // SHLV, LOG2 and NORM take their operands a clock before they compute and find the top bit and
-    // the shift a clock before they shift. The accumulator stores take the shift at step 0, shift at
-    // step 1 (the op before the store has left M by then, so the accumulator is the one it always
-    // read) and round at step 2. The alu2 ops take a step for their
-    // operands. LDA, ADA and ADAV latch their operand and shift a step before the shift into accVal.
+    // the shift a clock before they shift. The alu2 ops take a step for their operands. LDA, ADA and
+    // ADAV latch their operand and shift a step before the shift into accVal.
     logic signed [W-1:0]  alu2B, slowA, slowR, alu2R;
     logic [15:0]          alu2I;
     logic  [6:0]          accSh;
@@ -265,15 +287,19 @@ module hng64_geo (
     logic                 stLeft, stRnd;
     logic  [5:0]          slowTop;
 
-    wire mcGo = eLive && eIsMc && !accBranchHazard;
+    // suHaz: E's op names a store's register, or reads copy X, while the store is in the unit
+    // (decided a clock early, below); portHaz: a store's result takes M next clock, so an op that
+    // would write through M then waits
+    wire portHaz = suV2 && eWrM && (!eIsMc || mcFinal || eVrd);
+    wire mcGo = eLive && eIsMc && !accBranchHazard && !suHaz && !portHaz;
 
     // An op's last step is known the clock before (VRD's and VRDS's, which wait on their word, aside),
     // so its completion is a register: mcFinal, from E's op, its next step and EMIT's next count.
     function automatic logic finalAt(input logic [5:0] op, input logic [1:0] step, input logic [4:0] cnt);
         case (op)
             LDX, TRSQ, TRCP, DL, LDA, ADA, ADAV:            finalAt = step != 0;
-            STX, ST, STF, STV, STVW,
-            MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:   finalAt = step == 2;
+            STX, MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
+                                                            finalAt = step == 2;
             SHLV, LOG2, NORM, DIV:                          finalAt = step == 3;
             EMIT:                                           finalAt = step != 0 && cnt == 5'd23;
             default:                                        finalAt = 1'b0;
@@ -291,12 +317,6 @@ module hng64_geo (
     end
 
     // the steps' registers
-    // The stores' shift s: STV's and STVW's b + i, else i. Rounded half up, acc / 2^s is
-    // (acc >>> (s - 1)) with its bit 0 added to the bits above, so step 1 shifts by s - 1 (left by
-    // -s for s <= 0, bit 0 then clear) and step 2 adds.
-    logic signed [7:0] stSh1;
-    always_comb stSh1 = (o == STV || o == STVW) ? b[7:0] + imm[7:0] : imm[7:0];
-    wire signed [AW-1:0] stRight = acc >>> stAmt;
     wire [AW-1:0] accAbs = acc[AW-1] ? AW'(-acc) : AW'(acc);
     wire [47:0]   bAbs   = b[W-1] ? 48'(-b) : 48'(b);
     wire          divTake = divD[109:AW] == 0 && divRem >= divD[AW-1:0];
@@ -316,13 +336,6 @@ module hng64_geo (
                         slowTop <= topBit(slowA);
                         slowSh  <= (o == SHLV) ? slowB : slowB - $signed({2'b00, topBit(slowA)});
                     end
-                ST, STF, STV, STVW:
-                    if (mcStep == 0) begin
-                        stLeft <= stSh1 <= 0;
-                        stAmt  <= (stSh1 <= 0) ? 7'(-stSh1) : 7'(stSh1 - 8'sd1);
-                        stRnd  <= o != STF;
-                    end else if (mcStep == 1)
-                        stT <= stLeft ? {acc[47:0] << stAmt, 1'b0} : stRight[48:0];
                 MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
                     if (mcStep == 0) begin
                         slowA <= a;
@@ -396,7 +409,7 @@ module hng64_geo (
             case (o)
                 LDX, TRSQ, TRCP, DL, LDA, ADA, ADAV:
                                         if (mcStep == 0) mcStepNext = 2'd1;
-                STX, ST, STF, STV, STVW, MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
+                STX, MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
                                         if (mcStep == 0) mcStepNext = 2'd1;
                                         else if (mcStep == 1) mcStepNext = 2'd2;
                 SHLV, LOG2, NORM:       if (mcStep != 3) mcStepNext = mcStep + 2'd1;
@@ -433,11 +446,12 @@ module hng64_geo (
         end
 
     // ---- E's hold, branches, and the hand-over to M ------------------------------------------------
-    assign stall = eLive && (accBranchHazard || (eIsMc && !mcDone)) || cfgStep != 2'd0;
+    assign stall = eLive && (accBranchHazard || brFwd || suHaz || portHaz || (eIsMc && !mcDone)) ||
+                   cfgStep != 2'd0;
     wire eGo = eLive && !stall;
-    // The go of an op that is not multi-cycle: for it eIsMc is false and stall is the hazard alone.
-    // The branches, AOUT and VSEEK go on it.
-    wire goNotMc = eLive && !accBranchHazard && cfgStep == 2'd0;
+    // The go of an op that is not multi-cycle: for it eIsMc is false and stall is the hazards alone
+    // (portHaz is never an op's that does not write through M). The branches, AOUT and VSEEK go on it.
+    wire goNotMc = eLive && !accBranchHazard && !brFwd && !suHaz && cfgStep == 2'd0;
 
     logic        taken;
     logic [10:0] target;
@@ -450,15 +464,15 @@ module hng64_geo (
             case (o)
                 J, JAL:  taken = 1'b1;
                 RET:     begin taken = 1'b1; target = retStack[2'(retSp - 2'd1)]; end
-                BZ:      taken = a == 0;
-                BNZ:     taken = a != 0;
-                BLTZ:    taken = a < 0;
-                BGEZ:    taken = a >= 0;
-                BGTZ:    taken = a > 0;
-                BLT:     taken = a < b;
-                BGE:     taken = a >= b;
-                BEQ:     taken = a == b;
-                BNE:     taken = a != b;
+                BZ:      taken = aBr == 0;
+                BNZ:     taken = aBr != 0;
+                BLTZ:    taken = aBr < 0;
+                BGEZ:    taken = aBr >= 0;
+                BGTZ:    taken = aBr > 0;
+                BLT:     taken = aBr < bBr;
+                BGE:     taken = aBr >= bBr;
+                BEQ:     taken = aBr == bBr;
+                BNE:     taken = aBr != bBr;
                 BACCN:   taken = acc < 0;
                 BACCNN:  taken = acc >= 0;
                 HALT:    begin taken = 1'b1; target = pcE; end
@@ -511,8 +525,39 @@ module hng64_geo (
     end
     always_ff @(posedge clk) alu2R <= alu2Next;
 
+    // ---- the store unit ---------------------------------------------------------------------------
+    // A store's shift s is STV's and STVW's b + i, else i. Rounded half up, acc / 2^s is
+    // (acc >>> (s - 1)) with its bit 0 added to the bits above, so U1 shifts by s - 1 (left by -s for
+    // s <= 0, bit 0 then clear) and U2 adds. U1's registers load from E every clock and count only
+    // with suV1, so stall is not their enable. A store issued at c reads the accumulator at c + 1:
+    // the op before it has left M by then and the op after it has not.
+    logic signed [7:0] stSh1;
+    always_comb stSh1 = (o == STV || o == STVW) ? b[7:0] + imm[7:0] : imm[7:0];
+    wire signed [AW-1:0] stRight = acc >>> stAmt;
+    logic stRnd2;
+    always_ff @(posedge clk) begin
+        stLeft <= stSh1 <= 0;
+        stAmt  <= (stSh1 <= 0) ? 7'(-stSh1) : 7'(stSh1 - 8'sd1);
+        stRnd  <= o != STF;
+        suD1   <= d;
+        stT    <= stLeft ? {acc[47:0] << stAmt, 1'b0} : stRight[48:0];
+        stRnd2 <= stRnd;
+        suD2   <= suD1;
+        mSuD   <= suD2;
+    end
+    always_ff @(posedge clk)
+        if (reset) begin
+            suV1 <= 1'b0;
+            suV2 <= 1'b0;
+            mSu  <= 1'b0;
+        end else begin
+            suV1 <= eGo && eSt && d != 0;
+            suV2 <= suV1;
+            mSu  <= suV2;
+        end
+    wire [W-1:0] stOut = stT[48:1] + W'(stRnd2 & stT[0]);
+
     // the multi-cycle result, by class: taken only on the clock the op completes
-    wire [W-1:0] stOut = stT[48:1] + W'(stRnd & stT[0]);
     logic signed [W-1:0] mcVal;
     always_comb begin
         mcVal = '0;
@@ -523,11 +568,10 @@ module hng64_geo (
         if (eMc[4]) mcVal |= W'(vWordPayload);
         if (eMc[5]) mcVal |= W'($signed(vWordPayload));
         if (eMc[6]) mcVal |= slowR;
-        if (eMc[7]) mcVal |= stOut;
-        if (eMc[8]) mcVal |= alu2R;
+        if (eMc[7]) mcVal |= alu2R;
     end
     always_ff @(posedge clk) begin
-        mVal <= mcVal | alu;
+        mVal <= suV2 ? $signed(stOut) : mcVal | alu;
         if (eGo) begin
             prod   <= $signed(a[35:0]) * $signed(b[35:0]);
             accVal <= AW'(slowA) <<< accSh;
@@ -556,13 +600,13 @@ module hng64_geo (
         endcase
     end
 
-    // the one write port: the configuration at init, STX, or M
+    // the one write port: the configuration at init, STX, or M (E's op or a store's result)
     logic        wrEn;
     logic  [8:0] wrAddr;
     logic signed [W-1:0] wrData;
     always_comb begin
-        wrEn   = mValid && mWrites && mDst != 0;
-        wrAddr = mDst;
+        wrEn   = (mValid && mWrites && mDst != 0) || mSu;
+        wrAddr = mSu ? mSuD : mDst;
         wrData = mVal;
         if (stxWrite) begin
             wrEn   = 1'b1;
@@ -598,8 +642,13 @@ module hng64_geo (
     // fwdSel: next clock's E instruction is the one read above; next clock's M is E if it goes (a
     // writing op), and next clock's W is this clock's register-file write. Worked out for both read
     // addresses (E's again on a stall, else D's) and picked by stall, so stall is the last select.
-    wire mNextGo = eLive && (aluWrites || mcWrites);
-    wire [8:0] dA = fA(instrD), dB = fB(instrD);
+    wire mNextGo = eLive && eWrM;
+    wire [8:0] dA = fA(instrD), dB = fB(instrD), dD = fD(instrD);
+    // suHit: an op naming register r in a, b or d (d but a store's: the unit keeps their order), or
+    // reading copy X (LDX, STX, EMIT: the register is a sum)
+    function automatic logic suHit(input logic [5:0] op, input logic [8:0] fa, fb, fd, r);
+        suHit = fa == r || fb == r || (!isSt(op) && fd == r) || op == LDX || op == STX || op == EMIT;
+    endfunction
 
     // ---- the registers with a reset ------------------------------------------------------------------
     wire [10:0] entryPc = io_entry == 2'd0 ? 11'(GEO_ENTRY_INIT) :
@@ -623,6 +672,8 @@ module hng64_geo (
             mulOp     <= '0;
             accOp     <= '0;
             {selMA, selMB, selWA, selWB, zeroA, zeroB} <= '0;
+            brFwd     <= 1'b0;
+            suHaz     <= 1'b0;
             bypX      <= 1'b0;
             retSp     <= '0;
         end else begin
@@ -646,8 +697,16 @@ module hng64_geo (
             acc    <= accNext;
             wValid <= wrEn;
             bypX   <= wrEn && wrAddr == xAddr && xAddr != 0;
-            selMA  <= !stall && mNextGo && d == dA;
-            selMB  <= !stall && mNextGo && d == dB;
+            // M's next result: E's op if it goes, or the store in U2 (never both: portHaz)
+            selMA  <= stall ? suV2 && suD2 == ra : (mNextGo && d == dA) || (suV2 && suD2 == dA);
+            selMB  <= stall ? suV2 && suD2 == rb : (mNextGo && d == dB) || (suV2 && suD2 == dB);
+            // a clock: in it E holds, M's result moves to W, and selWA or selWB is set for it
+            brFwd  <= stall ? suV2 && regBr(o) && (suD2 == ra || (twoBr(o) && suD2 == rb)) :
+                      regBr(dOp) && ((mNextGo && d != 0 && (d == dA || (twoBr(dOp) && d == dB))) ||
+                                     (suV2 && (suD2 == dA || (twoBr(dOp) && suD2 == dB))));
+            // the unit next clock: U2 holds U1's store, U1 the one E issues now
+            suHaz  <= stall ? suV1 && suHit(o, ra, rb, d, suD1) :
+                      (suV1 && suHit(dOp, dA, dB, dD, suD1)) || (eLive && eSt && d != 0 && suHit(dOp, dA, dB, dD, d));
             selWA  <= wrEn && (stall ? wrAddr == ra : wrAddr == dA);
             selWB  <= wrEn && (stall ? wrAddr == rb : wrAddr == dB);
             zeroA  <= stall ? ra == 0 : dA == 0;

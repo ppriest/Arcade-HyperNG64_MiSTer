@@ -97,6 +97,8 @@ public:
 	void write(offs_t offset, u8 data);
 	void ir_w(int irq, int state) { set_irq_line(irq, state); }
 	u8 acknowledge();
+	// for a report: IMR, IRR, ISR, and the input lines
+	uint32_t state() const { return m_imr | m_irr << 8 | m_isr << 16 | uint32_t(m_irq_lines) << 24; }
 
 private:
 	enum class state_t : u8 { ICW1, ICW2, ICW3, ICW4, READY };
@@ -217,6 +219,7 @@ public:
 	void hack_w(int state) { if (!(m_SCTL & 0x02)) m_dmau.hack_w(state); }
 
 	u32 scu_accesses() const { return m_scu_accesses; }
+	uint32_t icu_state() const { return m_icu.state(); }
 	// the internal registers' traffic: (rw 'r'/'w', the io address, data)
 	std::function<void(char, offs_t, u8)> m_int_log;
 

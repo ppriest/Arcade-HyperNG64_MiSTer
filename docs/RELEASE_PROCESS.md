@@ -40,6 +40,10 @@ Steps for a release:
    ways that look like core bugs. Parents at the top level, clones in `releases/_alternatives/`.
    The `.rbf` is `Arcade-<Name>_YYYYMMDD.rbf`; `releases/*.rbf` is gitignored, so add it with
    `git add -f` deliberately, and only a build verified to run the games.
+   With them goes the sound program, `hng64snd_YYYYMMDD.zip` (`python scripts/snd_deploy.py
+   --package`, the profiled build that was play-tested): `games/HyperNG64/hng64snd` and
+   `Scripts/HNG64_SoundServer.sh`, which starts it, to unzip in `/media/fat`. Gitignored as the
+   `.rbf` is; `git add -f` it the same way.
 6. Record the commit **and the fitter seed** from `build/BUILT_COMMIT` in the release notes, with
    the worst slack per clock and the resource table. A commit alone does not identify a bitstream:
    two builds of one commit at different seeds have differed in which games ran.

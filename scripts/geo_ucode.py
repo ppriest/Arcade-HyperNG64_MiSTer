@@ -64,7 +64,13 @@ def program():
     ADDR_BUFA, ADDR_BUFB, ADDR_OUT = R("addr_bufa"), R("addr_bufb"), R("addr_out")
     ADDR_OUT7, ADDR_OUT14 = R("addr_out7"), R("addr_out14")
     KI = [0] + R("kidx", 6)                          # constants 0-6, LDX's field index (R0 is 0)
-    C27 = R("c27")
+    C27, C7 = R("c27"), R("c7")
+    # the packet and chunk types the dispatch compares against, loaded once by init: a compare is
+    # then one BEQ, where a MOVI before it was a clock and made the BEQ wait on M's result
+    # (rtl/3d/hng64_geo.sv, brFwd)
+    KTYPES = (0x0001, 0x0010, 0x0011, 0x0012, 0x0100, 0x0101, 0x0102,
+              0x0F, 0x04, 0x0E, 0x24, 0x2E, 0x87, 0x97, 0xD7, 0xC7, 0x86, 0x96, 0xB6, 0xC6, 0xD6)
+    KTYPE = {v: R(f"ktype_{v:x}") for v in KTYPES}
 
     # setup (the triangle's plane, for EMIT) works in the clipper's first list, which is dead by the
     # time the fan runs: the record G (22 words, EMIT's order), then its temporaries
@@ -89,8 +95,7 @@ def program():
         A.shli(d, d, imm=sh)
 
     def beqi(a, v, target):
-        movi(T[11], v)
-        A.beq(a=a, b=T[11], imm=target)
+        A.beq(a=a, b=KTYPE[v], imm=target)
 
     def matmul(dst, a, b, shift):
         """matmul4's layout: dst[4j+i] = sum_k a[4k+i] b[4j+k], rounded by `shift`."""
@@ -137,6 +142,7 @@ def program():
     for k in range(1, 7):
         A.movi(KI[k], imm=k)
     A.movi(C27, imm=27)
+    A.movi(C7, imm=7)
     movi(C17, gi_W_MIN)
     movi(WONE, 1 << 23)
     movi(Q1, 1 << 15)
@@ -153,6 +159,8 @@ def program():
     movi(ADDR_OUT, OUT[0])
     movi(ADDR_OUT7, OUT[7])
     movi(ADDR_OUT14, OUT[14])
+    for v, r in KTYPE.items():
+        A.movi(r, imm=v)
     A.here("clear")
     entries["clear"] = len(A.code)
     for k in range(16):
@@ -450,8 +458,8 @@ def program():
     A.here("poly")
     A.vrd(T[1])
     A.andi(T[2], a=T[1], imm=0xFF00 - 0x10000)
+    A.andi(CN, a=T[1], imm=0xFF)                     # ctype; between the test and its branch
     A.bnz(a=T[2], imm="poly_stop")
-    A.andi(CN, a=T[1], imm=0xFF)                     # ctype
     A.vrd(W1)
     A.vrd(W2)
     A.shri(T[3], a=W1, imm=15)                       # flat: not (w1 & 0x8000)
@@ -460,8 +468,7 @@ def program():
     A.andi(PAL, a=W1, imm=0x0FF0)                    # ((w1 & 0x0FF0) >> 4) << 3 | palette state
     A.shri(PAL, a=PAL, imm=1)
     A.emit("OR", PAL, PAL, PALBITS, 0)
-    movi(T[11], 0x05)
-    A.bne(a=CN, b=T[11], imm="ct_other")
+    A.bne(a=CN, b=KI[5], imm="ct_other")
     A.here("ct_full")
     for m in range(3):
         std(m)
@@ -470,9 +477,9 @@ def program():
     A.here("poly_have")
 
     # culls: eye of vertex 0 (Q26) and the face normal (Q26); back face if flags & 0x10
+    A.andi(T[0], a=FLAGS, imm=0x10)                 # ahead of its branch
     vm(EYE0, MV, VW[0], 4, 27, comps=range(3))
     vm(FNRM, MV, FACE, 3, 19, comps=range(3))
-    A.andi(T[0], a=FLAGS, imm=0x10)
     A.bz(a=T[0], imm="cull_front")
     A.mul(a=EYE0[0], b=FNRM[0])
     A.mac(a=EYE0[1], b=FNRM[1])
@@ -482,9 +489,9 @@ def program():
     A.bgtz(a=EYE0[2], imm="poly_hidden")
 
     # lighting (flags & 8, strength > 0, a non-zero light vector)
+    A.andi(T[0], a=FLAGS, imm=0x08)                 # ahead of its branch
     for k in range(3):
         A.movi(LIGHT[k], imm=0)
-    A.andi(T[0], a=FLAGS, imm=0x08)
     A.bz(a=T[0], imm="light_done")
     A.bltz(a=LST, imm="light_done")
     A.bz(a=LST, imm="light_done")
@@ -505,14 +512,15 @@ def program():
         A.msb(a=TN[1], b=LVN[1])
         A.msb(a=TN[2], b=LVN[2])
         A.st(T[6], imm=0)                            # dot, Q32
-        A.bz(a=RSQ_IN, imm=nxt)
-        A.bltz(a=T[6], imm=nxt)
-        A.bz(a=T[6], imm=nxt)
-        # 1/length: 1 - (n - 1) / 2 within 1/128 of 1.0 (geom_int.rsq_normal), else rsq
+        # 1/length: 1 - (n - 1) / 2 within 1/128 of 1.0 (geom_int.rsq_normal), else rsq. Its
+        # operands come first, so neither the tests nor its compare wait on the one before.
         far = f"light_v{vi}_far"
         have = f"light_v{vi}_have"
         A.sub(T[7], a=RSQ_IN, b=TWO32)
         A.abs(T[8], a=T[7])
+        A.bz(a=RSQ_IN, imm=nxt)
+        A.bltz(a=T[6], imm=nxt)
+        A.bz(a=T[6], imm=nxt)
         A.bge(a=T[8], b=TWO25, imm=far)
         A.lda(a=T[7], imm=0)
         A.st(T[8], imm=9)
@@ -551,13 +559,15 @@ def program():
     A.add(PA, a=ADDR_BUFA, b=R0)
     A.add(PB, a=ADDR_BUFB, b=R0)
     A.movi(NA, imm=3)
-    # every vertex inside every plane: no clipping
+    # every vertex inside every plane: no clipping. The magnitudes first, so no compare waits on
+    # the ABS before it.
     for m in range(3):
         x, y, z, w = BUFA[7 * m:7 * m + 4]
+        for k, c in enumerate((x, y, z)):
+            A.abs(T[k], a=c)
         A.blt(a=w, b=C17, imm="clip_slow")
-        for c in (x, y, z):
-            A.abs(T[0], a=c)
-            A.blt(a=w, b=T[0], imm="clip_slow")
+        for k in range(3):
+            A.blt(a=w, b=T[k], imm="clip_slow")
     # no clipping: three vertices in list A's first three slots, straight into OUT
     for m in range(3):
         X, Y, Z, W, U, V, LL = BUFA[7 * m:7 * m + 7]
@@ -602,8 +612,7 @@ def program():
     A.aout(11, a=T[0])
 
     # the fan: (0, j, j + 1); three vertices (nearly all) without the loop
-    A.movi(T[0], imm=3)
-    A.bne(a=NA, b=T[0], imm="fan_many")
+    A.bne(a=NA, b=KI[3], imm="fan_many")
     A.add(S_SA, a=ADDR_OUT, b=R0)
     A.add(S_SB, a=ADDR_OUT7, b=R0)
     A.add(S_SC, a=ADDR_OUT14, b=R0)
@@ -674,15 +683,14 @@ def program():
     A.here("clip_slow")
     A.movi(PLN, imm=0)
     A.here("plane_loop")
-    A.movi(T[0], imm=7)
-    A.bge(a=PLN, b=T[0], imm="clip_done")
+    A.bge(a=PLN, b=C7, imm="clip_done")
     A.bz(a=NA, imm="clip_done")
+    A.movi(RI, imm=0)                                # ahead of plane_scan's first compare
     # the plane's axis (0-2) and sign (0: w + x, 1: w - x); plane 0 is w - 17
     A.addi(PAX, a=PLN, imm=-1)
     A.andi(PSG, a=PAX, imm=1)
     A.shri(PAX, a=PAX, imm=1)
     # every vertex inside this plane: the list stands as it is (clip() would copy it unchanged)
-    A.movi(RI, imm=0)
     A.here("plane_scan")
     A.bge(a=RI, b=NA, imm="plane_skip")
     A.add(FIDX, a=RI, b=R0)
@@ -705,8 +713,8 @@ def program():
     A.add(FIDX, a=RI, b=R0)
     A.jal(imm="clip_f")
     A.add(FI, a=FVAL, b=R0)
-    # s1 = fi >= 0, s2 = fp >= 0
-    A.bltz(a=FI, imm="plane_s1n")
+    # s1 = fi >= 0, s2 = fp >= 0; fi is fval, tested as that
+    A.bltz(a=FVAL, imm="plane_s1n")
     A.bltz(a=FP, imm="plane_cross")                  # s1 in, s2 out
     A.j(imm="plane_in")
     A.here("plane_s1n")
@@ -738,8 +746,7 @@ def program():
     A.add(T[4], a=T[4], b=T[3])
     A.stx(T[4], a=T[8], b=T[2])
     A.addi(T[2], a=T[2], imm=1)
-    A.movi(T[9], imm=7)
-    A.blt(a=T[2], b=T[9], imm="plane_lerp")
+    A.blt(a=T[2], b=C7, imm="plane_lerp")
     A.addi(NB, a=NB, imm=1)
     A.bltz(a=FI, imm="plane_next")
     A.here("plane_in")
@@ -755,8 +762,7 @@ def program():
     A.ldx(T[3], a=T[7], b=T[2])
     A.stx(T[3], a=T[8], b=T[2])
     A.addi(T[2], a=T[2], imm=1)
-    A.movi(T[9], imm=7)
-    A.blt(a=T[2], b=T[9], imm="plane_copy")
+    A.blt(a=T[2], b=C7, imm="plane_copy")
     A.addi(NB, a=NB, imm=1)
     A.here("plane_next")
     A.add(RP, a=RI, b=R0)
@@ -873,7 +879,7 @@ def program():
     def swap(p, q, yp, yq):
         skip = L()
         A.bge(a=yq, b=yp, imm=skip)                  # stable: only a strictly lower y moves up
-        for u, v in ((p, q), (yp, yq)):
+        for u, v in ((yp, yq), (p, q)):
             A.add(S_SWT, a=u, b=R0)
             A.add(u, a=v, b=R0)
             A.add(v, a=S_SWT, b=R0)
@@ -900,8 +906,8 @@ def program():
     A.mul(a=S_DX21, b=S_DY31)
     A.msb(a=S_DX31, b=S_DY21)
     A.stf(S_DET, imm=0)
+    A.movi(S_NEGF, imm=0)                            # between the store and its test
     A.bz(a=S_DET, imm="setup_none")
-    A.movi(S_NEGF, imm=0)
     A.bgez(a=S_DET, imm="setup_pos")
     A.movi(S_NEGF, imm=1)
     A.here("setup_pos")

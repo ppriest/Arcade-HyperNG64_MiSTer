@@ -42,6 +42,7 @@ Instructions (d, a, b register numbers; i a signed 16-bit immediate)
     J t  JAL t  RET  BZ a,t  BNZ a,t  BLTZ a,t  BGEZ a,t  BGTZ a,t  BLT a,b,t  BGE a,b,t  BEQ a,b,t
     BNE a,b,t  BACCN t  BACCNN t (branch if ACC < 0, ACC >= 0)       HALT  the upload is done
 """
+import collections
 import sys
 from pathlib import Path
 
@@ -172,7 +173,8 @@ class Sim:
         self.tris = []
         self.steps = 0
         self.cycles = 0          # the planned pipeline's estimate (Sim.run's timing notes)
-        self.why = {"st": 0, "idx": 0, "div": 0, "vout": 0, "branch": 0}
+        self.why = {"st": 0, "idx": 0, "div": 0, "vout": 0, "branch": 0, "brfwd": 0}
+        self.brfwd_at = collections.Counter()
 
     def w(self, d, v):
         if not _fits(v, 48):
@@ -193,6 +195,12 @@ class Sim:
         return v
 
     MULS = {"MUL", "MAC", "MSB"}
+    REGBR = {"BZ", "BNZ", "BLTZ", "BGEZ", "BGTZ", "BLT", "BGE", "BEQ", "BNE"}
+    TWOBR = {"BLT", "BGE", "BEQ", "BNE"}
+    # no register result through M: what the result forward cannot come from
+    NOWRITE = {"NOP", "MUL", "MAC", "MSB", "LDA", "ADA", "ADAV", "ASHL", "STX", "VSEEK", "AOUT",
+               "VOUT", "EMIT", "J", "JAL", "RET", "BZ", "BNZ", "BLTZ", "BGEZ", "BGTZ", "BLT", "BGE",
+               "BEQ", "BNE", "BACCN", "BACCNN", "HALT"}
     STS = {"ST", "STF", "STV", "STVW"}
 
     def run(self, pc):
@@ -200,16 +208,24 @@ class Sim:
         or return 2 more (resolved in execute); the accumulator stores execute at the
         accumulator's stage, so an instruction reading a store's result in the very next slot
         waits 1; LDX, STX, TRSQ, TRCP, DL, SHLV, LOG2 and NORM 1 more; DIV its quotient bits + 1. EMIT
-        holds the engine while the record, 22 words, is read out of the register file (22)."""
+        holds the engine while the record, 22 words, is read out of the register file (22). A
+        register branch reading the result of the instruction before it waits 1 (hng64_geo.sv,
+        brFwd); self.brfwd_at counts those by pc."""
         self.pc = pc
         stack = []
         r = self.r
         prev = None
         prev_st = 0
+        prev_wd = 0
         while True:
             op, d, a, b, i = self.code[self.pc]
             self.steps += 1
             self.cycles += 1
+            if prev_wd and op in self.REGBR and (a == prev_wd or (op in self.TWOBR and b == prev_wd)):
+                self.cycles += 1
+                self.why["brfwd"] += 1
+                self.brfwd_at[self.pc] += 1
+            prev_wd = 0 if op in self.NOWRITE else d
             if prev_st and prev_st in (a, b) and op not in ("J", "JAL", "MOVI", "HALT", "EMIT"):
                 self.cycles += 1
                 self.why["st"] += 1
@@ -478,6 +494,9 @@ def check(game, frames, dump=False):
           f"{found['bad']} differ; {found['steps']} engine instructions in drawn uploads, "
           f"{found['cycles']} clocks estimated")
     print("  extra clocks over the whole run, by cause:", checked_sim[0].why if checked_sim else "")
+    if checked_sim and checked_sim[0].brfwd_at:
+        print("  branch-forward waits by pc:", ", ".join(
+            f"{pc}: {n}" for pc, n in checked_sim[0].brfwd_at.most_common(12)))
     return found["bad"] == 0
 
 

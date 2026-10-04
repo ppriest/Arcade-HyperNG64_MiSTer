@@ -58,18 +58,38 @@ void l7a1045::sound_stream_update(s64 from, int samples)
 	m_out.resize(base + size_t(samples) * OUTPUTS, 0);
 	s32 *out = &m_out[base];
 
+	// MAME's loop with each voice's state in locals for the samples, stored back once: the stores
+	// into out would otherwise make the compiler reload every field each sample. MAME's volume
+	// products, (fout * (uint64_t(vol) * uint64_t(env))) >> 24 taken to s32, are bits 24-55 of the
+	// product, which the signed 32x32 multiply below gives too: the output is the same.
 	for (int i = 0; i < NUM_VOICES; i++)
 	{
 		if (m_key & (1 << i))
 		{
 			l7a1045_voice *vptr = &m_voice[i];
 
-			uint32_t start = vptr->start;
+			const uint32_t start = vptr->start;
 			const uint32_t end = vptr->end;
 			const uint32_t step  = vptr->step;
+			const uint32_t loop_start = vptr->loop_start;
+			const uint8_t sample_type = vptr->sample_type;
+			const uint32_t l_volume = vptr->l_volume, r_volume = vptr->r_volume;
+			const uint32_t send_level = vptr->send_level;
+			// MAME reads channel_remap[8] with any dest but 0xf; 8-14 read past it. Here they send
+			// nothing.
+			const int send_out = (send_level > 0 && (vptr->send_dest & 0xf) < 8)
+				? 2 + channel_remap[vptr->send_dest & 0xf] : -1;
+			const uint16_t env_target = vptr->env_target, env_step = vptr->env_step;
+			const uint16_t flt_target = vptr->flt_target, flt_step = vptr->flt_step;
+			const int32_t flt_resonance = vptr->flt_resonance;
 
 			uint32_t pos = vptr->pos;
 			uint32_t frac = vptr->frac;
+			uint16_t env_volume = vptr->env_volume;
+			uint32_t env_pos = vptr->env_pos;
+			uint16_t flt_freq = vptr->flt_freq;
+			uint32_t flt_pos = vptr->flt_pos;
+			int32_t b = vptr->b, l = vptr->l;
 
 			for (int j = 0; j < samples; j++)
 			{
@@ -82,10 +102,10 @@ void l7a1045::sound_stream_update(s64 from, int samples)
 
 				if ((end > start) && ((start + pos) >= end))
 				{
-					pos = (vptr->end - vptr->start) - vptr->loop_start;
+					pos = (end - start) - loop_start;
 				}
 
-				switch (vptr->sample_type)
+				switch (sample_type)
 				{
 					case 0: // 16-bit linear, little-endian
 						address = ((start << 1) + (pos << 1));
@@ -102,7 +122,7 @@ void l7a1045::sound_stream_update(s64 from, int samples)
 						break;
 
 					default:
-						logerror("l7a1045: unknown sample type %d\n", vptr->sample_type);
+						logerror("l7a1045: unknown sample type %d\n", sample_type);
 						sample = 0;
 						break;
 				}
@@ -110,61 +130,57 @@ void l7a1045::sound_stream_update(s64 from, int samples)
 				frac += step;
 
 				// volume envelope processing
-				vptr->env_pos += vptr->env_step;
-				const int steps = ((uint32_t)vptr->env_pos / 0x100);
+				env_pos += env_step;
+				const int steps = (env_pos / 0x100);
 				if (steps > 0)
 				{
-					if (vptr->env_volume < vptr->env_target)
+					if (env_volume < env_target)
 					{
-						vptr->env_volume += std::min(steps, (vptr->env_target - vptr->env_volume));
+						env_volume += std::min(steps, (env_target - env_volume));
 					}
-					else if (vptr->env_volume > vptr->env_target)
+					else if (env_volume > env_target)
 					{
-						vptr->env_volume -= std::min(steps, (vptr->env_volume - vptr->env_target));
+						env_volume -= std::min(steps, (env_volume - env_target));
 					}
 				}
-				vptr->env_pos &= 0xff;
+				env_pos &= 0xff;
 
 				// filter envelope processing
-				vptr->flt_pos += vptr->flt_step;
-				const int flt_steps = ((uint32_t)vptr->flt_pos / 0x100);
+				flt_pos += flt_step;
+				const int flt_steps = (flt_pos / 0x100);
 				if (flt_steps > 0)
 				{
-					if (vptr->flt_freq < vptr->flt_target)
+					if (flt_freq < flt_target)
 					{
-						vptr->flt_freq += std::min(flt_steps, (vptr->flt_target - vptr->flt_freq));
+						flt_freq += std::min(flt_steps, (flt_target - flt_freq));
 					}
-					else if (vptr->flt_freq > vptr->flt_target)
+					else if (flt_freq > flt_target)
 					{
-						vptr->flt_freq -= std::min(flt_steps, (vptr->flt_freq - vptr->flt_target));
+						flt_freq -= std::min(flt_steps, (flt_freq - flt_target));
 					}
 				}
-				vptr->flt_pos &= 0xff;
+				flt_pos &= 0xff;
 
 				// low pass filter processing using a chamberlin configuration
-				const int32_t h = sample - vptr->l - vptr->b + ((vptr->flt_resonance * vptr->b) >> 4);
-				vptr->b += (vptr->flt_freq * h) >> 15;
-				vptr->l += (vptr->flt_freq * vptr->b) >> 15;
+				const int32_t h = sample - l - b + ((flt_resonance * b) >> 4);
+				b += (flt_freq * h) >> 15;
+				l += (flt_freq * b) >> 15;
 
-				const int32_t fout = vptr->l;
-				const int64_t left = (fout * (uint64_t(vptr->l_volume) * uint64_t(vptr->env_volume))) >> 24;
-				const int64_t right = (fout * (uint64_t(vptr->r_volume) * uint64_t(vptr->env_volume))) >> 24;
-				out[j * OUTPUTS + 0] += s32(left);
-				out[j * OUTPUTS + 1] += s32(right);
-
-				if (vptr->send_level > 0)
-				{
-					const int dest = vptr->send_dest & 0xf;
-					if (dest != 0xf)
-					{
-						const int64_t send = (fout * (uint64_t(vptr->send_level) * uint64_t(vptr->env_volume))) >> 24;
-						out[j * OUTPUTS + 2 + channel_remap[dest]] += s32(send);
-					}
-				}
+				const int32_t fout = l;
+				out[j * OUTPUTS + 0] += s32((int64_t(fout) * int64_t(l_volume * env_volume)) >> 24);
+				out[j * OUTPUTS + 1] += s32((int64_t(fout) * int64_t(r_volume * env_volume)) >> 24);
+				if (send_out >= 0)
+					out[j * OUTPUTS + send_out] += s32((int64_t(fout) * int64_t(send_level * env_volume)) >> 24);
 			}
 
 			vptr->pos = pos;
 			vptr->frac = frac;
+			vptr->env_volume = env_volume;
+			vptr->env_pos = env_pos;
+			vptr->flt_freq = flt_freq;
+			vptr->flt_pos = flt_pos;
+			vptr->b = b;
+			vptr->l = l;
 		}
 	}
 }

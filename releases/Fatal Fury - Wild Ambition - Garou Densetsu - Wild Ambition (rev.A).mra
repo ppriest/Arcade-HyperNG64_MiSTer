@@ -8,7 +8,7 @@
   <manufacturer>SNK</manufacturer>
   <rbf>HyperNG64</rbf>
   <rotation>horizontal</rotation>
-  <buttons names="Button 1,Button 2,Button 3,Button 4,Start,Coin,Pause,Service,Test" default="A,B,X,Y,Start,Select,L"/>
+  <buttons names="Punch,Kick,Strong Attack,Axis Shift,Start,Coin,Pause,Service,Test" default="A,B,X,Y,Start,Select,L"/>
   <switches default="00" base="0">
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>

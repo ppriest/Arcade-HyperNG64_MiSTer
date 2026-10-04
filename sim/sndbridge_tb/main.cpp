@@ -13,8 +13,8 @@
 //     before the enable is in the copy;
 //   - the magic, the sample ROM's base and size, the latches and counts, and the run word;
 //   - live: not on DDR3's stale contents (a static heartbeat, flags 0xA501); on once the
-//     heartbeat moves; the replies follow the status word; off when it stops, when the process
-//     says it no longer runs, and on 0xAA55.
+//     heartbeat moves, whether or not the process has started its V53A; the replies follow the
+//     status word; off when it stops, and on 0xAA55.
 
 #include "Vtb_sndbridge.h"
 #include "verilated.h"
@@ -189,8 +189,8 @@ int main(int argc, char **argv)
 	check(!dut->live, "not live once the heartbeat stops");
 	proc(40, true, 0x38FF, 0x0083, 0xA501);
 	check(dut->live, "live again when it moves");
-	proc(10, true, 0x38FF, 0x0083, 0xA500);
-	check(!dut->live, "not live when the process says it does not run the V53A");
+	proc(10, true, 0x0000, 0x0000, 0xA500);
+	check(dut->live && dut->rep1 == 0, "live before the process runs its V53A: its zero latches");
 	proc(10, true, 0x38FF, 0x0083, 0xA501);
 	pulse_en(0xAA55);
 	run(500);

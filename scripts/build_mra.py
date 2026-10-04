@@ -77,10 +77,10 @@ CFG_REGIONS = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts", "l
 # BUTTON(i+1)). "-" is a button the game does not use. Every in-scope set needs
 # an entry; a name still "Button N" is reported by scripts/validate_mra.py.
 BUTTONS = {
-    "sams64":   ["Button 1", "Button 2", "Button 3", "Button 4"],  # Samurai Shodown 64
-    "sams64_2": ["Button 1", "Button 2", "Button 3", "Button 4"],  # Samurai Shodown 64: Warriors Rage
-    "fatfurwa": ["Button 1", "Button 2", "Button 3", "Button 4"],  # Fatal Fury: Wild Ambition
-    "buriki":   ["Button 1", "Button 2", "Button 3", "Button 4"],  # Buriki One
+    "sams64":   ["Light Slash", "Medium Slash", "Heavy Slash", "Kick"],  # Samurai Shodown 64
+    "sams64_2": ["Light Slash", "Medium Slash", "Heavy Slash", "Kick"],  # Samurai Shodown 64: Warriors Rage
+    "fatfurwa": ["Punch", "Kick", "Strong Attack", "Axis Shift"],  # Fatal Fury: Wild Ambition
+    "buriki":   ["Move Left", "Move Right", "-", "-"],  # Buriki One
 }
 # the rest of CONF_STR's J1 line: the core reads fixed bits, so these may not move
 BUTTONS_TAIL = ["Start", "Coin", "Pause", "Service", "Test"]

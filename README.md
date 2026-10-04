@@ -3,9 +3,15 @@
 A MiSTer FPGA core for SNK's Hyper NeoGeo 64 arcade hardware (MAME's `hng64`), built with Quartus
 Prime 17.0.2 Lite for the DE10-nano.
 
-**Status: in development, not for playing yet.** All four fight sets boot on hardware, run their
-attract modes, and take a coin and Start into a game. There is no sound. Heavy 3D scenes run slower
-than on the board, and timing is not yet closed. There is no released `.rbf`.
+**Status: in development, not for playing yet.** The 4 versus fighters play, but with graphical
+glitches and slowdown in places. Sound runs as a program on the MiSTer's ARM ([Sound](#sound)) and
+breaks up in heavy passages.
+
+**CRT: 31 kHz only.** The core's video is 448-line progressive at a 32.6 kHz line rate. There is no
+15 kHz interlaced mode yet, so it needs a 31 kHz monitor (or HDMI); a 15 kHz CRT is not supported
+yet.
+
+**Requires a 32 MB SDRAM module.**
 
 ## Contents
 
@@ -14,6 +20,7 @@ than on the board, and timing is not yet closed. There is no released `.rbf`.
 - [Installation](#installation)
 - [Controls](#controls)
 - [OSD speeds](#osd-speeds)
+- [Sound](#sound)
 - [Status](#status)
 - [Verification](#verification)
 - [AI Attestation](#ai-attestation)
@@ -22,10 +29,6 @@ than on the board, and timing is not yet closed. There is no released `.rbf`.
 - [License](#license)
 
 ## Games
-
-The fight board sets: two players, stick and four buttons, through the IO MCU. Each needs the
-`hng64` BIOS and is loaded into DDR3; main RAM, the BIOS copy and tile VRAM are in a 32 MB SDRAM
-module.
 
 | Name | Year | MAME set | On hardware |
 |-|-|-|-|
@@ -46,22 +49,26 @@ Beast Busters: Second Nightmare (light guns).
 | main board I/O | interrupts, DMA, RTC, NVRAM, dual-port RAM | from MAME's driver (`rtl/hng64_io.sv`) |
 | NEO64-SCC, NEO64-SPR | four tilemaps, sprites, mixer | from MAME's video (`rtl/video/`) |
 | 3D chipset | display list, geometry, rasteriser | written here (SpinalHDL, `rtl/3d/`): a microcoded geometry engine and a rasteriser after SpinalVoodoo, render buffer in DDR3 |
-| V53A + L7A1045 | sound CPU and DSP | **not implemented: no sound** |
+| V53A + L7A1045 | sound CPU and DSP | MAME's code, run on the ARM (`sw/hng64snd`), linked to the core through DDR3 (`rtl/hng64_sndbridge.sv`); [Sound](#sound) |
 | KL5C80A12 | network board | not implemented (`docs/HACKS.md`) |
 
 Video: 25 MHz pixel clock, 512 x 448 visible of 768 x 528, 61.65 Hz, as MAME's screen; MAME gives
-no sync positions, so those are this core's (`docs/HACKS.md`). There is no composite or S-video output, and
-the scaler has no adaptive scanline filters, to save area.
+no sync positions, so those are this core's (`docs/HACKS.md`). The line rate is 32.6 kHz (768 clocks
+at 25 MHz), so analogue output needs a 31 kHz monitor: there is no 15 kHz interlaced mode yet. There
+is no composite or S-video output, and the scaler has no adaptive scanline filters, to save area.
 
 ## Installation
 
-There is no released `.rbf` while the core is incomplete. To try a development build:
+`releases/` has a development build: `Arcade-HyperNG64_20261004.rbf` (`19ae667`, fitter seed 6649;
+every clock met but the SDRAM reads' capture, `docs/HACKS.md`) and `hng64snd_20261004.zip`.
 
-* Build with `python scripts/build_staged.py` and copy the `.rbf` to `_Arcade/cores` as
-  `HyperNG64_<anything>.rbf` (`scripts/deploy.py` does this, with a `mister.env`)
+* Copy the `.rbf` to `_Arcade/cores`, or build one with `python scripts/build_staged.py` and copy it
+  there as `HyperNG64_<anything>.rbf` (`scripts/deploy.py` does this, with a `mister.env`)
 * Put the `.mra` files from `releases/` in `_Arcade` (or an underscore subdirectory)
 * Put the MAME ROM sets and the `hng64` BIOS (`hng64.zip`) in `games/mame`
 * A 32 MB SDRAM module is required
+* For sound, unzip `hng64snd_YYYYMMDD.zip` in `/media/fat`, and after every boot run
+  `HNG64_SoundServer` from the Scripts menu ([Sound](#sound))
 
 ## Controls
 
@@ -84,22 +91,62 @@ Service and Test have no default pad button; map them in the MiSTer input setup 
 The CPU runs at 75 MHz (the real board's VR4300 runs at 100) and the 3D at 100 MHz; neither is
 an OSD setting.
 
-* **Game speed**: Auto (default), or 100% down to 50%. Auto hides a video frame from the game
-  only where the 3D has fallen behind it, so the game slows there and every frame is drawn whole; at
-  100% those frames are shown with polygons missing. Below 100% one frame in N is hidden whatever
-  the 3D is doing. The video stays at 60 Hz.
+* **Game speed**: Auto (default), or 100% down to 50%.
+  * This is a frame-skipping setting: it suppresses the vblank and lets the game somewhat gracefully
+    continue rendering the frame while the video stays at 60 Hz.
+
+## Sound
+
+The V53A sound CPU and the L7A1045 DSP are not in the FPGA. They are MAME's code, taken out of MAME
+and built as `hng64snd`, a Linux program that runs on the DE10-nano's ARM beside Main_MiSTer
+(`sw/hng64snd/PROVENANCE.md`). The core passes it the main CPU's sound commands, interrupts and
+sound RAM through a shared block of DDR3 (`rtl/hng64_sndbridge.sv`), and it plays through MiSTer's
+ALSA output at 48 kHz, so the pitch does not follow the game's speed. The V53A runs at 16 MHz, not
+MAME's 32 (`docs/MAME_KLUDGES.md`).
+
+Using it:
+
+1. Install once: unzip `releases/hng64snd_YYYYMMDD.zip` in `/media/fat`. That puts the program at
+   `games/HyperNG64/hng64snd` and its start script at `Scripts/HNG64_SoundServer.sh`.
+2. After every boot, from the MiSTer main menu, open Scripts and run `HNG64_SoundServer`. Three
+   seconds later it says "hng64snd started" (or why it failed). Nothing starts it at boot.
+3. Load a set. The program waits until the set starts its sound CPU, goes quiet at every core
+   load, and picks up again at the next set; it stays running until the MiSTer restarts.
+4. To stop it, run `HNG64_SoundServer` again: it says "hng64snd stopped".
+
+To have it start at every boot instead, add this line to `/media/fat/linux/user-startup.sh`
+(MiSTer runs it at boot with `start`, and the script then starts the program without waiting):
+
+```sh
+[[ -e /media/fat/Scripts/HNG64_SoundServer.sh ]] && /media/fat/Scripts/HNG64_SoundServer.sh $1
+```
+
+Idle, with no set's sound running, it holds under 1 MB (572 kB measured) and no audio device, and
+reads nothing from DDR3 unless an HNG64 set is loaded.
+
+Notes:
+
+* `scripts/snd_deploy.py` builds it (WSL with `arm-linux-gnueabihf-g++`, and a `mister.env`;
+  `--no-pgo` skips the profiling run on the MiSTer) and installs the program and the start script
+  as above, with a `games/<set>/_handler.sh` for each set, which MiSTer Frontier's daemon runs while
+  the set is loaded; `--package` writes the release zip.
+* The sound is about 80 ms behind the game.
+* In heavy passages the emulation needs more than one of the ARM's two cores (Main_MiSTer has the
+  other), and the sound has gaps there. A faster V33 emulator is the planned fix.
 
 ## Status
 
 Known issues:
 
-* **No sound**: the V53A and L7A1045 are not implemented.
-* **3D throughput**: the geometry engine is slower than the real board in heavy scenes (fatfurwa's
-  intro, buriki's character intros), so the game slows there; with Game speed at 100% those frames
-  lose polygons instead. `docs/ROADMAP.md` has the measurements.
+* **Sound** needs `hng64snd` running on the ARM, and has gaps in heavy passages ([Sound](#sound)).
+* **3D throughput**: the 3D is slower than the real board in heavy scenes (fatfurwa's intro,
+  buriki's character intros), so the game slows there; with Game speed at 100% those frames lose
+  polygons instead. `docs/ROADMAP.md` has the measurements.
 * **Timing not closed** at full speed (clk2x 125 MHz, clk3d 100 MHz): the SDRAM data inputs' capture,
   which no capture phase closes at CL2 and 125 MHz (`docs/HACKS.md`), and, depending on placement,
-  the geometry engine's pipeline control (clk3d -0.03 to -0.6 ns).
+  clk3d, clk2x's hold and the framework scaler's HDMI clock, each met on some placements and missed
+  on others. The current build (seed 6649) meets every clock but the SDRAM reads.
+* **sams64** sometimes stops on "I/O INITIALIZE SEQUENCE 1 FAILED!!" after a while.
 * Service mode and the OSD's video options are not yet tried on hardware.
 
 `docs/ROADMAP.md` is the plan, `docs/HACKS.md` this core's approximations, `docs/MAME_KLUDGES.md`
@@ -109,11 +156,13 @@ Todo:
 
 - [ ] 3D throughput: keep up with the games' heaviest scenes
 - [ ] Close timing at full speed
-- [ ] Sound (V53A, L7A1045)
-- [ ] Savestates, cheats (optional)
+- [x] Sound (V53A, L7A1045), on the ARM
+- [ ] Sound without gaps: a faster V33 emulator
+- [ ] sams64's I/O error
+- [ ] 15 kHz interlaced output for CRTs
 
-Resource use (seed 2): 33,852 of 41,910 ALMs (81%), 463 of 553 RAM blocks, 71 of 112 DSP blocks,
-4 of 6 PLLs.
+Resource use (`19ae667`, seed 6649): 35,002 of 41,910 ALMs (84%), 466 of 553 RAM blocks, 62 of 112
+DSP blocks, 4 of 6 PLLs.
 
 ## Verification
 

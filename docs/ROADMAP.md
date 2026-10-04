@@ -393,9 +393,33 @@ the V53A replies 7 us after the interrupt. A millisecond of latency each way is 
   from DDR3 and `audio_out` mixes with the core's. Writes there do not block, so the process
   paces itself by CLOCK_MONOTONIC, 40 ms ahead; `alsa.sv` plays faster as its buffer fills.
 - **Process.** The V33 core, the V53A's timer, interrupt and DMA units, and the L7A1045, ported
-  from MAME (BSD-3-Clause; the board glue, `hng64_a.cpp`, LGPL-2.1+), in `sw/hng64snd`; paced by
-  the ring, resampled 44.1 to 48 kHz, so the pitch never follows the game's speed; the control
-  block polled each 0.5 ms of emulated time.
+  from MAME (BSD-3-Clause; the board glue, `hng64_a.cpp`, LGPL-2.1+), in `sw/hng64snd`; resampled
+  44.1 to 48 kHz and kept 80 ms ahead of `sys/alsa.sv`'s playback, modelled (the device does not
+  say), so the pitch never follows the game's speed and time the ARM falls behind is a gap, not a
+  delay; quiet when `/tmp/CORENAME` is not a set; one copy at a time (a lock); the control block
+  polled each 1 ms of emulated time.
+- **On the board** (efaa319 seed 1, `HyperNG64_30000062.rbf`; the process started by hand, as
+  MiSTer Frontier's daemon is not running there): the bridge's copy of sound RAM matches MAME's at
+  the enable byte for byte, the mailbox and heartbeat move, and with interrupt 5 held until the
+  V53A is ready (docs/HACKS.md) fatfurwa's sound CPU answers and plays: output RMS 200-2000 per 5 s
+  in attract. The process takes 77-79% of a core at nice -10 and still falls more than 200 ms
+  behind a few times a 5 s window in the loud passages (`hng64snd -v`). Those numbers may include
+  a second copy: at the `ba6afbe` test an old debug build was found running beside it, both
+  writing `/dev/MrAudio` (the user heard noise, seconds of lag, and a loop after leaving the core).
+  One copy, `ba6afbe` seed 1 (`HyperNG64_30000063.rbf`), buriki: 30 s without a gap at 57-66% of
+  a core, after 1.3 s at the enable copying the samples. sams64's attract needed more: 150-530 ms
+  of gaps a 5 s at 90% CPU, hundreds of 0.2 ms ones (a buzz), with Main_MiSTer's main thread,
+  pinned to core 1, taking most of a core. On core 0, without the loop's 1 ms sleep while behind,
+  and written 5 ms at a time (the time outside the emulator 9% of the CPU, then 3-4%): 80 s of
+  sams64's attract without a gap at 79-85% busy. Its heavier passages before the batching still
+  had 230-380 ms a 5 s at 95% CPU: the emulator needs more than a core there. A real-time priority once it fell behind starved
+  Main_MiSTer and sshd (LESSONS_LEARNED). On a 4000-frame capture (`debug/fatfurwa-sound-4000`,
+  MAME's output loud from 45 s, as on the board) the bench needs 0.95 of real time to 24 s and
+  1.3 from 25 s to 58 s (-O3, no profile feedback, beside Main_MiSTer and Zaparoo); gprof there:
+  the V33 core about 80%, the L7A1045 13%.
+- **Next for sound:** a V33 interpreter written for speed (MAME's core takes about 200 ARM
+  cycles an instruction), with MAME's cycle counts, checked access by access and tick by tick
+  against the port and its MAME captures.
 - **Bench.** The same emulator built natively (`sw/hng64snd/bench.cpp`), driven by a MAME capture
   (sound RAM at the enable, the main CPU's mailbox writes and their times, the sample ROM), its
   output compared with MAME's `-wavwrite`; then `sim/` for the bridge, then the board.
@@ -531,8 +555,20 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    (warning 292013) or partitions. The geometry engine is now SystemVerilog (`65f79d7`; -0.245, its
    worst path ST's 72-bit two-way shift into mVal); E's hold reads registers only (`3257a5e`) and
    ST shifts a step earlier (`2373ebe`). `2373ebe` seed 1: -0.099 ns, one endpoint, the forwarded
-   M result into the branch decision (mVal to brPending); seed 2 -0.247. Seed 1 is on the board
-   (`HyperNG64_30000061.rbf`, sams64's 3D drawn, `debug/hw_i1_sams64.png`).
+   M result into the branch decision (mVal to brPending); seed 2 -0.247. clk3d closes on
+   `efaa319` seed 1 (+0.198, `HyperNG64_30000062.rbf`) and on `ba6afbe` seed 1 (+0.091), where a
+   register branch no longer takes M's result (the microcode reordered around the wait, 60 sites
+   to 18); `ba6afbe` seed 2 -0.350. `ba6afbe` seed 1 is on the board (`HyperNG64_30000063.rbf`,
+   fatfurwa's 3D and sound, `debug/hw_k1_fatfurwa.png`); its other misses are the SDRAM reads
+   (-1.84) and the framework scaler's HDMI clock (-0.102, `ascal` in sys/). With the store unit
+   (`3b64a0c`, item 3): seed 1 -0.055, 8 endpoints, none in the engine (the 3D bridge's `cr_t` to
+   the texture cache's miss queue pointer), on the board as `HyperNG64_30000064.rbf`
+   (`debug/hw_l1_sams64.png`); seed 2 -0.530 in the engine (the accumulator's add, DIV's start).
+   A sweep of random seeds (`debug/seed_sweep.log`) found 6649, which meets every clock but the
+   SDRAM reads (-1.867): clk3d setup +0.203, hold +0.273, HDMI +0.231. It is built from `19ae667`,
+   the same RTL, and is on the board as `HyperNG64_30000065.rbf`. Of the store unit's other builds,
+   5885 met clk3d and the rest missed it by 0.055 to 0.794 ns, one did not fit, and 5 of the 9 that
+   fitted missed clk2x hold by 0.12 to 0.55 ns (paths not examined), which no `ba6afbe` build did.
 2. All four sets run their attract modes with sprites since `c17f1fb` (sprite list read latency).
    To compare with MAME: fatfurwa's helicopter cabin (two of three men missing on the board, the
    third without his face; g3d_tb renders MAME's f1600 exactly, at 2.59 M clk2x clocks a frame
@@ -549,6 +585,12 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    1.48 M; sams64 f2500 (a 3D frame every other video frame, 3.33 M) 3.65 M, the engine busy
    3.50 M, most of the excess the accumulator stores (ST, STF, STV) and SHRI, multi-cycle in
    rtl/3d/hng64_geo.sv for timing where docs/phase3_3d.md's 2.46 M estimate has one clock each.
+   `3b64a0c` moves the stores into a unit beside E, so the ops after a store go on while it
+   shifts and rounds: sams64 f2500 3.18 M (under its 3.33 M), buriki f2500 1.35 M (was 1.53 M);
+   fatfurwa is rasteriser-bound and unchanged (f1600 1.49 M, f2500 1.60 M of 1.67 M). An
+   instruction-trace model of the engine (the last 58 uploads of sams64 f2500) is within 1% of
+   g3d_tb before and after; on it, the other multi-cycle ops beside E as well would take sams64
+   to 2.77 M a frame, and every op in one clock to 2.22 M.
 4. Hangs. The tilemap engine busy for ever with nothing owed by DDR3 (`5626a76`, `74f4d60`, and
    fatfurwa's intro on the stp build of `bc6546a`) was a layer's mode written by the CPU mid-pass,
    not placement: fixed in `b9e8900` (LESSONS_LEARNED). The sprite engine's (per-line zoom test,
@@ -558,7 +600,10 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    Also seen once: buriki at 100% stopped on Ducalis's intro for at least 2.5 minutes (`3b5372e`
    seed 1, `debug/hw/bfull_bk_sheet.png`); not again in a later run or a 10-minute soak at 100%
    on `6063e54` seed 1, whose placement is the same (`debug/hw/soak_bk_sheet.png`).
-   sams64 sometimes stops on an I/O error after a while (user, on the board). Not investigated;
-   to check again once sound (Phase 4) replaces the sound comms stand-in.
+   sams64 sometimes stops on an I/O error after a while (user, on the board). Not investigated.
+   With sound (`HyperNG64_30000063.rbf`, the ARM process running) it still does: "I/O INITIALIZE
+   SEQUENCE 1 FAILED!!" over the attract's 3D (`debug/hw_s64_enable2.png`); the game had enabled
+   its sound CPU a second time 170 s after the first and sent it nothing after that. Not seen in
+   6 minutes of attract on `HyperNG64_30000064.rbf`.
 5. A mosaic sprite on a synthetic capture (`debug/sams64-wide`) draws its runs a pixel off the
    model's; no MAME capture has shown it.

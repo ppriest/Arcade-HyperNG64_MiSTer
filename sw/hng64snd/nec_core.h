@@ -34,6 +34,9 @@ public:
 	void abort_slice() { m_slice -= m_icount; m_icount = 0; }
 	bool halted() const { return m_halted; }
 	uint32_t pc() const;
+	// for a report: the interrupt flag and the pending interrupts
+	bool iflag() const { return m_IF; }
+	uint32_t pending() const { return m_pending_irq; }
 
 	void set_int_line(int state);
 	void set_nmi_line(int state);

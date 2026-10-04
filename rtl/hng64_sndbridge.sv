@@ -20,10 +20,13 @@
 // tells the process to start, goes out only once the copy's queue is empty: one writer, in order,
 // so the process never reads a sound RAM older than the enable.
 //
-// The process's word is read every POLL clocks. Its replies stand in the mailbox while its
-// heartbeat moved in the last LIVE polls and it says it runs the V53A; otherwise hng64_io's
-// stand-in answers, as before the process existed. DDR3 is not cleared between cores, so the
-// flags carry 0xA5 and the first read only primes the heartbeat.
+// The process's word is read every POLL clocks. Once the sound CPU is enabled, its replies stand
+// in the mailbox while its heartbeat moved in the last LIVE polls, whether or not it has started
+// its V53A yet: until then its latches read 0, as MAME's V53A held in reset leaves them, and the
+// game waits. The stand-in's "ready" there let the game raise interrupt 5 while the V53A set up
+// its ICU, and the line stayed high with no edge left to see (docs/HACKS.md). Without a process,
+// hng64_io's stand-in answers, as before the process existed. DDR3 is not cleared between cores,
+// so the flags carry 0xA5 and the first read only primes the heartbeat.
 
 module hng64_sndbridge #(
     parameter logic [27:0] SHM  = 28'hF200000,
@@ -204,7 +207,7 @@ module hng64_sndbridge #(
                 r_wait <= 1'b0;
                 rep0   <= r_data[15:0];
                 rep1   <= r_data[31:16];
-                p_runs <= r_data[47:40] == 8'hA5 && r_data[32];
+                p_runs <= r_data[47:40] == 8'hA5;
                 hb     <= r_data[63:48];
                 primed <= 1'b1;
                 if (primed && r_data[63:48] != hb) age <= '0;

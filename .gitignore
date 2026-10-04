@@ -89,8 +89,10 @@ sta/
 # Local MiSTer connection settings
 mister.env
 
-# Only a verified build belongs in releases/: git add -f releases/<name>.rbf
+# Only a verified build belongs in releases/: git add -f releases/<name>.rbf, and its
+# hng64snd_<YYYYMMDD>.zip (scripts/snd_deploy.py --package) the same way
 releases/*.rbf
+releases/hng64snd_*.zip
 
 # Editor / OS / Python
 *.bak

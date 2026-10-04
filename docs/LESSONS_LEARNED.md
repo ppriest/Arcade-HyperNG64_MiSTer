@@ -1420,16 +1420,21 @@ times slower than an x86 desktop, and it has no divide instruction (`__aeabi_uid
 handlers inlined took 34.1 s against 26.7 s for the member-function table. Main_MiSTer and the
 Zaparoo daemon took a core between them (Zaparoo 42% in `top`): 18.2 s of sound took 21.98 s
 contended, 14.73 s under `chrt -f 50`, 13.07 s with profile feedback, 10.75 s with Zaparoo stopped.
-Profile on the board (gprof works with a static armhf build), time under the daemons a user runs,
-and run the process `SCHED_FIFO`.
+Profile on the board (gprof works with a static armhf build) and time under the daemons a user
+runs. Do not run it `SCHED_FIFO`: two copies at priority 50 that had fallen behind their clock
+never slept again, took both cores, and the board stopped answering ssh until they were killed.
+A nice level, a cap on how far behind it may chase, and a sleep every 20 ms of work keep the
+system usable. BusyBox's `pkill -x name` did not match it; `kill $(pidof name)` did.
 
 ### [HyperNG64] `/dev/MrAudio` does not block: the writer paces itself
 
 MiSTer's default ALSA device converts to 48 kHz S16_LE and writes `/dev/MrAudio` through the `file`
 plugin, slaved to `snd-dummy` for its timing (`/etc/asound.conf`). Written directly, the device takes
-10 s of audio in 0.08 s. A process that writes it must pace itself (CLOCK_MONOTONIC, a little
-ahead): `sys/alsa.sv` plays faster as its buffer fills, so running ahead is absorbed and falling
-behind is a gap.
+10 s of audio in 0.08 s. A process that writes it must pace itself on the buffer's level, modelled
+as frames written less 48 kHz since: `sys/alsa.sv` plays faster past 16 KB but by 0.53% at most,
+so a writer paced on the wall clock that makes up the time it fell behind deepens the buffer for
+good, a second of lag per second made up. Two writers interleave; one copy only, and kill by a
+pattern (`ps | grep`), not `pidof`, which missed a renamed copy.
 
 ## Tooling and workflow (Quartus, ModelSim, Verilator, and the shell around them)
 
