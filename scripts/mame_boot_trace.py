@@ -41,7 +41,7 @@ def trace_env(r):
             "CORE_IPL_MASK": str(ipl.get("mask", 0))}
 
 
-def run_traced(game, lua, out, env_extra, seconds):
+def run_traced(game, lua, out, env_extra, seconds, extra=()):
     """Run MAME with a pinned or empty NVRAM directory; return the CompletedProcess."""
     mame_dir, exe = mame_paths()
     if out.exists():
@@ -54,7 +54,7 @@ def run_traced(game, lua, out, env_extra, seconds):
         env = dict(os.environ, **trace_env(regions()), CORE_OUT=out.as_posix(), CORE_TAG=game,
                    **env_extra)
         cmd = mame_cmd(exe, game, lua, mame_dir,
-                       ["-nvram_directory", nv, "-seconds_to_run", str(seconds)])
+                       ["-nvram_directory", nv, "-seconds_to_run", str(seconds), *extra])
         return subprocess.run(cmd, cwd=mame_dir, env=env, capture_output=True, text=True,
                               **NO_WINDOW)
 

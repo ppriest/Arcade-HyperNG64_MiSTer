@@ -149,7 +149,7 @@ module hng64_core #(
     logic [27:0] plane_base [0:1];
 
     // ---- loading and resets ----------------------------------------------------------------------
-    localparam int NREG = 6;            // gameprg, bios, scrtile, sprtile, textures0, verts
+    localparam int NREG = 7;            // gameprg, bios, scrtile, sprtile, textures0, verts, l7a1045
     logic [27:0] cfg_base [0:NREG-1];
     logic [27:0] cfg_size [0:NREG-1];
     logic        cfg_valid;
@@ -244,14 +244,22 @@ module hng64_core #(
     logic [27:0] prg_addr;
     logic        prg_rd, prg_ready, prg_valid;
 
+    // the backing store's requests, the DMA's or the bridge's; the sound bridge copies the writes
+    // to sound RAM from here, whichever made them
+    wire        mm_req   = dma_active ? dma_req   : st_req_b;
+    wire        mm_we    = dma_active ? dma_we    : st_we_b;
+    wire [31:0] mm_addr  = dma_active ? dma_addr  : st_addr_b;
+    wire [63:0] mm_wdata = dma_active ? dma_wdata : st_wdata_b;
+    wire  [7:0] mm_be    = dma_active ? dma_be    : st_be_b;
+
     hng64_mainmem u_mem (
         .clk(clk2x), .reset(mem_reset), .prg_base(cfg_base[0]),
-        .st_req(dma_active ? dma_req : st_req_b),
-        .st_we(dma_active ? dma_we : st_we_b),
-        .st_addr(dma_active ? dma_addr : st_addr_b),
+        .st_req(mm_req),
+        .st_we(mm_we),
+        .st_addr(mm_addr),
         .st_beats(dma_active ? dma_beats : st_beats_b),
-        .st_wdata(dma_active ? dma_wdata : st_wdata_b),
-        .st_be(dma_active ? dma_be : st_be_b),
+        .st_wdata(mm_wdata),
+        .st_be(mm_be),
         .st_rvalid(st_rvalid), .st_rdata(st_rdata), .st_wdone(st_wdone),
         .s_addr(s_addr), .s_rd(s_rd), .s_we(s_we), .s_wdata(s_wdata), .s_be(s_be),
         .s_ready(s_ready), .s_data(s_data), .s_valid(s_valid),
@@ -297,6 +305,23 @@ module hng64_core #(
     logic  [7:0] w3_be;
     logic        w3_valid, w3_urgent, w3_ready;
 
+    // the sound bridge's DDR3 traffic: writes into the shared block, and the process's word read
+    // on the BIOS loader's client, which is idle once the game runs (the loader runs under
+    // game_reset, which holds the bridge in reset)
+    logic [27:0] ws_addr, sr_addr;
+    logic [63:0] ws_data;
+    logic  [7:0] ws_be;
+    logic        ws_valid, ws_ready, sr_rd;
+
+    // one writer port: the 3D's queue and the bridge's, taking turns when both wait
+    logic        w_ready, w_snd_turn;
+    wire         w_sel_snd = ws_valid && (!w3_valid || w_snd_turn);
+    assign w3_ready = w_ready && !w_sel_snd;
+    assign ws_ready = w_ready && w_sel_snd;
+    always_ff @(posedge clk2x)
+        if (mem_reset)                         w_snd_turn <= 1'b0;
+        else if (w_ready && w3_valid && ws_valid) w_snd_turn <= !w_sel_snd;
+
     // The tile ROMs' bases are on 1 MB boundaries (scripts/build_mra.py, ALIGN), so only the top
     // eight bits are added: the full 28-bit add from an engine's address into the arbiter's
     // queue missed clk2x by 1.4 ns.
@@ -306,7 +331,7 @@ module hng64_core #(
         c_addr[1] = {cfg_base[3][27:20] + {2'd0, prom_addr[25:20]}, prom_addr[19:0]};
         c_rd[1] = prom_rd;
         c_addr[2] = prg_addr;                           c_rd[2] = prg_rd;
-        c_addr[3] = ldr_addr;                           c_rd[3] = ldr_rd;
+        c_addr[3] = sr_rd ? sr_addr : ldr_addr;         c_rd[3] = ldr_rd || sr_rd;
         c_addr[4] = v3_addr;                            c_rd[4] = v3_rd;
         c_addr[5] = t3_addr;                            c_rd[5] = t3_rd;
         c_addr[6] = z3_addr;                            c_rd[6] = z3_rd;
@@ -321,8 +346,9 @@ module hng64_core #(
         .DDRAM_BUSY(DDRAM_BUSY), .DDRAM_BURSTCNT(DDRAM_BURSTCNT), .DDRAM_ADDR(DDRAM_ADDR),
         .DDRAM_DOUT(DDRAM_DOUT), .DDRAM_DOUT_READY(DDRAM_DOUT_READY), .DDRAM_RD(DDRAM_RD),
         .DDRAM_DIN(DDRAM_DIN), .DDRAM_BE(DDRAM_BE), .DDRAM_WE(DDRAM_WE),
-        .w_addr({4'b0011, w3_addr[27:3]}), .w_din(w3_data), .w_be(w3_be), .w_valid(w3_valid),
-        .w_urgent(w3_urgent), .w_ready(w3_ready),
+        .w_addr({4'b0011, w_sel_snd ? ws_addr[27:3] : w3_addr[27:3]}),
+        .w_din(w_sel_snd ? ws_data : w3_data), .w_be(w_sel_snd ? ws_be : w3_be),
+        .w_valid(w3_valid || ws_valid), .w_urgent(w3_urgent), .w_ready(w_ready),
         .c_addr(c_addr), .c_rd(c_rd), .c_ready(c_ready), .c_data(ddr_data), .c_valid(c_valid),
         .dbg_inflight(dbg_ddr_inflight));
 
@@ -347,6 +373,9 @@ module hng64_core #(
     logic  [3:0] dl_be;
     logic [31:0] dl_wdata;
 
+    logic [15:0] snd_main0, snd_main1, snd_en_cmd, snd_rep0, snd_rep1;
+    logic        snd_irq, snd_en, snd_live;
+
     // the .nvm file: downloaded as index 4, read back through ioctl_addr on an upload
     wire nv_dl_we = ioctl_download && ioctl_index == 16'd4 && ioctl_wr && ioctl_addr < 27'h4000;
 
@@ -370,9 +399,22 @@ module hng64_core #(
         .fbcontrol(fbcontrol), .fbscroll(fbscroll), .texwrap(texwrap),
         .dl_we(dl_we), .dl_addr(dl_addr), .dl_be(dl_be), .dl_wdata(dl_wdata), .dl_up(dl_up),
         .dl_busy(dl_busy), .dl_upbusy(dl_upbusy), .dl_full(dl_full),
+        .snd_main0(snd_main0), .snd_main1(snd_main1), .snd_irq(snd_irq), .snd_en(snd_en),
+        .snd_en_cmd(snd_en_cmd), .snd_live(snd_live), .snd_rep0(snd_rep0), .snd_rep1(snd_rep1),
         .dbg_mcu_en_0c(), .dbg_irq_pending(dbg_irq_pending), .dbg_irq_level(dbg_irq_level),
         .dbg_rd(dbg_rd), .dbg_sel(dbg_rsel), .dbg_addr(dbg_raddr), .dbg_rdone(dbg_rdone),
         .dbg_rdata(dbg_rdata));
+
+    // ---- sound: the bridge to the ARM process (docs/ROADMAP.md Phase 4) ------------------------------
+    hng64_sndbridge u_snd (
+        .clk(clk2x), .reset(game_reset),
+        .cfg_valid(cfg_valid), .smp_base(cfg_base[6]), .smp_size(cfg_size[6]),
+        .st_req(mm_req), .st_we(mm_we), .st_addr(mm_addr), .st_wdata(mm_wdata), .st_be(mm_be),
+        .main0(snd_main0), .main1(snd_main1), .irq(snd_irq), .en(snd_en), .en_cmd(snd_en_cmd),
+        .live(snd_live), .rep0(snd_rep0), .rep1(snd_rep1),
+        .w_addr(ws_addr), .w_data(ws_data), .w_be(ws_be), .w_valid(ws_valid), .w_ready(ws_ready),
+        .r_addr(sr_addr), .r_rd(sr_rd), .r_ready(ldr_ready), .r_valid(ldr_valid), .r_data(ddr_data),
+        .dbg_overflow());
 
     // ---- the IO MCU, on clk1x: 8 MHz from 62.5, as an accumulator (16/125 exactly) -------------------
     // 7.8 clocks a tick; sim/iomcu_tb matches MAME with no overrun at 5 (+cediv=5)

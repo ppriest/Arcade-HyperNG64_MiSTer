@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The 3D pipeline in the core: the display list and its upload queue, the geometry engine
-// (rtl/3d/hng64_geo.v), the rasteriser and render buffer (rtl/3d/hng64_raster.v), and the frame
+// (rtl/3d/hng64_geo.sv), the rasteriser and render buffer (rtl/3d/hng64_raster.v), and the frame
 // sequence around them. docs/phase3_3d.md has the design and its measurements.
 //
 // THE QUEUE. MAME renders a display list the moment it is uploaded and raises interrupt 3 a fixed

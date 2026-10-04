@@ -48,7 +48,7 @@ std::string arg(const char *key, const char *def) {
     return def;
 }
 
-// scripts/build_mra.py's blob: "HNG2" then a base and a size per region, big-endian, then flags.
+// scripts/build_mra.py's blob: "HNG3" then a base and a size per region, big-endian, then flags.
 void put32(std::vector<uint8_t> &b, uint32_t v) {
     for (int i = 3; i >= 0; i--) b.push_back(uint8_t(v >> (8 * i)));
 }
@@ -71,11 +71,12 @@ int main(int argc, char **argv) {
     const uint32_t SCR_BASE = 0x2100000, SCR_SIZE = 0x2000000;
     const uint32_t SPR_BASE = 0x4100000, SPR_SIZE = 0x2000000;
 
-    std::vector<uint8_t> blob = {'H', 'N', 'G', '2'};
+    std::vector<uint8_t> blob = {'H', 'N', 'G', '3'};
     put32(blob, PRG_BASE);  put32(blob, PRG_SIZE);
     put32(blob, BIOS_BASE); put32(blob, BIOS_SIZE);
     put32(blob, SCR_BASE);  put32(blob, SCR_SIZE);
     put32(blob, SPR_BASE);  put32(blob, SPR_SIZE);
+    put32(blob, 0);         put32(blob, 0);
     put32(blob, 0);         put32(blob, 0);
     put32(blob, 0);         put32(blob, 0);
     put32(blob, 0);                                     // flags

@@ -1110,6 +1110,17 @@ it stores zero, which a NOP leaves in place. A replay of MAME's own main-CPU sid
 opcode's encoding from the dispatch and the disassembler, not a comment; and drive each input in
 the verification of anything that handles inputs.
 
+### [HyperNG64] Check a MAME CPU device's clock divider against its siblings before taking its speed
+
+MAME's `v50_base_device` (V40, V50) runs its core at half the input clock
+(`execute_clocks_to_cycles` returns `clocks / 2`), as the V50 datasheet's "a frequency twice the
+desired operating frequency" says; `v53_device` derives from `v33_base_device` and has no divider,
+so a V53A given its 32 MHz crystal runs its core at 32 MHz. hng64's sound CPU was `32000000/2`
+until MAME `826b75656f6` doubled it so the timer, which MAME clocks from the input, matched
+footage. Ported as MAME has it, the sound program needed 1.5 of the MiSTer's ARM cores; at 16 MHz,
+the input over 2, it fits and still keeps up with every command (`sw/hng64snd`, docs/ROADMAP.md
+Phase 4). A device's clock in a driver can be set for one of its parts and be wrong for another.
+
 ## Quartus synthesis gotchas (not visible in ModelSim)
 
 - **Non-blocking assignments to block-local (`automatic`) variables are rejected**, even with
@@ -1344,6 +1355,16 @@ asynchronous opcode dispatch). Check the map report's block memory bits after wr
   memory dumped as it is on x86. A bench loading it big-endian ran identically to MAME for 700
   frames until the game's first settings read.
 
+### [HyperNG64] Compare a slave CPU's port with MAME's in values and order; report time apart
+
+MAME ends a CPU's timeslice at every timer in the machine, and its NEC core resumes an interrupted
+REP string instruction with `CLK(2)` again, so a sound CPU's cycle timing depends on everything else
+MAME emulates. The port of hng64's V53A matched MAME's first 25 I/O accesses to the tick, then ran
+0.18% ahead; the first 91,391 of 520,677 accesses matched in value, and the first difference was a
+read-back of a voice's envelope, which depends on time. Comparing values in order and printing the
+drift separately found every porting error; matching MAME's times would have meant emulating its
+scheduler.
+
 ## Hardware bring-up (MiSTer / DE10-nano)
 
 - **The SDRAM pinout has an authoritative in-repo reference.** The `.qsf` does `source sys/sys.tcl`;
@@ -1390,6 +1411,25 @@ asynchronous opcode dispatch). Check the map report's block memory bits after wr
   screenshot shows (Flip Screen) before trusting a sequence: one assumed to carry the cursor over
   from the last open set the aspect ratio and Flip Screen instead of Game speed, and two captures
   ran at the saved 50%.
+
+### [HyperNG64] Measure an ARM-side emulator on the board, loaded, at real-time priority
+
+The DE10-nano's Cortex-A9 ran MAME's NEC core at about 220 cycles an emulated instruction, 29
+times slower than an x86 desktop, and it has no divide instruction (`__aeabi_uidiv`,
+`__udivmoddi4` in the profile). What was faster on x86 was slower there: a switch dispatch with the
+handlers inlined took 34.1 s against 26.7 s for the member-function table. Main_MiSTer and the
+Zaparoo daemon took a core between them (Zaparoo 42% in `top`): 18.2 s of sound took 21.98 s
+contended, 14.73 s under `chrt -f 50`, 13.07 s with profile feedback, 10.75 s with Zaparoo stopped.
+Profile on the board (gprof works with a static armhf build), time under the daemons a user runs,
+and run the process `SCHED_FIFO`.
+
+### [HyperNG64] `/dev/MrAudio` does not block: the writer paces itself
+
+MiSTer's default ALSA device converts to 48 kHz S16_LE and writes `/dev/MrAudio` through the `file`
+plugin, slaved to `snd-dummy` for its timing (`/etc/asound.conf`). Written directly, the device takes
+10 s of audio in 0.08 s. A process that writes it must pace itself (CLOCK_MONOTONIC, a little
+ahead): `sys/alsa.sv` plays faster as its buffer fills, so running ahead is absorbed and falling
+behind is a gap.
 
 ## Tooling and workflow (Quartus, ModelSim, Verilator, and the shell around them)
 

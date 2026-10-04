@@ -21,7 +21,9 @@
 //                                   and raises interrupt 3 a fixed time later as MAME's does
 //   0x30000000  3D buffer control   stored; 0x08 the buffer's x scroll
 //   0x60000000  sound RAM "2"       reads 0 (MAME: "actually seems unmapped")
-//   0x68000000  sound mailbox       a stand-in: no sound CPU yet (HACKS.md)
+//   0x68000000  sound mailbox       the ARM process's replies through hng64_sndbridge while it
+//                                   runs, else a stand-in (HACKS.md)
+//   0x6f000000  sound CPU enable    passed to hng64_sndbridge
 //   0xc0000000  network board RAM   plain RAM: there is no network CPU (HACKS.md)
 //   anything else                   reads 0, writes ignored
 //
@@ -105,6 +107,16 @@ module hng64_io #(
     input  logic        dl_busy,
     input  logic        dl_upbusy,
     input  logic        dl_full,
+    // the sound bridge (hng64_sndbridge): the main CPU's latches, one-clock pulses for a write
+    // raising interrupt 5 and for a write to the sound CPU enable, and the process's replies
+    output logic [15:0] snd_main0,
+    output logic [15:0] snd_main1,
+    output logic        snd_irq,
+    output logic        snd_en,
+    output logic [15:0] snd_en_cmd,
+    input  logic        snd_live,
+    input  logic [15:0] snd_rep0,
+    input  logic [15:0] snd_rep1,
     output logic        dbg_mcu_en_0c,  // m_mcu_en == 0x0c, for the bench
     output logic [31:0] dbg_irq_pending,
     output logic  [4:0] dbg_irq_level,
@@ -124,7 +136,7 @@ module hng64_io #(
     typedef enum logic [4:0] {
         D_NONE, D_SYS, D_IRQC, D_DMAC, D_RTC, D_MCUIRQ, D_NVRAM, D_DP,
         D_SPR, D_CLR_EVEN, D_CLR_ODD, D_SPRREG, D_VREG, D_PAL, D_TCRAM,
-        D_DL, D_DLUP, D_DLVREG, D_FBCTL, D_FBSCROLL, D_TEXWRAP, D_SNDCOM, D_COM
+        D_DL, D_DLUP, D_DLVREG, D_FBCTL, D_FBSCROLL, D_TEXWRAP, D_SNDCOM, D_SNDEN, D_COM
     } dev_t;
 
     function automatic dev_t decode(input logic [31:0] a);
@@ -149,6 +161,7 @@ module hng64_io #(
         else if (a == 32'h3000_0008)                      decode = D_FBSCROLL;
         else if (a >= 32'h3000_0010 && a < 32'h3000_0030) decode = D_TEXWRAP;
         else if (a >= 32'h6800_0000 && a < 32'h6800_0010) decode = D_SNDCOM;
+        else if (a >= 32'h6f00_0000 && a < 32'h6f00_0004) decode = D_SNDEN;
         else if (a >= 32'hc000_0000 && a < 32'hc000_1008) decode = D_COM;
         else                                              decode = D_NONE;
     endfunction
@@ -170,6 +183,8 @@ module hng64_io #(
     logic [15:0] main_latch0, main_latch1;
     wire  [31:0] len_new   = combine(dma_len_reg, wd, be);
     wire  [31:0] latch_new = combine({main_latch0, main_latch1}, wd, be);
+    assign snd_main0 = main_latch0;
+    assign snd_main1 = main_latch1;
     wire   [2:0] tw_i      = 3'(a[5:2] - 4'd4);        // 0x30000010 is word 0
 
     // ---- system registers, NVRAM, network RAM: dword RAMs with byte enables ---------------------------
@@ -376,6 +391,8 @@ module hng64_io #(
         dbg_rd_s <= {dbg_rd_s[0], dbg_rd};
         dl_we    <= 1'b0;
         dl_up    <= 1'b0;
+        snd_irq  <= 1'b0;
+        snd_en   <= 1'b0;
         // held at 2 while the queue is full, so interrupt 3 waits for a free slot
         if (fifo3d_cnt != 13'd0 && !(fifo3d_cnt == 13'd2 && dl_full)) fifo3d_cnt <= fifo3d_cnt - 13'd1;
 
@@ -391,6 +408,7 @@ module hng64_io #(
             for (int i = 0; i < 32; i++) texwrap[i] <= 8'h08;   // MAME's machine_start (hng64.cpp:2179)
             rtc_cd <= 4'h0; rtc_ce <= 4'h6; rtc_cf <= 4'h4;   // msm6242 device_start
             main_latch0 <= 16'd0; main_latch1 <= 16'd0; sound_data <= 16'd0;
+            snd_en_cmd <= 16'd0;
             dma_go <= 1'b0;
         end else begin
             case (st)
@@ -580,6 +598,7 @@ module hng64_io #(
                                     end
                                     2'd2: if ((be[3] || be[2]) && wd[16]) begin
                                         sound_data <= main_latch0;
+                                        snd_irq <= 1'b1;
                                         spin <= 9'd313;                 // spin_until_time(5 us)
                                         st <= S_SPIN;
                                     end
@@ -588,10 +607,18 @@ module hng64_io #(
                             end else begin
                                 case (a[3:2])
                                     2'd0: result <= {main_latch0, main_latch1};
-                                    2'd1: result <= {sound_data, 16'h0080};
+                                    2'd1: result <= snd_live ? {snd_rep0, snd_rep1}
+                                                             : {sound_data, 16'h0080};
                                     default: result <= 32'd0;
                                 endcase
                             end
+                        end
+
+                        // soundcpu_enable_w (hng64_a.cpp): the upper half is the command; MAME
+                        // maps no read
+                        D_SNDEN: if (we && (be[3] || be[2])) begin
+                            snd_en     <= 1'b1;
+                            snd_en_cmd <= wd[31:16];
                         end
 
                         default: ;                                      // unmapped: reads 0

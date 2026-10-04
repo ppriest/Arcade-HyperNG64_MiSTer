@@ -1,12 +1,13 @@
 # 3D: reused designs
 
-`hng64_raster.v` and `hng64_geo.v` are generated from `spinal/` (SpinalHDL, Scala) by
-`scripts/gen_3d_rtl.sh`, which also exports the geometry microcode from `scripts/geo_ucode.py` into
-`spinal/geo/`; edit the Scala or the microcode, not the Verilog. The generated Verilog is committed
-so that Quartus and the benches need no Scala toolchain.
+`hng64_raster.v` is generated from `spinal/` (SpinalHDL, Scala) by `scripts/gen_3d_rtl.sh`; edit
+the Scala, not the Verilog. The generated Verilog is committed so that Quartus and the benches need
+no Scala toolchain. The geometry engine, `hng64_geo.sv`, is written by hand, translated
+from its SpinalHDL source, `GeoEngine.scala`; the same script exports its microcode from `scripts/geo_ucode.py`
+into `hng64_geo_ucode.hex`, `hng64_geo_rsq.hex`, `hng64_geo_rcp.hex` and `hng64_geo_ucode_pkg.sv`.
 
 `SpanParams.scala`, `Pixel.scala`, `TexCache.scala`, `RenderBuf.scala`, `TexBlock.scala` and
-`GeoEngine.scala` are ours (the cache after Igehy, Eldridge and Proudfoot, "Prefetching in a Texture
+`hng64_geo.sv` are ours (the cache after Igehy, Eldridge and Proudfoot, "Prefetching in a Texture
 Cache Architecture", 1998). SpinalVoodoo's host supplies the gradients; here the geometry engine's
 microcode does (`geo_engine.setup_record`). Its TMU and pixel pipeline do not fit HNG64's textures
 (docs/phase3_3d.md).

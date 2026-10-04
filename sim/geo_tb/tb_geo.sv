@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Wrapper for hng64_geo (generated from rtl/3d/spinal, GeoEngine.scala): sim/geo_tb/main.cpp
+// Wrapper for hng64_geo (rtl/3d/hng64_geo.sv): sim/geo_tb/main.cpp
 // replays a capture's display-list events and compares the triangles with the Python engine's.
 // The ports are the generated ones flattened; the wrap table is packed here.
 

@@ -168,30 +168,34 @@ largest would cost 64 MB of load time and fixing the bases in RTL would need an 
 | ... | 32 or 64 MB | `sprtile` | sprite engine, per line |
 | ... | 16 MB | `textures0` | read once at start-up, into the blocked copy |
 | ... | 12 or 24 MB | `verts` | the geometry engine |
+| ... | 16 MB | `l7a1045` | the sound samples: the ARM process copies them at each sound CPU enable |
 | `0xE000000` | 16 MB | the blocked textures | 3D: written at start-up, then the texture cache |
 | `0xF000000` | 1 MB | the depth plane | 3D: read and written by the render buffer |
 | `0xF100000` | 512 KB | colour plane 0 | 3D: written by the render buffer, read per line for display |
 | `0xF180000` | 512 KB | colour plane 1 | the same, the other frame |
+| `0xF200000` | 2.1 MB | the sound bridge's block | `rtl/hng64_sndbridge.sv`: the mailbox, the process's replies and heartbeat, a copy of sound RAM; shared with the ARM process at `0x3F200000` |
 
-With `textures0` and `verts` (24 MB for the two sams64 sets, 12 MB for the others), `sams64`
-ends at `0x8900000` (137 MB), `sams64_2` at `0xC900000` (201 MB), `fatfurwa` and `buriki` at
-`0xBD00000` (189 MB). The 3D's buffers are fixed in
+With `textures0` and `verts` (24 MB for the two sams64 sets, 12 MB for the others) and the
+16 MB `l7a1045`, `sams64` ends at `0x9900000` (153 MB), `sams64_2` at `0xD900000` (217 MB),
+`fatfurwa` and `buriki` at `0xCD00000` (205 MB). The 3D's buffers are fixed in
 `rtl/hng64_core.sv` (`D3_*`); `build_mra.py` refuses an image that reaches `D3_BASE`.
 
-Index 1's blob is `"HNG2"`, then a 32-bit base and a 32-bit size, big-endian, for `gameprg`,
-`bios`, `scrtile`, `sprtile`, `textures0`, `verts` in that order, then a 32-bit flags word
+Index 1's blob is `"HNG3"`, then a 32-bit base and a 32-bit size, big-endian, for `gameprg`,
+`bios`, `scrtile`, `sprtile`, `textures0`, `verts`, `l7a1045` in that order, then a 32-bit flags word
 (bit 0: `init_ss64`'s `m_samsho64_3d_hack`). A size of zero means the `.mra` does not carry that
 region; without `textures0` and `verts` the 3D stays off.
 
-The 3D is the only writer at run time, through `hng64_ddram`'s write port: the blocked textures
-at start-up, then depth and colour. HDMI rotation, which wrote a rotated frame at `0x24000000`,
+The 3D and the sound bridge are the writers at run time, through `hng64_ddram`'s one write port,
+taking turns when both wait (`rtl/hng64_core.sv`): the 3D's blocked textures at start-up, then
+depth and colour; the bridge's block at `0xF200000`. The bridge reads its block on the BIOS
+loader's client, which is idle once the game runs. HDMI rotation, which wrote a rotated frame at `0x24000000`,
 was dropped for area (user decision).
 
 Collision check: every module driving `DDRAM_ADDR` is listed here with its window, and the
 windows are shown disjoint. `DDRAM_ADDR` has one driver, `rtl/memory/hng64_ddram.sv`: reads at
 `0x30000000` + the layout above (`scrtile`, `sprtile`, `gameprg`, the BIOS copy, `textures0`,
-`verts`, and the 3D's four regions), writes only at `0x3E000000`-`0x3F1FFFFF` (the 3D's), which
-no ROM region reaches. `sim/sys_tb` carries no 3D data, so it still stops on any write.
+`verts`, the 3D's four regions, the sound bridge's block), writes only at `0x3E000000`-`0x3F1FFFFF`
+(the 3D's) and `0x3F200000`-`0x3F40FFFF` (the sound bridge's), which no ROM region reaches. `sim/sys_tb` carries no 3D data, so it still stops on any write.
 
 ## Loading
 

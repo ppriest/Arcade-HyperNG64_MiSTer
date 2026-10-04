@@ -62,15 +62,45 @@ MAMEVERSION = "0285"
 
 # The regions the core reads at run time, in DDR3 order. `textures0` and `verts`
 # are Phase 3: they append at the end, so adding them moved nothing.
-LAYOUT = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts"]
+LAYOUT = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts", "l7a1045"]
 # The 3D's own buffers start here (rtl/hng64_core.sv, D3_*): the blocked textures,
 # the depth plane and two colour planes. The ROM image must end below it.
 D3_BASE = 0xE000000
 ALIGN = 0x100000                # rtl/hng64_core.sv adds only the tile ROM bases' top 8 bits
 
 # rom index 1. Big-endian, the CPU's order; `layout()` fills it.
-CFG_MAGIC = b"HNG2"
-CFG_REGIONS = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts"]
+CFG_MAGIC = b"HNG3"
+CFG_REGIONS = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts", "l7a1045"]
+
+# Button names for the .mra's <buttons>, per set, FOR THE OWNER TO FILL IN from
+# the manuals. Positional: entry i is pad button i+1 (joystick bit 4+i, MAME's
+# BUTTON(i+1)). "-" is a button the game does not use. Every in-scope set needs
+# an entry; a name still "Button N" is reported by scripts/validate_mra.py.
+BUTTONS = {
+    "sams64":   ["Button 1", "Button 2", "Button 3", "Button 4"],  # Samurai Shodown 64
+    "sams64_2": ["Button 1", "Button 2", "Button 3", "Button 4"],  # Samurai Shodown 64: Warriors Rage
+    "fatfurwa": ["Button 1", "Button 2", "Button 3", "Button 4"],  # Fatal Fury: Wild Ambition
+    "buriki":   ["Button 1", "Button 2", "Button 3", "Button 4"],  # Buriki One
+}
+# the rest of CONF_STR's J1 line: the core reads fixed bits, so these may not move
+BUTTONS_TAIL = ["Start", "Coin", "Pause", "Service", "Test"]
+
+
+def buttons_xml(game):
+    """Main_MiSTer applies `default` to the named buttons only, in order, so a
+    "-" takes no pad button: the game buttons get A, B, X, Y in turn, then
+    Start, Select and L for Start, Coin and Pause (CONF_STR's jn line)."""
+    names = BUTTONS.get(game)
+    if names is None:
+        sys.exit(f"{game}: no BUTTONS entry -- add one")
+    if not 1 <= len(names) <= 4:
+        sys.exit(f"{game}: BUTTONS has {len(names)} names; the core has 4 buttons")
+    if any("," in n or not n.strip() for n in names):
+        sys.exit(f"{game}: a BUTTONS name is empty or has a comma, which splits the list")
+    used = [n for n in names if n != "-"]
+    names = list(names) + ["-"] * (4 - len(names)) + BUTTONS_TAIL
+    pads = ["A", "B", "X", "Y"][:len(used)] + ["Start", "Select", "L"]
+    return f'  <buttons names="{esc(",".join(names))}" default="{",".join(pads)}"/>'
 
 
 def driver():
@@ -239,9 +269,7 @@ def build(game, bl, meta, out_dir):
            f"  <manufacturer>{esc(maker)}</manufacturer>",
            f"  <rbf>{RBF}</rbf>",
            "  <rotation>horizontal</rotation>",
-           # the J1 line of HyperNG64.sv's CONF_STR, in its order
-           '  <buttons names="Button 1,Button 2,Button 3,Button 4,Start,Coin,Pause,Service,Test"'
-           ' default="A,B,X,Y,Start,Select,L"/>',
+           buttons_xml(game),
            # MAME lists no DIPs for the fight sets: this one is the core's own Flip Screen,
            # read by HyperNG64.sv and never by the game
            '  <switches default="00" base="0">',

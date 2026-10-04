@@ -47,7 +47,7 @@ module tb_romload (
     output logic        DDRAM_WE
 );
 
-    localparam int NREG = 6;
+    localparam int NREG = 7;
 
     logic [27:0] cfg_base [0:NREG-1];
     logic [27:0] cfg_size [0:NREG-1];

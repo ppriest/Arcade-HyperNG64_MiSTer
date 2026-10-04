@@ -1,2 +1,3 @@
-rtl/3d/hng64_geo.v
+rtl/3d/hng64_geo_ucode_pkg.sv
+rtl/3d/hng64_geo.sv
 sim/geo_tb/tb_geo.sv

@@ -130,6 +130,14 @@ than guesses about the board.
 | Float rounding decides quantised values on exact boundaries | The light kept is `(u8)(rCorrect / 16.0f)` and the texel `(int)textureS` (`:1376-1400`), both truncations of float32 results. Where the true value is a whole number - constant light at a multiple of 16, a texel coordinate on an edge - float rounding puts it either side: on sams64's logo (frame 600) 109,001 of 111,164 drawn pixels have light/16 within 0.001 of a whole number, and MAME's truncation lands below and above about equally (`docs/phase3_3d.md`). | Copies (it is MAME's float32). A fixed-point design gives one side consistently and differs from MAME there. | Nothing to settle: MAME's value there is noise. |
 | Comment slip in the clipper | `frustum_clip_all` labels its +Y clip "W <= +X" (`devices/video/poly.h:1470`); the code clips Y. | n/a | None needed. |
 
+## Sound (`sw/hng64snd`, MAME `a2d0f76268e`)
+
+| Kludge | MAME | Core | Would settle it |
+|---|---|---|---|
+| The V33 core at 32 MHz | The V53A is given the 32 MHz crystal (`hng64_a.cpp`, "reference footage indicates the timer must be the full 32 MHz") and the core counts a cycle a clock (`v53_device` has no clock divider), where MAME's V40 and V50 (`v50_base_device`) run their core at half the input. | Differs, by user decision: the ARM process runs the core at 16 MHz (`sound_board::set_cpu_divider(2)`), the timers as MAME. MAME's 32 MHz does not run in real time on the ARM (ROADMAP Phase 4). The bench keeps 32 MHz. Against MAME, bit 1 of the status reply differs (fatfurwa, 18 of 94 reads). | The board's sound CPU clock. |
+| 16-bit DMA from memory reads 0 | hng64 binds the DMAU's 8-bit memory read and channel 3's 16-bit I/O read and write, not its 16-bit memory read (`hng64_a.cpp`, `hng64_audio_base`). fatfurwa programs channel 3 for 16-bit memory to I/O (mode `0x49`), so every word reaching the L7A1045's RAM is 0. | Copies (`v5x_dmau::dma_read`). | The board's audio of a sample the driver uploads this way. |
+| L7A1045 delay effect and register A | Not emulated: a voice routed to the delay (`send_dest` 0xf) is dropped, and register A is stored only (`l7a1045_l6028_dsp_a.cpp`, TODO). | Copies. | The board's audio. |
+
 ## Vendored modules that disagree with MAME
 
 | Module | MAME says | The module does | Kept because | Would settle it |

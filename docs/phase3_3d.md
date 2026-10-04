@@ -236,7 +236,7 @@ floor(n r / 2^35), which rounds the same. The simulator stops if a capture break
 The simulator checks every accumulator value, and every shifted operand on its way in, against
 72 bits; the divide compares the remainder shifted down, so nothing wider is formed.
 
-### The engine RTL (`rtl/3d/hng64_geo.v`, `GeoEngine.scala`)
+### The engine RTL (`rtl/3d/hng64_geo.sv`)
 
 Fetch, decode with the register reads (two copies of a 512 x 48 register file, a third for
 indexed reads and EMIT's), execute (the ALU, branches, the multiplier's operands) and a fourth

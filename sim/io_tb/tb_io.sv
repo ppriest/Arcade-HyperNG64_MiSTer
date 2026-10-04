@@ -78,6 +78,8 @@ module tb_io (
         .fbcontrol(), .fbscroll(), .texwrap(),
         .dl_we(), .dl_addr(), .dl_be(), .dl_wdata(), .dl_up(),
         .dl_busy(1'b0), .dl_upbusy(1'b0), .dl_full(1'b0),
+        .snd_main0(), .snd_main1(), .snd_irq(), .snd_en(), .snd_en_cmd(), .snd_live(1'b0),
+        .snd_rep0(16'd0), .snd_rep1(16'd0),
         .dbg_mcu_en_0c(), .dbg_irq_pending(), .dbg_irq_level(),
         .dbg_rd(1'b0), .dbg_sel(3'd0), .dbg_addr(14'd0), .dbg_rdone(), .dbg_rdata());
 

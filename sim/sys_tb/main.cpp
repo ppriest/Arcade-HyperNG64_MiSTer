@@ -127,21 +127,26 @@ int main(int argc, char **argv) {
         pos += (r.size + 0xfffff) & ~0xfffffu;
         reg.push_back(std::move(r));
     }
+    // the sound bridge's shared block (rtl/hng64_sndbridge.sv): the only place the core writes
+    // here, as nothing in the trace draws 3D
+    constexpr uint32_t SHM = 0xF200000, SHM_SIZE = 0x210000, SHM_RAM = 0x10000;
+    std::vector<uint8_t> shm(SHM_SIZE, 0);
     auto ddr_byte = [&](uint32_t a) -> uint8_t {
+        if (a >= SHM && a < SHM + SHM_SIZE) return shm[a - SHM];
         for (const auto &r : reg)
             if (a >= r.base && a < r.base + r.size) return r.data[a - r.base];
         return 0;
     };
     const auto mcu = slurp("debug/rom/hng64-iomcu.bin");
 
-    // the blob: "HNG2", then base and size per region, big-endian, then flags; the BIOS cut to 16 KB
-    std::vector<uint8_t> blob = {'H', 'N', 'G', '2'};
+    // the blob: "HNG3", then base and size per region, big-endian, then flags; the BIOS cut to 16 KB
+    std::vector<uint8_t> blob = {'H', 'N', 'G', '3'};
     auto put32 = [&](uint32_t v) { for (int i = 3; i >= 0; i--) blob.push_back(uint8_t(v >> (8 * i))); };
     for (const auto &r : reg) {
         put32(r.base);
         put32(std::string(r.name) == "bios" ? 0x4000u : r.size);
     }
-    for (int i = 0; i < 4; i++) put32(0);              // textures0, verts: not carried
+    for (int i = 0; i < 6; i++) put32(0);              // textures0, verts, l7a1045: not carried
     put32(0);                                          // flags
 
     // ---- the trace -----------------------------------------------------------------------------------
@@ -199,9 +204,13 @@ int main(int argc, char **argv) {
         // DDRAM_RD depends on BUSY combinationally: accept with the BUSY the core will see
         dut->eval();
         if (dut->DDRAM_WE && !dut->DDRAM_BUSY) {
-            printf("sys: a DDR3 write, and nothing in the core writes DDR3: %08x\n",
-                   uint32_t(dut->DDRAM_ADDR) << 3);
-            exit(1);
+            const uint32_t byte = uint32_t(dut->DDRAM_ADDR & 0x1ffffff) << 3;
+            if (byte < SHM || byte >= SHM + SHM_SIZE) {
+                printf("sys: a DDR3 write outside the sound bridge's block: %08x\n", byte);
+                exit(1);
+            }
+            for (int k = 0; k < 8; k++)
+                if (dut->DDRAM_BE & (1 << k)) shm[byte - SHM + k] = uint8_t(dut->DDRAM_DIN >> (8 * k));
         }
         if (dut->DDRAM_RD && !dut->DDRAM_BUSY) {
             uint32_t byte = uint32_t(dut->DDRAM_ADDR & 0x1ffffff) << 3;
@@ -289,7 +298,13 @@ int main(int argc, char **argv) {
     }
 
     // ---- the replay ----------------------------------------------------------------------------------
+    // sound RAM as the trace writes it, which the bridge's copy in DDR3 must match
+    std::map<uint32_t, uint8_t> snd_want;
     auto access = [&](bool w, uint32_t addr, uint32_t mask, uint32_t data) -> uint32_t {
+        if (w && addr >= 0x60200000 && addr < 0x60400000)
+            for (int k = 0; k < 4; k++)
+                if (mask & (0xffu << (24 - 8 * k)))
+                    snd_want[(addr & ~3u) - 0x60200000 + k] = uint8_t(data >> (24 - 8 * k));
         uint8_t wm = 0;
         for (int k = 0; k < 4; k++) if (mask & (0xffu << (24 - 8 * k))) wm |= uint8_t(1 << k);
         dut->mem_address = addr & ~3u;
@@ -466,11 +481,19 @@ int main(int argc, char **argv) {
     printf("sys: nvram download: %ld of 16384 bytes read back wrong, %ld of 4096 CPU dwords wrong\n",
            nv_bad_dl, nv_bad_cpu);
 
+    // the sound bridge: its magic, and its copy of sound RAM against the trace's writes
+    for (long g = 0; g < 200000; g++) step1x();          // the copy's queue drains
+    long snd_bad = 0;
+    for (const auto &kv : snd_want) snd_bad += shm[SHM_RAM + kv.first] != kv.second;
+    const bool snd_magic = !memcmp(shm.data(), "HNGS", 4);
+    printf("sys: sound bridge: magic %s; %zu sound RAM bytes written, %ld differ in its copy\n",
+           snd_magic ? "ok" : "MISSING", snd_want.size(), snd_bad);
+
     printf("sys: %ld clk2x in all; %u line passes, the longest %u clk2x (tilemaps busy %u of them), "
            "%u late\n", cyc, dut->passes, dut->pass_max, dut->pass_max_tm, dut->late_passes);
     printf("sys: faults %02x; %ld compared reads differ; %ld frames differ\n", dut->dbg_fault,
            bad_reads, frames_bad);
-    const bool fail = bad_reads || frames_bad || (dut->dbg_fault & 0x1f) || nv_bad ||
+    const bool fail = bad_reads || frames_bad || (dut->dbg_fault & 0x1f) || nv_bad || snd_bad || !snd_magic ||
 
                       nv_pulses != nv_writes || nv_bad_dl || nv_bad_cpu;
     delete dut;

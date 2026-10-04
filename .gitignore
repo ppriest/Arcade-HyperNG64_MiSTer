@@ -65,6 +65,7 @@ sim/**/*dump*.txt
 sim/**/fixture.txt
 /*.raw
 obj_verilator/
+obj_hng64snd/
 simout/
 
 # MAME ROM dumps: never committed

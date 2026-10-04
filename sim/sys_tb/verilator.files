@@ -12,7 +12,9 @@ rtl/io/hng64_tlcs870.sv
 rtl/io/hng64_iomcu.sv
 rtl/hng64_bus.sv
 rtl/hng64_io.sv
-rtl/3d/hng64_geo.v
+rtl/hng64_sndbridge.sv
+rtl/3d/hng64_geo_ucode_pkg.sv
+rtl/3d/hng64_geo.sv
 rtl/3d/hng64_raster.v
 rtl/common/hng64_afifo.sv
 rtl/hng64_3d_bridge.sv

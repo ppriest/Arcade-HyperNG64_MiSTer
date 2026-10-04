@@ -364,10 +364,65 @@ The area measured in Phases 0-2 sizes the design, not whether it happens. Displa
 lighting, textured rasteriser, frame buffers, mixing with 2D, against a software model of
 hng64_3d.ipp. Exit: `sams64` in-game frames match MAME's in simulation, then on hardware.
 
-**Phase 4 — Sound decision.**
+**Phase 4 — Sound on the ARM (user decision), the MiSTer Frontier model. Approved.**
 
-With Phases 0-3 measured: whether a V53A and the L7A1045 fit. A decision with evidence, not a
-default.
+The V53A and the L7A1045 run in a Linux process on the HPS; the FPGA carries the sound RAM, the
+mailbox and the samples. With no process the core runs as now, silent.
+
+From MAME (`scripts/mame_sound_trace.py`, fatfurwa 600 frames, `debug/fatfurwa-sound`): the main
+CPU writes the whole sound program before it enables the sound CPU (`0x55AA` at frame 76) and
+touches sound RAM no more after; it sends one command a frame and reads the reply the next frame;
+the V53A replies 7 us after the interrupt. A millisecond of latency each way is inside that.
+
+- **Launch.** `/tmp/CORENAME` is an `.mra`'s `<setname>` (Main_MiSTer `user_io.cpp:506`), so
+  Frontier's `Master_Daemon.sh` runs `games/<setname>/_handler.sh`: one per set, each starting
+  `games/HyperNG64/hng64snd` (armhf, static).
+- **Shared DDR3, `0x3F200000` up** (above the 3D buffers, inside the core's window): a control
+  block the FPGA writes (the sample ROM's base and size, a count of sound CPU enables, the main
+  CPU's two latches and a count of its interrupt-5 writes); a status block the process writes (a
+  heartbeat, the sound CPU's data and status latches); and a 2 MB copy of sound RAM, written by
+  the FPGA on every main-CPU sound RAM write. SDRAM keeps the main CPU's copy. The enable count
+  moves only once the copy's writes have drained. Layout in `rtl/hng64_sndbridge.sv`.
+- **Samples.** The `l7a1045` region (16 MB) joins the `.mra` image after `verts` and the index-1
+  blob; the largest set, `sams64_2`, then ends at `0xD900000`, under `D3_BASE`.
+- **FPGA** (`hng64_sndbridge`): the sound RAM mirror and mailbox writes share the DDR3 writer with
+  the 3D, taking turns; the status block is read every 8 us. The mailbox answers from the process
+  while its heartbeat moved in the last 0.1 s and it runs the V53A, else from the stand-in.
+- **Audio** goes out through the framework's ALSA path, not the core: the process writes 48 kHz
+  to `/dev/MrAudio` (the default ALSA device's sink, `/etc/asound.conf`), which `sys/alsa.sv` reads
+  from DDR3 and `audio_out` mixes with the core's. Writes there do not block, so the process
+  paces itself by CLOCK_MONOTONIC, 40 ms ahead; `alsa.sv` plays faster as its buffer fills.
+- **Process.** The V33 core, the V53A's timer, interrupt and DMA units, and the L7A1045, ported
+  from MAME (BSD-3-Clause; the board glue, `hng64_a.cpp`, LGPL-2.1+), in `sw/hng64snd`; paced by
+  the ring, resampled 44.1 to 48 kHz, so the pitch never follows the game's speed; the control
+  block polled each 0.5 ms of emulated time.
+- **Bench.** The same emulator built natively (`sw/hng64snd/bench.cpp`), driven by a MAME capture
+  (sound RAM at the enable, the main CPU's mailbox writes and their times, the sample ROM), its
+  output compared with MAME's `-wavwrite`; then `sim/` for the bridge, then the board.
+  Done for fatfurwa, 1200 frames (`scripts/mame_sound_trace.py fatfurwa 1200`): the first 91,391
+  of MAME's 520,677 V53A I/O accesses are identical in value (the first 25 in time too); all 94
+  mailbox values the main CPU read are identical; the 10 ms level envelopes of the front
+  channels correlate 0.9999 and 0.9996 with MAME's (`scripts/snd_compare.py`). The first
+  difference is a read-back of a voice's filter envelope, which depends on timing, and the port's
+  V53A runs ahead of MAME's by 0.18%. A likely cause, untested: MAME's scheduler cuts the V53A's
+  timeslices at timers anywhere in the machine, and a REP string instruction resumed after a cut
+  costs 2 more cycles. Not pursued (user: a little off is fine, a pitch change with the game's
+  speed is not). The V53A runs 5.3 M instructions a second of game time and never halts.
+  On the MiSTer's ARM (`scripts/snd_arm_bench.py`, sams64 running in the FPGA) the same 18.2 s
+  take 26.7 s (-O3, ARM mode; output identical to the x86 build): 0.68 of real time, about 220
+  cycles a V33 instruction. A switch dispatch is faster on x86 and slower there; idle skipping
+  has no quiet main-loop pass to skip (every one changes RAM). MAME runs the V53A's core at its
+  32 MHz input, where its V40 and V50 (`v50_base_device`) divide the input by 2; at 16 MHz the
+  port runs 18.2 s in 17.4 s on the ARM, keeps up with the mailbox's command sequence, and differs
+  from MAME in bit 1 of the status reply (18 of 94 reads). Decided (user): the ARM process runs
+  the core at 16 MHz (MAME_KLUDGES). MAME gave the V53A 32 MHz / 2 until `826b75656f6`, which
+  doubled it for the timer's sake ("reference footage indicates the timer must be the full
+  32 MHz"); the V50's datasheet has the crystal at twice the operating frequency, and the V53A's
+  range is 2-20 MHz (elm-chan.org/docs/dev/v53_e.html). At 16 MHz, under `chrt -f 50` (sams64 in
+  the FPGA; Main_MiSTer and the Zaparoo daemon take a core between them): 14.73 s for the 18.2 s,
+  13.07 s built with profile feedback (-fprofile-use, trained on the same run); with Zaparoo
+  stopped 13.91 s and 10.75 s. The process runs at real-time priority, built with profile
+  feedback.
 
 **Phase 5 — The other fight sets, and accuracy.** `sams64_2`, `fatfurwa`, `buriki`, their
 `.mra` files, `docs/MAME_KLUDGES.md` and `docs/HACKS.md` current.
@@ -472,9 +527,12 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    filter removed for area (`04c8ca2`). Best: `50112e7` seed 1 -0.032 ns, one endpoint (fixed in
    `cef30f5`), and `cef30f5` seed 2 -0.096, one, both with PHYSICAL_SYNTHESIS_EFFORT EXTRA,
    ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM and PLACEMENT_EFFORT_MULTIPLIER 2.0 (`build_staged.py
-   --set`); other seeds -0.3 to -0.9, one seed in four does not fit. What fails now is the geometry
-   engine's pipeline control (stall and eGo into accOp, the forwarding selects, bypX) and the
-   accumulator. Lite has no LogicLock regions (warning 292013) or partitions.
+   --set`); other seeds -0.3 to -0.9, one seed in four does not fit. Lite has no LogicLock regions
+   (warning 292013) or partitions. The geometry engine is now SystemVerilog (`65f79d7`; -0.245, its
+   worst path ST's 72-bit two-way shift into mVal); E's hold reads registers only (`3257a5e`) and
+   ST shifts a step earlier (`2373ebe`). `2373ebe` seed 1: -0.099 ns, one endpoint, the forwarded
+   M result into the branch decision (mVal to brPending); seed 2 -0.247. Seed 1 is on the board
+   (`HyperNG64_30000061.rbf`, sams64's 3D drawn, `debug/hw_i1_sams64.png`).
 2. All four sets run their attract modes with sprites since `c17f1fb` (sprite list read latency).
    To compare with MAME: fatfurwa's helicopter cabin (two of three men missing on the board, the
    third without his face; g3d_tb renders MAME's f1600 exactly, at 2.59 M clk2x clocks a frame
@@ -490,7 +548,7 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    busy; clk3d, 1.67 M in a 60 Hz frame), `6063e54`: fatfurwa f1600 1.49 M, the rasteriser busy for
    1.48 M; sams64 f2500 (a 3D frame every other video frame, 3.33 M) 3.65 M, the engine busy
    3.50 M, most of the excess the accumulator stores (ST, STF, STV) and SHRI, multi-cycle in
-   GeoEngine.scala for timing where docs/phase3_3d.md's 2.46 M estimate has one clock each.
+   rtl/3d/hng64_geo.sv for timing where docs/phase3_3d.md's 2.46 M estimate has one clock each.
 4. Hangs. The tilemap engine busy for ever with nothing owed by DDR3 (`5626a76`, `74f4d60`, and
    fatfurwa's intro on the stp build of `bc6546a`) was a layer's mode written by the CPU mid-pass,
    not placement: fixed in `b9e8900` (LESSONS_LEARNED). The sprite engine's (per-line zoom test,
@@ -500,5 +558,7 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    Also seen once: buriki at 100% stopped on Ducalis's intro for at least 2.5 minutes (`3b5372e`
    seed 1, `debug/hw/bfull_bk_sheet.png`); not again in a later run or a 10-minute soak at 100%
    on `6063e54` seed 1, whose placement is the same (`debug/hw/soak_bk_sheet.png`).
+   sams64 sometimes stops on an I/O error after a while (user, on the board). Not investigated;
+   to check again once sound (Phase 4) replaces the sound comms stand-in.
 5. A mosaic sprite on a synthetic capture (`debug/sams64-wide`) draws its runs a pixel off the
    model's; no MAME capture has shown it.

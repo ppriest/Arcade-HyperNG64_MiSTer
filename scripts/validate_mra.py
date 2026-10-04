@@ -23,6 +23,8 @@ Checks:
      line (MAME_SRC, from mister.env or the environment): ROT0 ->
      "horizontal", ROT90 -> "vertical (cw)", ROT270 -> "vertical (ccw)".
      Skipped, with a note, when the driver is not available.
+  5. A <buttons> name still "Button N" is reported as a NOTE, not a failure:
+     scripts/build_mra.py's BUTTONS table has not been filled in for it.
 
 Usage:
     python scripts/validate_mra.py releases/*.mra
@@ -114,6 +116,16 @@ def check(path, rotations):
     return problems
 
 
+def generic_buttons(path):
+    """The <buttons> names still left as "Button N"."""
+    try:
+        el = ET.parse(path).getroot().find('buttons')
+    except ET.ParseError:
+        return []
+    names = (el.get('names') or '').split(',') if el is not None else []
+    return [n for n in names if re.fullmatch(r'Button \d+', n)]
+
+
 def main(argv):
     files = []
     for pat in (argv or ['releases/*.mra']):
@@ -135,6 +147,10 @@ def main(argv):
                 print('        %s' % p)
         else:
             print('OK    %s' % f)
+        generic = generic_buttons(f)
+        if generic:
+            print('NOTE  %s: %s unnamed (BUTTONS in scripts/build_mra.py)'
+                  % (Path(f).name, ', '.join(generic)))
     if bad:
         print('\n%d of %d file(s) failed -- do NOT deploy these.' % (bad, len(files)))
     return 1 if bad else 0
