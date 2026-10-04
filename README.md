@@ -3,7 +3,7 @@
 A MiSTer FPGA core for SNK's Hyper NeoGeo 64 arcade hardware (MAME's `hng64`), built with Quartus
 Prime 17.0.2 Lite for the DE10-nano.
 
-**Status: in development, not for playing yet.** The 4 versus fighters play, but with graphical
+**Status: in development, just about playable.** The 4 versus fighters play, but with graphical
 glitches and slowdown in places. Sound runs as a program on the MiSTer's ARM ([Sound](#sound)) and
 breaks up in heavy passages.
 
