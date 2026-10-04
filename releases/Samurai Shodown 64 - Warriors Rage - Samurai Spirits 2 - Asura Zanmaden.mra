@@ -13,7 +13,7 @@
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>
   <mameversion>0285</mameversion>
-  <rom index="1"><part>48 4E 47 32 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 0A 10 00 00 01 00 00 00 0B 10 00 00 01 80 00 00 00 00 00 01</part></rom>
+  <rom index="1"><part>48 4E 47 33 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 04 00 00 00 06 10 00 00 04 00 00 00 0A 10 00 00 01 00 00 00 0B 10 00 00 01 80 00 00 0C 90 00 00 01 00 00 00 00 00 00 01</part></rom>
   <rom index="2" zip="hng64.zip" md5="none"><part name="tmp87ph40an.bin" crc="b70df21f" offset="0x4000" length="0x4000"/></rom>
   <!-- gameprg: 0x2000000 bytes at 0x0 -->
   <!-- bios: 0x100000 bytes at 0x2000000 -->
@@ -21,6 +21,7 @@
   <!-- sprtile: 0x4000000 bytes at 0x6100000 -->
   <!-- textures0: 0x1000000 bytes at 0xa100000 -->
   <!-- verts: 0x1800000 bytes at 0xb100000 -->
+  <!-- l7a1045: 0x1000000 bytes at 0xc900000 -->
   <rom index="0" zip="sams64_2.zip|hng64.zip" md5="none" address="0x30000000">
     <!-- gameprg: 0x2000000 bytes at 0x0 -->
       <interleave output="32">
@@ -89,6 +90,11 @@
         <part name="005vt05a.21" crc="49c82bec" map="002100"/>
         <part name="005vt06a.22" crc="7ba05b6c" map="210000"/>
       </interleave>
+    <!-- l7a1045: 0x1000000 bytes at 0xc900000 -->
+      <part name="005sd01a.77" crc="8f68150f"/>
+      <part name="005sd02a.78" crc="6b4da6a0"/>
+      <part name="005sd03a.79" crc="a529fab3"/>
+      <part name="005sd04a.80" crc="dca95ead"/>
   </rom>
   <nvram index="4" size="16384"/>
 </misterromdescription>
