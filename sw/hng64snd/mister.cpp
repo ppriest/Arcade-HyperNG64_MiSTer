@@ -8,7 +8,8 @@
 // 16 MHz (docs/MAME_KLUDGES.md), and the L7A1045. Its output goes to /dev/MrAudio, the framework's
 // ALSA path, at 48 kHz, kept a fixed depth ahead of the FPGA's playback: the game's speed never
 // reaches the pitch, and time the ARM falls behind is a gap, not a delay. It goes quiet at every
-// core load (/tmp/CORENAME rewritten) until a set's bridge has reset, and one copy runs at a time.
+// core load (the bridge's count stopping, or /tmp/CORENAME rewritten) until a set's bridge has reset,
+// and one copy runs at a time.
 
 #include <fcntl.h>
 #include <sched.h>
@@ -34,7 +35,7 @@ namespace {
 constexpr uint32_t DDR3_BASE = 0x30000000;      // the core's window
 constexpr uint32_t SHM = 0x0F200000;            // hng64_sndbridge's SHM
 constexpr uint32_t SHM_SIZE = 0x210000;
-constexpr uint32_t OFF_SMP = 0x08, OFF_MBOX = 0x10, OFF_RUN = 0x18, OFF_STATUS = 0x40,
+constexpr uint32_t OFF_SMP = 0x08, OFF_MBOX = 0x10, OFF_RUN = 0x18, OFF_BEAT = 0x20, OFF_STATUS = 0x40,
                    OFF_RAM = 0x10000;
 
 constexpr s64 TICKS_PER_MS = 32000;              // the board's 32 MHz ticks
@@ -46,7 +47,7 @@ constexpr int OUT_RATE = 48000;
 // below, where it would run dry.
 constexpr double LEAD_FRAMES = OUT_RATE * 0.080;
 constexpr double PLAY_PER_NS = OUT_RATE * 1.0002 / 1e9;
-const char *const SETS[] = {"sams64", "sams64_2", "fatfurwa", "buriki"};
+const char *const SETS[] = {"sams64", "sams64_2", "fatfurwa", "buriki", "roadedge", "xrally", "bbust2"};
 
 volatile sig_atomic_t g_stop = 0;
 void on_signal(int) { g_stop = 1; }
@@ -225,6 +226,8 @@ int main(int argc, char **argv)
 	resampler rs;
 	std::vector<int16_t> pcm;
 	uint16_t heartbeat = 0, last_en = 0, last_irq = 0, main0 = 0, main1 = 0;
+	int beat_seen = -1;                          // the bridge's count at +0x20, -1 none yet
+	int64_t beat_t = 0;                          // when it last moved
 	bool running = false;
 	// Interrupt 5 is held back until the V53A has written its status latch once: one raised
 	// while it initialises its ICU is cleared by ICW1 in edge mode with the line left high, and
@@ -314,11 +317,33 @@ int main(int argc, char **argv)
 		}
 		// nothing is ours to read or write until a set is loaded and the bridge has written its
 		// magic: DDR3 keeps whatever an earlier core left there
-		if (!cname.ours || uint32_t(sh.read64(0)) != 0x53474E48u)    // "HNGS"
+		const uint64_t magic = sh.read64(0);
+		if (!cname.ours || uint32_t(magic) != 0x53474E48u)    // "HNGS"
 		{
 			stop("the bridge's magic is gone");
+			beat_seen = -1;
 			sleep_ns(100'000'000);
 			continue;
+		}
+		// from version 2 the bridge counts every 10 ms while the core runs: stopped for 200 ms, the
+		// FPGA is being loaded, or a set's ROMs (the core held in reset), well before /tmp/CORENAME
+		// changes, so the sound goes too, and waits for the sound CPU to be held as at a core load
+		if ((magic >> 32) >= 2)
+		{
+			const int b = int(uint16_t(sh.read64(OFF_BEAT)));
+			const int64_t t = now_ns();
+			if (b != beat_seen)
+			{
+				beat_seen = b;
+				beat_t = t;
+			}
+			else if (t - beat_t >= 200'000'000)
+			{
+				stop("the core stopped");
+				left = true;
+				sleep_ns(20'000'000);
+				continue;
+			}
 		}
 		const uint64_t mbox = sh.read64(OFF_MBOX);
 		const bool run = sh.read64(OFF_RUN) & 1;

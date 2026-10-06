@@ -30,12 +30,11 @@
 // Times MAME gives in main-CPU cycles are its 50 MHz clock (hng64.h:218); they are counted here
 // in clk1x cycles at 62.5 MHz, which is 5/4 as many and exact for every value used.
 
-module hng64_io #(
-    // m_no_machine_error_code: 0x01 for the fight sets (hng64.cpp:1843)
-    parameter logic [7:0] NO_MACHINE_ERROR_CODE = 8'h01
-) (
+module hng64_io (
     input  logic        clk,            // the bridge's clk1x
     input  logic        reset,
+    // m_no_machine_error_code, the board's: 1 fight, 2 drive, 3 shoot (hng64.cpp init_*), from the .mra
+    input  logic  [7:0] no_machine_error_code,
 
     input  logic        io_req,
     input  logic        io_we,
@@ -225,6 +224,24 @@ module hng64_io #(
         .a_clk(clk), .a_addr(com_i), .a_be((mem_we && dev == D_COM) ? be : 4'd0), .a_wdata(wd),
         .a_rdata(com_q),
         .b_clk(clk), .b_addr(11'd0), .b_rdata());
+
+    // MAME's comhack (hng64.cpp comhack_callback): 400,000,000 of its 50 MHz CPU clocks after reset,
+    // 500,000,000 clk1x, the word at 0xc0001000 gets bit 0, the network id the drive sets' network
+    // check waits for, as the KL5C80 would answer (MAME_KLUDGES.md). It is MAME's |= on RAM: read
+    // ORed with com_hack, which a CPU write to that byte clears, so a later write stands.
+    logic [28:0] com_hack_cnt;
+    logic        com_hack, com_at_hack;
+    always_ff @(posedge clk) begin
+        com_at_hack <= com_i == 11'h400;
+        if (reset) begin
+            com_hack_cnt <= '0;
+            com_hack     <= 1'b0;
+        end else begin
+            if (com_hack_cnt != 29'd500_000_000) com_hack_cnt <= com_hack_cnt + 1'd1;
+            if (com_hack_cnt == 29'd499_999_999) com_hack <= 1'b1;
+            if (mem_we && dev == D_COM && com_i == 11'h400 && be[0]) com_hack <= 1'b0;
+        end
+    end
 
     // ---- interrupt controller (set_irq, hng64.cpp:1871) -------------------------------------------------
     logic [31:0] irq_pending;
@@ -628,7 +645,7 @@ module hng64_io #(
                 S_MEM2: begin
                     result <= (dev == D_SYS) ? ((a[12:0] == 13'h001c) ? 32'd0
                                               : (a[12:0] == 13'h1084) ? 32'd2 : sys_q)
-                            : (dev == D_NVRAM) ? nv_q : com_q;
+                            : (dev == D_NVRAM) ? nv_q : (com_q | {31'd0, com_hack && com_at_hack});
                     st <= S_ACK;
                 end
 
@@ -641,7 +658,7 @@ module hng64_io #(
                     // m_no_machine_error_code at 0x600, unless the MIPS has said 0x0c
                     if (dp_pend2)
                         result[8*dp_lane_q2 +: 8] <= (dp_hack_q2 && mcu_en != 8'h0c)
-                                                   ? NO_MACHINE_ERROR_CODE : dp_rdata;
+                                                   ? no_machine_error_code : dp_rdata;
                     if (be[lane]) begin
                         dp_addr    <= {a[10:2], 2'(3 - lane)};
                         dp_wdata   <= wd[8*lane +: 8];
@@ -658,7 +675,7 @@ module hng64_io #(
                 S_DPLAST, S_DPLAST2: begin
                     if (dp_pend2)
                         result[8*dp_lane_q2 +: 8] <= (dp_hack_q2 && mcu_en != 8'h0c)
-                                                   ? NO_MACHINE_ERROR_CODE : dp_rdata;
+                                                   ? no_machine_error_code : dp_rdata;
                     st <= (st == S_DPLAST) ? S_DPLAST2 : S_ACK;
                 end
 

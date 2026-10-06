@@ -138,6 +138,9 @@ case class TriangleSetup(c: RasterConfig) extends Component {
   val selCX, selCY = Reg(SInt(c.mulBits bits))
   val selIdx = Reg(UInt(log2Up(slots + 1) bits))
   val selValid = RegInit(False)
+  val sValid = RegNext(pValid) init (False)
+  val sumR = Reg(SInt(c.diffBits + c.mulBits + 1 bits))
+  val sIdx = Reg(cloneOf(pIdx))
   pValid := False
   selValid := False
   when(state === S.Mul) {
@@ -157,8 +160,15 @@ case class TriangleSetup(c: RasterConfig) extends Component {
       pIdx := selIdx
       pValid := True
     }
+    // the products' sum registered before the bias and the parameters' add: in one clock from the
+    // multipliers' outputs it missed clk3d by 0.08 ns into out.edge (64f9bd4 seed 1)
     when(pValid) {
-      val sum = prodX.resize(c.diffBits + c.mulBits + 1 bits) + prodY.resize(c.diffBits + c.mulBits + 1 bits)
+      sumR := prodX.resize(c.diffBits + c.mulBits + 1 bits) + prodY.resize(c.diffBits + c.mulBits + 1 bits)
+      sIdx := pIdx
+    }
+    when(sValid) {
+      val sum = sumR
+      val pIdx = sIdx
       for (n <- 0 until 3) when(pIdx === n) {
         out.edge(n) := Mux(bias(n), sum - 1, sum).resize(c.edgeBits bits)
       }

@@ -61,7 +61,7 @@ module tb_io (
     logic        dma_go, dma_done;
 
     hng64_io u_io (
-        .clk(clk1x), .reset(reset),
+        .clk(clk1x), .reset(reset), .no_machine_error_code(8'h01),
         .io_req(io_req), .io_we(io_we), .io_addr(io_addr), .io_be(io_be), .io_wdata(io_wdata),
         .io_ack(io_ack), .io_rdata(io_rdata),
         .cpu_irq(cpu_irq),

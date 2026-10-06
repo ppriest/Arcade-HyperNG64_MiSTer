@@ -730,7 +730,7 @@ def run(game, frames, trace=None, capture=False):
     last = max(want)
     def state():
         return (m.r.color.copy(), dict(fbcontrol=list(m.fbcontrol), fbscroll=m.fbscroll,
-                                       fbscale=m.fbscale))
+                                       fbscale=m.fbscale, roadedge=game == "roadedge"))
     # A clearing vblank wipes the buffer and the projection, camera and palette state, so nothing
     # drawn before the last one ahead of the first wanted frame can show: skip the polygons there.
     # The reused polygon array is the one thing that loses its history (MAME_KLUDGES, 3D).
@@ -773,7 +773,8 @@ def blit_line(dst, y, height, color, st, pal3d):
     the 512 buffer lines are stretched over the visible ones, and fbscroll moves it in x."""
     if st["fbcontrol"][0] & 0x01:
         return
-    palbase = 0x800 if (st["fbcontrol"][2] >> 5) & 1 else 0
+    # init_roadedge's m_roadedge_3d_hack leaves the base where it is (hng64_v.cpp:870)
+    palbase = 0x800 if (st["fbcontrol"][2] >> 5) & 1 and not st.get("roadedge") else 0
     xs = st["fbscroll"] >> 21
     if xs & 0x400:
         xs -= 0x800

@@ -115,6 +115,22 @@ module tb_g3d (
     logic [3:0] st_q;
     longint n_stall [0:63];                 // the engine's stalled clocks by the opcode in E
     initial for (int k = 0; k < 64; k++) n_stall[k] = 0;
+    longint r_f [0:6], r_b [0:6], r_s [0:6];
+    string  pcprof = "";
+    initial void'($value$plusargs("pcprof=%s", pcprof));
+    longint pc_go [0:2047], pc_stl [0:2047], pc_bub [0:2047];
+    initial for (int k = 0; k < 2048; k++) begin pc_go[k] = 0; pc_stl[k] = 0; pc_bub[k] = 0; end
+    longint n_tmiss, n_tfill, n_thold;
+    longint n_wst [0:7];
+    longint n_wemitb, n_wdrain;
+    initial begin for (int k = 0; k < 8; k++) n_wst[k] = 0; n_wemitb = 0; n_wdrain = 0; end
+    longint n_dmiss, n_dpend, n_dcred, n_dfifo, n_dline, n_ddrain, n_cflush;
+    initial for (int k = 0; k < 7; k++) begin r_f[k] = 0; r_b[k] = 0; r_s[k] = 0; end
+    function automatic void r_cnt(int k, logic v, logic r);
+        if (v && r) r_f[k]++;
+        else if (v) r_b[k]++;
+        else r_s[k]++;
+    endfunction
     always @(posedge clk3d) if (prof) begin
         st_q <= u_3d.st;
         n_all++;
@@ -131,9 +147,46 @@ module tb_g3d (
         if (u_3d.st == 4'd8) n_ups++;
         if (u_3d.v3_rd && !u_3d.v3_ready) n_vwait++;
         if (u_3d.geo_busy && u_3d.u_geo.stall) n_stall[u_3d.u_geo.o]++;
+        // +pcprof=FILE: the engine's busy clocks by pcE, as issued, stalled, or a bubble (E empty,
+        // or the slot after a taken branch), for each frame of a million clocks or more
+        if (pcprof != "" && u_3d.geo_busy) begin
+            if (!u_3d.u_geo.eLive) pc_bub[u_3d.u_geo.pcE]++;
+            else if (u_3d.u_geo.stall) pc_stl[u_3d.u_geo.pcE]++;
+            else pc_go[u_3d.u_geo.pcE]++;
+        end
         if (u_3d.t3_rd && !u_3d.t3_ready) n_twait++;
         if (u_3d.z3_rd && !u_3d.z3_ready) n_zwait++;
         if (u_3d.w3_valid && !u_3d.w3_ready) n_wwait++;
+        // the rasteriser's stages, at each one's input: a stall upstream of the slowest shows as
+        // blocked, downstream of it as starved
+        if (u_3d.r_busy) begin
+            r_cnt(0, u_3d.u_raster.setup.io_i_valid,      u_3d.u_raster.setup.io_i_ready);
+            r_cnt(1, u_3d.u_raster.walker.io_i_valid,     u_3d.u_raster.walker.io_i_ready);
+            r_cnt(2, u_3d.u_raster.spanParams.io_i_valid, u_3d.u_raster.spanParams.io_i_ready);
+            r_cnt(3, u_3d.u_raster.pixels.io_i_valid,     u_3d.u_raster.pixels.io_i_ready);
+            r_cnt(4, u_3d.u_raster.pixUnit.io_i_valid,    u_3d.u_raster.pixUnit.io_i_ready);
+            r_cnt(5, u_3d.u_raster.texCache.io_i_valid,   u_3d.u_raster.texCache.io_i_ready);
+            r_cnt(6, u_3d.u_raster.renderBuf.io_i_valid,  u_3d.u_raster.renderBuf.io_i_ready);
+            if (u_3d.u_raster.texCache.allocate) n_tmiss++;
+            if (u_3d.u_raster.texCache.frags_io_pop_valid && !u_3d.u_raster.texCache.go_valid) n_tfill++;
+            if (u_3d.u_raster.texCache.tagRd_valid && !u_3d.u_raster.texCache.canGo) n_thold++;
+            // the render buffer's depth cache: misses; a lookup held by a pending victim, by no free
+            // fill slot, by a full FIFO; the head waiting on DDR3 for its line, or on a drain; and
+            // the colour combiner holding the depth test while it flushes a line
+            n_wst[u_3d.u_raster.walker.state]++;
+            if (u_3d.u_raster.walker.state == 3'd6 && !u_3d.u_raster.walker.io_o_ready) n_wemitb++;
+            if (u_3d.u_raster.walker.state == 3'd7 && !u_3d.u_raster.walker.io_drained) n_wdrain++;
+            if (u_3d.u_raster.renderBuf.allocate) n_dmiss++;
+            if (u_3d.u_raster.renderBuf.prep_valid && !u_3d.u_raster.renderBuf.canGo) begin
+                if (!u_3d.u_raster.renderBuf.fragIn_ready) n_dfifo++;
+                else if (u_3d.u_raster.renderBuf.pendingHit) n_dpend++;
+                else n_dcred++;
+            end
+            if (u_3d.u_raster.renderBuf.needFill && !u_3d.u_raster.renderBuf.lineQ_io_pop_valid) n_dline++;
+            if (u_3d.u_raster.renderBuf.needFill && u_3d.u_raster.renderBuf.lineQ_io_pop_valid
+                && u_3d.u_raster.renderBuf.vLeft != 0) n_ddrain++;
+            if (u_3d.u_raster.renderBuf.comb_valid && !u_3d.u_raster.renderBuf.comb_ready) n_cflush++;
+        end
         if (st_q == 4'd10 && u_3d.st == 4'd11) begin
             $display("prof: %0d clk3d: geo busy %0d (out blocked %0d), raster busy %0d (geo idle %0d), queue empty %0d, flush %0d, fin %0d, swap %0d; %0d uploads, %0d triangles (FIFO up to %0d); ports refused: vert %0d tex %0d depth %0d write %0d",
                      n_all, n_geo, n_gstall, n_rbusy, n_ronly, n_idle, n_flush, n_fin, n_swap, n_ups, n_tris, n_tqmax,
@@ -151,6 +204,27 @@ module tb_g3d (
                 $display("");
                 for (int k = 0; k < 64; k++) n_stall[k] = 0;
             end
+            $display("prof: raster stages, fired / blocked by the next / starved, at each input: setup %0d/%0d/%0d walker %0d/%0d/%0d spans %0d/%0d/%0d pixels %0d/%0d/%0d pixunit %0d/%0d/%0d texcache %0d/%0d/%0d renderbuf %0d/%0d/%0d; texcache misses %0d, head waiting on a fill %0d, entry held %0d",
+                     r_f[0], r_b[0], r_s[0], r_f[1], r_b[1], r_s[1], r_f[2], r_b[2], r_s[2], r_f[3], r_b[3], r_s[3],
+                     r_f[4], r_b[4], r_s[4], r_f[5], r_b[5], r_s[5], r_f[6], r_b[6], r_s[6], n_tmiss, n_tfill, n_thold);
+            for (int k = 0; k < 7; k++) begin r_f[k] = 0; r_b[k] = 0; r_s[k] = 0; end
+            $display("prof: depth cache misses %0d; lookup held by a pending victim %0d, no fill slot %0d, FIFO full %0d; head waiting on DDR3 %0d, on a drain %0d; colour flush holding %0d",
+                     n_dmiss, n_dpend, n_dcred, n_dfifo, n_dline, n_ddrain, n_cflush);
+            $display("prof: span walker clocks: idle %0d decide %0d recover-left %0d right-to-enter %0d left-to-exit %0d right-to-exit %0d emit %0d (held %0d) advance %0d (waiting to drain %0d)",
+                     n_wst[0], n_wst[1], n_wst[2], n_wst[3], n_wst[4], n_wst[5], n_wst[6], n_wemitb, n_wst[7], n_wdrain);
+            for (int k = 0; k < 8; k++) n_wst[k] = 0;
+            n_wemitb = 0; n_wdrain = 0;
+            n_dmiss = 0; n_dpend = 0; n_dcred = 0; n_dfifo = 0; n_dline = 0; n_ddrain = 0; n_cflush = 0;
+            n_tmiss = 0; n_tfill = 0; n_thold = 0;
+            if (pcprof != "" && n_geo >= 1000000) begin
+                int fd;
+                fd = $fopen(pcprof, "w");
+                for (int k = 0; k < 2048; k++)
+                    if (pc_go[k] + pc_stl[k] + pc_bub[k] != 0)
+                        $fdisplay(fd, "%0d %0d %0d %0d", k, pc_go[k], pc_stl[k], pc_bub[k]);
+                $fclose(fd);
+            end
+            for (int k = 0; k < 2048; k++) begin pc_go[k] = 0; pc_stl[k] = 0; pc_bub[k] = 0; end
             n_all = 0; n_geo = 0; n_gstall = 0; n_rbusy = 0; n_ronly = 0; n_idle = 0; n_flush = 0;
             n_fin = 0; n_swap = 0; n_ups = 0; n_tris = 0; n_tqmax = 0; n_vwait = 0; n_twait = 0; n_zwait = 0; n_wwait = 0;
         end

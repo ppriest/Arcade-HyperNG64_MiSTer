@@ -32,5 +32,5 @@ module tb_sndbridge (
     input  logic [63:0] r_data,
     output logic        dbg_overflow
 );
-    hng64_sndbridge #(.POLL(64), .LIVE(16)) u (.*);
+    hng64_sndbridge #(.POLL(64), .LIVE(16), .BEAT(100)) u (.*);
 endmodule

@@ -123,7 +123,19 @@ int main(int argc, char **argv)
 	run(50);
 
 	printf("sndbridge:\n");
-	check(!memcmp(ddr.data(), "HNGS", 4) && ddr[4] == 1, "magic and version");
+	check(!memcmp(ddr.data(), "HNGS", 4) && ddr[4] == 2, "magic and version");
+	{
+		// the count at +0x20 (BEAT 100 here): up while the core runs, still while it is held in reset
+		const uint64_t b0 = shm64(0x20);
+		run(1000);
+		const uint64_t b1 = shm64(0x20);
+		check(b1 >= b0 + 8 && b1 <= b0 + 11, "the count moves every BEAT clocks");
+		dut->reset = 1;
+		run(1000);
+		check(shm64(0x20) == b1, "the count stops in reset");
+		dut->reset = 0;
+		run(50);
+	}
 	check(shm64(0x08) == (uint64_t(0x1000000) << 32 | 0x9900000), "the sample ROM's base and size");
 
 	// the upload: sound RAM and some other memory, with a full queue's worth at once

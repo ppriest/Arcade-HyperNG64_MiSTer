@@ -3,9 +3,9 @@
 A MiSTer FPGA core for SNK's Hyper NeoGeo 64 arcade hardware (MAME's `hng64`), built with Quartus
 Prime 17.0.2 Lite for the DE10-nano.
 
-**Status: in development, just about playable.** The 4 versus fighters play, but with graphical
-glitches and slowdown in places. Sound runs as a program on the MiSTer's ARM ([Sound](#sound)) and
-breaks up in heavy passages.
+**Status: in development, just about playable.** The 4 versus fighters, the 2 drive sets and Beast
+Busters play, but with graphical glitches and slowdown in places. Sound runs as a program on the
+MiSTer's ARM ([Sound](#sound)) and breaks up in heavy passages.
 
 **CRT: 31 kHz only.** The core's video is 448-line progressive at a 32.6 kHz line rate. There is no
 15 kHz interlaced mode yet, so it needs a 31 kHz monitor (or HDMI); a 15 kHz CRT is not supported
@@ -48,9 +48,12 @@ On the board, MiSTer's native-resolution screenshots (`docs/screenshots/`).
 | Samurai Shodown 64: Warriors Rage / Samurai Spirits 2: Asura Zanmaden | 1998 | `sams64_2` | attract and play |
 | Fatal Fury: Wild Ambition / Garou Densetsu: Wild Ambition (rev.A) | 1998 | `fatfurwa` | attract and play; heavy 3D scenes slow |
 | Buriki One: World Grapple Tournament '99 in Tokyo (rev.B) | 1999 | `buriki` | attract and play; heavy 3D scenes slow |
+| Roads Edge / Round Trip RV (rev.B) | 1997 | `roadedge` | attract and play; sustained sounds drop out in races ([Sound](#sound)) |
+| Xtreme Rally / Off Beat Racer! | 1998 | `xrally` | attract and play |
+| Beast Busters: Second Nightmare | 1998 | `bbust2` | attract and play; heavy 3D scenes slow |
 
-Not planned for now: the drive sets (Roads Edge, Xtreme Rally: wheel, pedals, network board) and
-Beast Busters: Second Nightmare (light guns).
+The drive sets' network board is not emulated: as MAME, the core answers its network check
+(`docs/MAME_KLUDGES.md`), so each runs as a single cabinet.
 
 ## Hardware
 
@@ -71,8 +74,9 @@ is no composite or S-video output, and the scaler has no adaptive scanline filte
 
 ## Installation
 
-`releases/` has a development build: `Arcade-HyperNG64_20261004.rbf` (`19ae667`, fitter seed 6649;
-every clock met but the SDRAM reads' capture, `docs/HACKS.md`) and `hng64snd_20261004.zip`.
+`releases/` has a development build: `Arcade-HyperNG64_20261006.rbf` (`7bbc004`, fitter seed 1;
+every clock met but the SDRAM reads' capture, `docs/HACKS.md`) and `hng64snd_20261006.zip`, which
+it needs: an older `hng64snd` does not play the drive sets or Beast Busters.
 
 * Copy the `.rbf` to `_Arcade/cores`, or build one with `python scripts/build_staged.py` and copy it
   there as `HyperNG64_<anything>.rbf` (`scripts/deploy.py` does this, with a `mister.env`)
@@ -98,6 +102,16 @@ Two players, an 8-way stick and four buttons each, as MAME's `hng64_fight` ports
 
 Service and Test have no default pad button; map them in the MiSTer input setup if wanted.
 
+The other boards' controls, from the same OSD buttons (`.mra` names them per set):
+
+* **Drive** (`roadedge`, `xrally`): the wheel from the left stick's X, or the d-pad; the accelerator
+  and brake from the stick's Y (up and down), or buttons 1 and 2; shift up and down, two views and
+  two music buttons on buttons 3-8.
+* **Shoot** (`bbust2`, three players): each player's gun from their left stick (absolute), or moved
+  by the d-pad; player 1's also by a mouse. Buttons 1-3 are trigger, pump and bomb, and the mouse's
+  left, right and middle buttons are player 1's. Service is a service coin; Test enters service
+  mode, where the guns are calibrated.
+
 ## OSD speeds
 
 The CPU runs at 75 MHz (the real board's VR4300 runs at 100) and the 3D at 100 MHz; neither is
@@ -122,8 +136,9 @@ Using it:
    `games/HyperNG64/hng64snd` and its start script at `Scripts/HNG64_SoundServer.sh`.
 2. After every cold boot, from the MiSTer main menu, open Scripts and run `HNG64_SoundServer`. Three
    seconds later it says "hng64snd started" (or why it failed). Nothing starts it at boot.
-3. Load a set. The program waits until the set starts its sound CPU, goes quiet at every core
-   load, and picks up again at the next set; it stays running until the MiSTer restarts.
+3. Load a set. The program waits until the set starts its sound CPU, goes quiet within 0.2 s of
+   any core load starting, and picks up again at the next set; it stays running until the MiSTer
+   restarts.
 4. To stop it, run `HNG64_SoundServer` again: it says "hng64snd stopped".
 
 To have it start at every boot instead, add this line to `/media/fat/linux/user-startup.sh`
@@ -144,7 +159,9 @@ Notes:
   the set is loaded; `--package` writes the release zip.
 * The sound is about 80 ms behind the game.
 * In heavy passages the emulation needs more than one of the ARM's two cores (Main_MiSTer has the
-  other), and the sound has gaps there. A faster V33 emulator is the planned fix.
+  other), and the sound has gaps there. It is most noticeable on the drive sets, where a race keeps
+  the ARM 90-95% busy and long sounds such as the engine drop out. A faster V33 emulator is the
+  planned fix.
 
 ## Status
 
@@ -152,12 +169,11 @@ Known issues:
 
 * **Sound** needs `hng64snd` running on the ARM, and has gaps in heavy passages ([Sound](#sound)).
 * **3D throughput**: the 3D is slower than the real board in heavy scenes (fatfurwa's intro,
-  buriki's character intros), so the game slows there; with Game speed at 100% those frames lose
-  polygons instead. `docs/ROADMAP.md` has the measurements.
+  buriki's character intros, Beast Busters), so the game slows there; with Game speed at 100% those
+  frames lose polygons instead. `docs/ROADMAP.md` has the measurements.
 * **Timing not closed** at full speed (clk2x 125 MHz, clk3d 100 MHz): the SDRAM data inputs' capture,
-  which no capture phase closes at CL2 and 125 MHz (`docs/HACKS.md`), and, depending on placement,
-  clk3d, clk2x's hold and the framework scaler's HDMI clock, each met on some placements and missed
-  on others. The current build (seed 6649) meets every clock but the SDRAM reads.
+  which no capture phase closes at CL2 and 125 MHz (`docs/HACKS.md`), and on some placements the
+  framework scaler's HDMI clock. The current build (seed 1) meets every clock but the SDRAM reads.
 * **sams64** sometimes stops on "I/O INITIALIZE SEQUENCE 1 FAILED!!" after a while. Haven't seen this since sound hookup.
 
 `docs/ROADMAP.md` is the plan, `docs/HACKS.md` this core's approximations, `docs/MAME_KLUDGES.md`
@@ -172,7 +188,7 @@ Todo:
 - [ ] sams64's I/O error
 - [ ] 15 kHz interlaced output for CRTs
 
-Resource use (`19ae667`, seed 6649): 35,002 of 41,910 ALMs (84%), 466 of 553 RAM blocks, 62 of 112
+Resource use (`7bbc004`, seed 1): 36,038 of 41,910 ALMs (86%), 466 of 553 RAM blocks, 71 of 112
 DSP blocks, 4 of 6 PLLs.
 
 ## Verification

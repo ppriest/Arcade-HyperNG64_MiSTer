@@ -124,6 +124,22 @@ def wrap(v, bits):
     return ((v + (m >> 1)) % m) - (m >> 1)
 
 
+def near_scaled(vs):
+    """A triangle at the camera: 1/w at 2^32 or more at a vertex. 1/w, light/w, u/w and v/w then
+    outgrow their fields (34, 24, 32, 32 bits); |u/w| and |v/w| are at most 1/w / 4 and light/w
+    1/w / 2^10 by their formats (geom_int: a 16-bit texcoord, light clamped at 255 << 8), so 1/w
+    under 2^32 keeps all four in, a bit to spare. Past it all four are scaled by 2^-s together at
+    every vertex, s = 1/w's top bit - 31, rounded half up: the rasteriser takes them only as ratios
+    to 1/w (Pixel.scala), so a texel moves by the rounding alone. vs: (x, y, z, 1/w, light/w, u/w,
+    v/w) each."""
+    m = max(t[3] for t in vs)
+    if m < 1 << 32:
+        return vs
+    s = m.bit_length() - 32
+    h = 1 << (s - 1)
+    return [list(t[:3]) + [(t[k] + h) >> s for k in range(3, 7)] for t in vs]
+
+
 def setup_record(vs):
     """What EMIT gives the rasteriser for three vertices (x, y, z, 1/w, light/w, u/w, v/w) in the
     order the fan gives them, or None for a zero determinant (nothing drawn): render_3d_fx.py's
@@ -131,7 +147,7 @@ def setup_record(vs):
     the plane's numerators from differences to the top vertex; one reciprocal of |det|, its top
     GRAD_M + 1 bits (truncated) into 2^(2 GRAD_M + 1); each gradient n r rounded half up by
     GRAD_M + 1 + e - XY_F and given det's sign."""
-    v = sorted(vs, key=lambda t: t[1])
+    v = sorted(near_scaled(vs), key=lambda t: t[1])
     (x1, y1), (x2, y2), (x3, y3) = [(t[0], t[1]) for t in v]
     det = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1)
     if det == 0:
@@ -174,6 +190,9 @@ class Sim:
         self.steps = 0
         self.cycles = 0          # the planned pipeline's estimate (Sim.run's timing notes)
         self.why = {"st": 0, "idx": 0, "div": 0, "vout": 0, "branch": 0, "brfwd": 0}
+        # setup-record fields wider than RECORD_BITS: EMIT keeps the low bits, as the RTL does
+        self.ovf = collections.Counter()
+        self.ovf_bits = collections.Counter()
         self.brfwd_at = collections.Counter()
 
     def w(self, d, v):
@@ -336,6 +355,11 @@ class Sim:
             elif op == "AOUT":
                 self.out_a[d] = r[a]
             elif op == "EMIT":
+                for k, w in enumerate(RECORD_BITS):
+                    v = r[a + k]
+                    if w > 1 and not -(1 << (w - 1)) <= v < (1 << (w - 1)):
+                        self.ovf[k] += 1
+                        self.ovf_bits[k] = max(self.ovf_bits[k], v.bit_length() + 1)
                 self.tris.append(([wrap(r[a + k], w) for k, w in enumerate(RECORD_BITS)], list(self.out_a)))
             elif op == "J":
                 nxt = i
@@ -494,6 +518,12 @@ def check(game, frames, dump=False):
           f"{found['bad']} differ; {found['steps']} engine instructions in drawn uploads, "
           f"{found['cycles']} clocks estimated")
     print("  extra clocks over the whole run, by cause:", checked_sim[0].why if checked_sim else "")
+    if checked_sim and checked_sim[0].ovf:
+        names = ([f"v{i // 2}{'xy'[i % 2]}" for i in range(6)] + ["neg"] +
+                 [f"{g}_{c}" for g in ("p0", "dx", "dy") for c in ("z", "1/w", "l/w", "u/w", "v/w")])
+        print("  setup fields over their widths (triangles, widest):", ", ".join(
+            f"{names[k]} {n} ({checked_sim[0].ovf_bits[k]} of {RECORD_BITS[k]} bits)"
+            for k, n in sorted(checked_sim[0].ovf.items())))
     if checked_sim and checked_sim[0].brfwd_at:
         print("  branch-forward waits by pc:", ", ".join(
             f"{pc}: {n}" for pc, n in checked_sim[0].brfwd_at.most_common(12)))

@@ -68,8 +68,17 @@ module hng64_ddram #(
     // the loader, the backing store). Clients take replies in order and at any latency. The register
     // is copied for its loads (maxfan): one copy for all of them missed clk2x by 1.05 ns into
     // hng64_video's e_rdata and 0.83 ns into the sprite's row buffer (a10b85c seed 2).
+    // The port's data and ready are registered once first, a load each, so that register can sit by
+    // the HPS interface: c_data_r's copies took the port straight, beside their loads, 6.2 ns of
+    // routing away (-0.36 ns at clk2x, 1e45b50 seed 6649). All that answers replies takes p_ready.
+    logic [63:0] p_data;
+    logic        p_ready;
+    always_ff @(posedge clk) begin
+        p_data  <= DDRAM_DOUT;
+        p_ready <= !reset && DDRAM_DOUT_READY;
+    end
     (* maxfan = 4 *) logic [63:0] c_data_r;
-    always_ff @(posedge clk) c_data_r <= DDRAM_DOUT;
+    always_ff @(posedge clk) c_data_r <= p_data;
     assign c_data = c_data_r;
 
     // ---- the issue queue -----------------------------------------------------------------------------
@@ -239,8 +248,8 @@ module hng64_ddram #(
     logic [IW-1:0] q_h;
     logic    [7:0] q_r1;                     // q_r + 1
     always_ff @(posedge clk) begin
-        q_h <= DDRAM_DOUT_READY ? q[q_r1[6:0]] : q[q_r[6:0]];
-        for (int i = 0; i < N; i++) c_valid[i] <= !reset && DDRAM_DOUT_READY && (q_h == IW'(i));
+        q_h <= p_ready ? q[q_r1[6:0]] : q[q_r[6:0]];
+        for (int i = 0; i < N; i++) c_valid[i] <= !reset && p_ready && (q_h == IW'(i));
     end
 
     always_ff @(posedge clk) begin
@@ -276,7 +285,7 @@ module hng64_ddram #(
                 q[q_w[6:0]] <= gnt;
                 q_w <= q_w + 8'd1;
             end
-            if (DDRAM_DOUT_READY) begin
+            if (p_ready) begin
                 q_r  <= q_r1;
                 q_r1 <= q_r1 + 8'd1;
             end

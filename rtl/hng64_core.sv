@@ -18,9 +18,7 @@
 // once per index-0 download, with the game held in reset. The memory path's own reset leaves out
 // the download, because MiSTer holds reset for the whole of it and SDRAM must stay live.
 
-module hng64_core #(
-    parameter logic [7:0] NO_MACHINE_ERROR_CODE = 8'h01    // the fight sets'
-) (
+module hng64_core (
     input  logic        clk1x,
     input  logic        clk2x,
     input  logic        clk3d,          // the 3D's own (hng64_3d)
@@ -53,7 +51,9 @@ module hng64_core #(
     output logic  [7:0] nv_rdata,       // NVRAM byte at ioctl_addr, the clock after (upload)
     output logic        nv_written,     // one clock per CPU write to NVRAM
 
-    input  logic  [7:0] inputs [0:7],   // IN0-IN7, active low, as MAME's hng64_fight ports
+    input  logic  [7:0] inputs [0:7],   // IN0-IN7, active low, as MAME's ports for the board
+    input  logic  [7:0] analog [0:7],   // AN0-AN7, the IO MCU's ADC
+    output logic  [1:0] board,          // from the .mra: 1 fight, 2 drive, 3 shoot (hng64_romcfg flags)
     input  logic        flip,           // the picture turned 180 degrees, from the next frame
     input  logic  [2:0] game_speed,     // OSD: 0 auto; 1 full; 2-6 hide 1 frame in 10, 5, 4, 3, 2 (docs/HACKS.md)
 
@@ -154,6 +154,7 @@ module hng64_core #(
     logic [27:0] cfg_size [0:NREG-1];
     logic        cfg_valid;
     logic [31:0] cfg_flags;
+    assign board = cfg_flags[9:8];
 
     hng64_romcfg #(.N(NREG)) u_cfg (
         .clk(clk1x),
@@ -379,8 +380,8 @@ module hng64_core #(
     // the .nvm file: downloaded as index 4, read back through ioctl_addr on an upload
     wire nv_dl_we = ioctl_download && ioctl_index == 16'd4 && ioctl_wr && ioctl_addr < 27'h4000;
 
-    hng64_io #(.NO_MACHINE_ERROR_CODE(NO_MACHINE_ERROR_CODE)) u_io (
-        .clk(clk1x), .reset(game_reset),
+    hng64_io u_io (
+        .clk(clk1x), .reset(game_reset), .no_machine_error_code(cfg_flags[15:8]),
         .io_req(io_req), .io_we(io_we), .io_addr(io_addr), .io_be(io_be), .io_wdata(io_wdata),
         .io_ack(io_ack), .io_rdata(io_rdata),
         .cpu_irq(cpu_irq),
@@ -438,7 +439,7 @@ module hng64_core #(
     hng64_iomcu u_mcu (
         .clk(clk1x), .reset(game_reset), .ce(mcu_ce),
         .rom_we(mcu_rom_we), .rom_addr(ioctl_addr[13:0]), .rom_data(ioctl_dout),
-        .inputs(inputs), .analog('{8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff, 8'hff}),
+        .inputs(inputs), .analog(analog),
         .int0(mcu_int0),
         .lamp_we(lamp_we), .lamp_addr(lamp_addr), .lamp_data(lamp_data), .mips_irq(mcu_irq),
         .dp_clk(clk1x), .dp_addr(dp_addr), .dp_we(dp_we), .dp_wdata(dp_wdata),
@@ -495,6 +496,7 @@ module hng64_core #(
         .prom_data(ddr_data), .prom_valid(c_valid[1]),
         .pal_a(pal_a), .pal_d(pal_d),
         .vis_y0(vis_y0), .vis_h(vis_h), .fbcontrol0(fbcontrol[0]), .fbcontrol2(fbcontrol[2]),
+        .pal3d_fixed(cfg_flags[1]),
         .fbscroll(fbscroll),
         .show_valid(show_valid), .show_plane(show_plane),
         .shown_valid(shown_valid), .shown_plane(shown_plane), .plane_base(plane_base),

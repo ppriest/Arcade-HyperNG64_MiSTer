@@ -1426,6 +1426,25 @@ never slept again, took both cores, and the board stopped answering ssh until th
 A nice level, a cap on how far behind it may chase, and a sleep every 20 ms of work keep the
 system usable. BusyBox's `pkill -x name` did not match it; `kill $(pidof name)` did.
 
+### [HyperNG64] A check that compares two truncated values cannot see the truncation
+
+`geo_engine.check` compared the engine's setup record with `setup_record`'s, and both took each
+field's low bits, so a 1/w of 36 bits in a 34-bit field matched on both sides while the RTL drew
+noise: `roadedge`'s car, near the camera. The fixed-point frame model kept the whole value and
+matched MAME. Count a value that does not fit before it is cut (`Sim.ovf`), on every capture, and
+take a capture where the game puts the camera close: the fight sets' captures never did.
+
+### [HyperNG64] A clk1x register sampled on the clk2x edge it shares can miss hold
+
+With clk2x exactly twice clk1x from one PLL, a clk1x register read straight into a clk2x one is
+checked for hold on the clk2x edge that coincides with the clk1x launch. `cd589b4` seed 1 placed
+`hng64_io`'s `main_latch0` beside the sound bridge's `main0_q`: 0.33 ns of data path against
+0.51 ns of skew between the two clocks' networks, hold -0.25 at the fast corners, with Optimize
+Hold Timing on All Paths. clk2x hold misses came and went with the seed (5 of 9 store-unit
+builds; this is the only one whose path was examined). Taking the
+clk1x values on clk2x's falling edge, then the rising edge, leaves half a clk2x clock on each side
+(`8dac57f`). The reverse direction, clk2x into clk1x, has the skew in its favour here.
+
 ### [HyperNG64] `/dev/MrAudio` does not block: the writer paces itself
 
 MiSTer's default ALSA device converts to 48 kHz S16_LE and writes `/dev/MrAudio` through the `file`

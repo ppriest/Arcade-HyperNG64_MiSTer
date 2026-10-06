@@ -1,6 +1,6 @@
 // Generator : SpinalHDL v1.13.0    git head : d9d72474863badf47d8585d187f3e04ae4749c59
 // Component : hng64_raster
-// Git hash  : 50112e7df801a86a47e1c49247a3b218ac24b9cb
+// Git hash  : 5367caf80014a991a73333aabb0091fdd9f1c0b9
 
 `timescale 1ns/1ps
 
@@ -2068,19 +2068,64 @@ module hng64_raster_RenderBuf (
   reg        [63:0]   _zz_backW_payload_b_data;
   wire       [2:0]    _zz_backW_payload_b_data_1;
   wire       [3:0]    _zz_backW_payload_b_data_2;
-  reg        [31:0]   _zz_readWord;
-  wire       [24:0]   _zz_pass;
+  wire       [24:0]   _zz_passRead_0;
+  wire       [24:0]   _zz_passRead_0_1;
+  wire       [23:0]   _zz_passRead_0_2;
+  wire       [24:0]   _zz_passRead_1;
+  wire       [24:0]   _zz_passRead_1_1;
+  wire       [23:0]   _zz_passRead_1_2;
+  wire       [24:0]   _zz_passRead_2;
+  wire       [24:0]   _zz_passRead_2_1;
+  wire       [23:0]   _zz_passRead_2_2;
+  wire       [24:0]   _zz_passRead_3;
+  wire       [24:0]   _zz_passRead_3_1;
+  wire       [23:0]   _zz_passRead_3_2;
+  wire       [24:0]   _zz_passRead_4;
+  wire       [24:0]   _zz_passRead_4_1;
+  wire       [23:0]   _zz_passRead_4_2;
+  wire       [24:0]   _zz_passRead_5;
+  wire       [24:0]   _zz_passRead_5_1;
+  wire       [23:0]   _zz_passRead_5_2;
+  wire       [24:0]   _zz_passRead_6;
+  wire       [24:0]   _zz_passRead_6_1;
+  wire       [23:0]   _zz_passRead_6_2;
+  wire       [24:0]   _zz_passRead_7;
+  wire       [24:0]   _zz_passRead_7_1;
+  wire       [23:0]   _zz_passRead_7_2;
+  wire       [24:0]   _zz_passRead_8;
+  wire       [24:0]   _zz_passRead_8_1;
+  wire       [23:0]   _zz_passRead_8_2;
+  wire       [24:0]   _zz_passRead_9;
+  wire       [24:0]   _zz_passRead_9_1;
+  wire       [23:0]   _zz_passRead_9_2;
+  wire       [24:0]   _zz_passRead_10;
+  wire       [24:0]   _zz_passRead_10_1;
+  wire       [23:0]   _zz_passRead_10_2;
+  wire       [24:0]   _zz_passRead_11;
+  wire       [24:0]   _zz_passRead_11_1;
+  wire       [23:0]   _zz_passRead_11_2;
+  wire       [24:0]   _zz_passRead_12;
+  wire       [24:0]   _zz_passRead_12_1;
+  wire       [23:0]   _zz_passRead_12_2;
+  wire       [24:0]   _zz_passRead_13;
+  wire       [24:0]   _zz_passRead_13_1;
+  wire       [23:0]   _zz_passRead_13_2;
+  wire       [24:0]   _zz_passRead_14;
+  wire       [24:0]   _zz_passRead_14_1;
+  wire       [23:0]   _zz_passRead_14_2;
+  wire       [24:0]   _zz_passRead_15;
+  wire       [24:0]   _zz_passRead_15_1;
+  wire       [23:0]   _zz_passRead_15_2;
+  reg                 _zz_pass;
   wire       [24:0]   _zz_pass_1;
-  wire       [23:0]   _zz_pass_2;
-  wire       [24:0]   _zz_pass_3;
+  wire       [24:0]   _zz_pass_2;
+  wire       [23:0]   _zz_pass_3;
   wire       [24:0]   _zz_pass_4;
-  wire       [23:0]   _zz_pass_5;
-  wire       [24:0]   _zz_pass_6;
+  wire       [24:0]   _zz_pass_5;
+  wire       [23:0]   _zz_pass_6;
   wire       [24:0]   _zz_pass_7;
-  wire       [23:0]   _zz_pass_8;
-  wire       [24:0]   _zz_pass_9;
-  wire       [24:0]   _zz_pass_10;
-  wire       [23:0]   _zz_pass_11;
+  wire       [24:0]   _zz_pass_8;
+  wire       [23:0]   _zz_pass_9;
   wire       [3:0]    _zz_banks_0_port;
   wire       [31:0]   _zz_banks_0_port_1;
   wire                _zz_banks_0_port_2;
@@ -2133,10 +2178,10 @@ module hng64_raster_RenderBuf (
   wire       [27:0]   _zz_colourW_payload_b_addr;
   wire       [18:0]   _zz_colourW_payload_b_addr_1;
   reg        [63:0]   _zz_colourW_payload_b_data;
-  reg                 _zz_when_RenderBuf_l423;
-  wire       [3:0]    _zz_when_RenderBuf_l423_1;
-  reg                 _zz_when_RenderBuf_l423_2;
-  wire       [3:0]    _zz_when_RenderBuf_l423_3;
+  reg                 _zz_when_RenderBuf_l428;
+  wire       [3:0]    _zz_when_RenderBuf_l428_1;
+  reg                 _zz_when_RenderBuf_l428_2;
+  wire       [3:0]    _zz_when_RenderBuf_l428_3;
   reg        [10:0]   _zz_vAddr_1;
   reg        [2:0]    fs;
   reg        [7:0]    tag;
@@ -2162,12 +2207,26 @@ module hng64_raster_RenderBuf (
   wire                backW_payload_rel;
   wire       [2:0]    backW_payload_relSlot;
   wire                colourW_valid;
-  wire                colourW_ready;
+  reg                 colourW_ready;
   wire       [27:0]   colourW_payload_b_addr;
   wire       [63:0]   colourW_payload_b_data;
   wire       [7:0]    colourW_payload_b_be;
   wire                colourW_payload_rel;
   wire       [2:0]    colourW_payload_relSlot;
+  wire                colourWq_valid;
+  wire                colourWq_ready;
+  wire       [27:0]   colourWq_payload_b_addr;
+  wire       [63:0]   colourWq_payload_b_data;
+  wire       [7:0]    colourWq_payload_b_be;
+  wire                colourWq_payload_rel;
+  wire       [2:0]    colourWq_payload_relSlot;
+  reg                 colourW_rValid;
+  reg        [27:0]   colourW_rData_b_addr;
+  reg        [63:0]   colourW_rData_b_data;
+  reg        [7:0]    colourW_rData_b_be;
+  reg                 colourW_rData_rel;
+  reg        [2:0]    colourW_rData_relSlot;
+  wire                when_Stream_l477;
   wire                wq_io_pop_translated_valid;
   wire                wq_io_pop_translated_ready;
   wire       [27:0]   wq_io_pop_translated_payload_addr;
@@ -2175,8 +2234,8 @@ module hng64_raster_RenderBuf (
   wire       [7:0]    wq_io_pop_translated_payload_be;
   wire       [7:0]    stale;
   wire                clearW_fire;
-  wire                when_RenderBuf_l94;
-  wire                when_RenderBuf_l98;
+  wire                when_RenderBuf_l97;
+  wire                when_RenderBuf_l101;
   wire                when_Stream_l581;
   reg                 io_i_throwWhen_valid;
   wire                io_i_throwWhen_ready;
@@ -2209,7 +2268,7 @@ module hng64_raster_RenderBuf (
   reg        [8:0]    io_i_throwWhen_map_rData_y;
   reg        [23:0]   io_i_throwWhen_map_rData_z;
   reg        [15:0]   io_i_throwWhen_map_rData_colour;
-  wire                when_Stream_l477;
+  wire                when_Stream_l477_1;
   wire                _zz_io_i_throwWhen_map_m2sPipe_ready;
   wire                prep_valid;
   wire                prep_ready;
@@ -2341,7 +2400,7 @@ module hng64_raster_RenderBuf (
   reg                 fragIn_rData_victim;
   reg        [13:0]   fragIn_rData_vLine;
   reg        [2:0]    fragIn_rData_pend;
-  wire                when_Stream_l477_1;
+  wire                when_Stream_l477_2;
   wire                canGo;
   reg                 consume;
   reg                 release_valid;
@@ -2351,18 +2410,18 @@ module hng64_raster_RenderBuf (
   wire                prep_fire;
   wire                allocate;
   wire       [3:0]    mSlot;
-  wire                when_RenderBuf_l177;
+  wire                when_RenderBuf_l180;
   wire                _zz_pVic_0;
   wire       [10:0]   _zz_pLine_0;
-  wire                when_RenderBuf_l177_1;
-  wire                when_RenderBuf_l177_2;
-  wire                when_RenderBuf_l177_3;
-  wire                when_RenderBuf_l177_4;
-  wire                when_RenderBuf_l177_5;
-  wire                when_RenderBuf_l177_6;
-  wire                when_RenderBuf_l177_7;
+  wire                when_RenderBuf_l180_1;
+  wire                when_RenderBuf_l180_2;
+  wire                when_RenderBuf_l180_3;
+  wire                when_RenderBuf_l180_4;
+  wire                when_RenderBuf_l180_5;
+  wire                when_RenderBuf_l180_6;
+  wire                when_RenderBuf_l180_7;
   wire                _zz_lru_0;
-  wire                when_RenderBuf_l183;
+  wire                when_RenderBuf_l186;
   wire       [7:0]    _zz_4;
   wire       [7:0]    _zz_5;
   wire       [7:0]    _zz_6;
@@ -2441,11 +2500,11 @@ module hng64_raster_RenderBuf (
   wire       [31:0]   bankRd_15;
   wire                needFill;
   wire                go;
-  wire                when_RenderBuf_l252;
-  wire                when_RenderBuf_l257;
+  wire                when_RenderBuf_l255;
+  wire                when_RenderBuf_l260;
   wire       [15:0]   _zz_24;
   wire                _zz_vLeft;
-  wire                when_RenderBuf_l264;
+  wire                when_RenderBuf_l267;
   wire                backW_fire;
   wire                io_wr_fire;
   reg                 sValid;
@@ -2486,11 +2545,26 @@ module hng64_raster_RenderBuf (
   wire                rMove;
   wire                rFree;
   wire       [3:0]    px;
-  wire       [31:0]   readWord;
+  wire                passRead_0;
+  wire                passRead_1;
+  wire                passRead_2;
+  wire                passRead_3;
+  wire                passRead_4;
+  wire                passRead_5;
+  wire                passRead_6;
+  wire                passRead_7;
+  wire                passRead_8;
+  wire                passRead_9;
+  wire                passRead_10;
+  wire                passRead_11;
+  wire                passRead_12;
+  wire                passRead_13;
+  wire                passRead_14;
+  wire                passRead_15;
   reg                 pass;
-  wire                when_RenderBuf_l323;
-  wire                when_RenderBuf_l324;
-  wire                when_RenderBuf_l325;
+  wire                when_RenderBuf_l328;
+  wire                when_RenderBuf_l329;
+  wire                when_RenderBuf_l330;
   wire                fillNow;
   wire                cWrite;
   wire       [3:0]    cPx;
@@ -2518,57 +2592,57 @@ module hng64_raster_RenderBuf (
   wire       [12:0]   cLineOf;
   wire                needFlush;
   wire                frameFlush;
-  wire                when_RenderBuf_l382;
+  wire                when_RenderBuf_l387;
   wire       [7:0]    _zz_colourW_valid;
   wire       [7:0]    _zz_42;
   wire                colourW_fire;
-  wire                when_RenderBuf_l392;
-  wire                when_RenderBuf_l395;
+  wire                when_RenderBuf_l397;
+  wire                when_RenderBuf_l400;
   wire                comb_fire;
-  wire       [4:0]    _zz_when_RenderBuf_l403;
-  wire                when_RenderBuf_l403;
-  wire                when_RenderBuf_l403_1;
-  wire                when_RenderBuf_l403_2;
-  wire                when_RenderBuf_l403_3;
-  wire                when_RenderBuf_l403_4;
-  wire                when_RenderBuf_l403_5;
-  wire                when_RenderBuf_l403_6;
-  wire                when_RenderBuf_l403_7;
-  wire                when_RenderBuf_l403_8;
-  wire                when_RenderBuf_l403_9;
-  wire                when_RenderBuf_l403_10;
-  wire                when_RenderBuf_l403_11;
-  wire                when_RenderBuf_l403_12;
-  wire                when_RenderBuf_l403_13;
-  wire                when_RenderBuf_l403_14;
-  wire                when_RenderBuf_l403_15;
-  wire                when_RenderBuf_l403_16;
-  wire                when_RenderBuf_l403_17;
-  wire                when_RenderBuf_l403_18;
-  wire                when_RenderBuf_l403_19;
-  wire                when_RenderBuf_l403_20;
-  wire                when_RenderBuf_l403_21;
-  wire                when_RenderBuf_l403_22;
-  wire                when_RenderBuf_l403_23;
-  wire                when_RenderBuf_l403_24;
-  wire                when_RenderBuf_l403_25;
-  wire                when_RenderBuf_l403_26;
-  wire                when_RenderBuf_l403_27;
-  wire                when_RenderBuf_l403_28;
-  wire                when_RenderBuf_l403_29;
-  wire                when_RenderBuf_l403_30;
-  wire                when_RenderBuf_l403_31;
+  wire       [4:0]    _zz_when_RenderBuf_l408;
+  wire                when_RenderBuf_l408;
+  wire                when_RenderBuf_l408_1;
+  wire                when_RenderBuf_l408_2;
+  wire                when_RenderBuf_l408_3;
+  wire                when_RenderBuf_l408_4;
+  wire                when_RenderBuf_l408_5;
+  wire                when_RenderBuf_l408_6;
+  wire                when_RenderBuf_l408_7;
+  wire                when_RenderBuf_l408_8;
+  wire                when_RenderBuf_l408_9;
+  wire                when_RenderBuf_l408_10;
+  wire                when_RenderBuf_l408_11;
+  wire                when_RenderBuf_l408_12;
+  wire                when_RenderBuf_l408_13;
+  wire                when_RenderBuf_l408_14;
+  wire                when_RenderBuf_l408_15;
+  wire                when_RenderBuf_l408_16;
+  wire                when_RenderBuf_l408_17;
+  wire                when_RenderBuf_l408_18;
+  wire                when_RenderBuf_l408_19;
+  wire                when_RenderBuf_l408_20;
+  wire                when_RenderBuf_l408_21;
+  wire                when_RenderBuf_l408_22;
+  wire                when_RenderBuf_l408_23;
+  wire                when_RenderBuf_l408_24;
+  wire                when_RenderBuf_l408_25;
+  wire                when_RenderBuf_l408_26;
+  wire                when_RenderBuf_l408_27;
+  wire                when_RenderBuf_l408_28;
+  wire                when_RenderBuf_l408_29;
+  wire                when_RenderBuf_l408_30;
+  wire                when_RenderBuf_l408_31;
   wire                pipeEmpty;
   reg        [4:0]    flushSlot;
-  wire                when_RenderBuf_l414;
+  wire                when_RenderBuf_l419;
   reg                 drainRead;
-  wire                when_RenderBuf_l420;
-  wire                when_RenderBuf_l421;
-  wire                when_RenderBuf_l423;
+  wire                when_RenderBuf_l425;
+  wire                when_RenderBuf_l426;
+  wire                when_RenderBuf_l428;
   wire       [3:0]    _zz_vAddr;
   wire       [15:0]   _zz_43;
-  wire                when_RenderBuf_l441;
-  wire                when_RenderBuf_l444;
+  wire                when_RenderBuf_l446;
+  wire                when_RenderBuf_l449;
   `ifndef SYNTHESIS
   reg [47:0] fs_string;
   reg [79:0] hs_string;
@@ -2622,18 +2696,63 @@ module hng64_raster_RenderBuf (
   assign _zz_backW_payload_b_addr_2 = _zz_backW_payload_b_addr_3[2:0];
   assign _zz_backW_payload_b_data_2 = (4'b1000 - vLeft);
   assign _zz_backW_payload_b_data_1 = _zz_backW_payload_b_data_2[2:0];
-  assign _zz_pass = {1'd0, rF_f_z};
-  assign _zz_pass_2 = readWord[23 : 0];
-  assign _zz_pass_1 = {1'd0, _zz_pass_2};
-  assign _zz_pass_3 = {1'd0, rF_f_z};
-  assign _zz_pass_5 = lastWord[23 : 0];
-  assign _zz_pass_4 = {1'd0, _zz_pass_5};
-  assign _zz_pass_6 = {1'd0, rF_f_z};
-  assign _zz_pass_8 = cWord[23 : 0];
-  assign _zz_pass_7 = {1'd0, _zz_pass_8};
-  assign _zz_pass_9 = {1'd0, rF_f_z};
-  assign _zz_pass_11 = sWord[23 : 0];
-  assign _zz_pass_10 = {1'd0, _zz_pass_11};
+  assign _zz_passRead_0 = {1'd0, rF_f_z};
+  assign _zz_passRead_0_2 = bankRd_0[23 : 0];
+  assign _zz_passRead_0_1 = {1'd0, _zz_passRead_0_2};
+  assign _zz_passRead_1 = {1'd0, rF_f_z};
+  assign _zz_passRead_1_2 = bankRd_1[23 : 0];
+  assign _zz_passRead_1_1 = {1'd0, _zz_passRead_1_2};
+  assign _zz_passRead_2 = {1'd0, rF_f_z};
+  assign _zz_passRead_2_2 = bankRd_2[23 : 0];
+  assign _zz_passRead_2_1 = {1'd0, _zz_passRead_2_2};
+  assign _zz_passRead_3 = {1'd0, rF_f_z};
+  assign _zz_passRead_3_2 = bankRd_3[23 : 0];
+  assign _zz_passRead_3_1 = {1'd0, _zz_passRead_3_2};
+  assign _zz_passRead_4 = {1'd0, rF_f_z};
+  assign _zz_passRead_4_2 = bankRd_4[23 : 0];
+  assign _zz_passRead_4_1 = {1'd0, _zz_passRead_4_2};
+  assign _zz_passRead_5 = {1'd0, rF_f_z};
+  assign _zz_passRead_5_2 = bankRd_5[23 : 0];
+  assign _zz_passRead_5_1 = {1'd0, _zz_passRead_5_2};
+  assign _zz_passRead_6 = {1'd0, rF_f_z};
+  assign _zz_passRead_6_2 = bankRd_6[23 : 0];
+  assign _zz_passRead_6_1 = {1'd0, _zz_passRead_6_2};
+  assign _zz_passRead_7 = {1'd0, rF_f_z};
+  assign _zz_passRead_7_2 = bankRd_7[23 : 0];
+  assign _zz_passRead_7_1 = {1'd0, _zz_passRead_7_2};
+  assign _zz_passRead_8 = {1'd0, rF_f_z};
+  assign _zz_passRead_8_2 = bankRd_8[23 : 0];
+  assign _zz_passRead_8_1 = {1'd0, _zz_passRead_8_2};
+  assign _zz_passRead_9 = {1'd0, rF_f_z};
+  assign _zz_passRead_9_2 = bankRd_9[23 : 0];
+  assign _zz_passRead_9_1 = {1'd0, _zz_passRead_9_2};
+  assign _zz_passRead_10 = {1'd0, rF_f_z};
+  assign _zz_passRead_10_2 = bankRd_10[23 : 0];
+  assign _zz_passRead_10_1 = {1'd0, _zz_passRead_10_2};
+  assign _zz_passRead_11 = {1'd0, rF_f_z};
+  assign _zz_passRead_11_2 = bankRd_11[23 : 0];
+  assign _zz_passRead_11_1 = {1'd0, _zz_passRead_11_2};
+  assign _zz_passRead_12 = {1'd0, rF_f_z};
+  assign _zz_passRead_12_2 = bankRd_12[23 : 0];
+  assign _zz_passRead_12_1 = {1'd0, _zz_passRead_12_2};
+  assign _zz_passRead_13 = {1'd0, rF_f_z};
+  assign _zz_passRead_13_2 = bankRd_13[23 : 0];
+  assign _zz_passRead_13_1 = {1'd0, _zz_passRead_13_2};
+  assign _zz_passRead_14 = {1'd0, rF_f_z};
+  assign _zz_passRead_14_2 = bankRd_14[23 : 0];
+  assign _zz_passRead_14_1 = {1'd0, _zz_passRead_14_2};
+  assign _zz_passRead_15 = {1'd0, rF_f_z};
+  assign _zz_passRead_15_2 = bankRd_15[23 : 0];
+  assign _zz_passRead_15_1 = {1'd0, _zz_passRead_15_2};
+  assign _zz_pass_1 = {1'd0, rF_f_z};
+  assign _zz_pass_3 = lastWord[23 : 0];
+  assign _zz_pass_2 = {1'd0, _zz_pass_3};
+  assign _zz_pass_4 = {1'd0, rF_f_z};
+  assign _zz_pass_6 = cWord[23 : 0];
+  assign _zz_pass_5 = {1'd0, _zz_pass_6};
+  assign _zz_pass_7 = {1'd0, rF_f_z};
+  assign _zz_pass_9 = sWord[23 : 0];
+  assign _zz_pass_8 = {1'd0, _zz_pass_9};
   assign _zz_colourW_payload_b_addr_1 = {{cLine,fBeat},3'b000};
   assign _zz_colourW_payload_b_addr = {9'd0, _zz_colourW_payload_b_addr_1};
   assign _zz_banks_0_port = (fillNow ? frags_io_pop_payload_slot : cF_slot);
@@ -2688,8 +2807,8 @@ module hng64_raster_RenderBuf (
   assign _zz_hitW_0_3 = {set,1'b0};
   assign _zz_hitW_1_1 = {set,1'b1};
   assign _zz_hitW_1_3 = {set,1'b1};
-  assign _zz_when_RenderBuf_l423_1 = flushSlot[3 : 0];
-  assign _zz_when_RenderBuf_l423_3 = flushSlot[3 : 0];
+  assign _zz_when_RenderBuf_l428_1 = flushSlot[3 : 0];
+  assign _zz_when_RenderBuf_l428_3 = flushSlot[3 : 0];
   assign _zz_pendingHit = (pOcc_4 && pVic_4);
   assign _zz_pendingHit_1 = (pLine_4 == line);
   assign _zz_pendingHit_2 = ((pOcc_3 && pVic_3) && (pLine_3 == line));
@@ -2916,13 +3035,13 @@ module hng64_raster_RenderBuf (
     .io_inputs_0_payload_b_be    (backW_payload_b_be[7:0]                     ), //i
     .io_inputs_0_payload_rel     (backW_payload_rel                           ), //i
     .io_inputs_0_payload_relSlot (backW_payload_relSlot[2:0]                  ), //i
-    .io_inputs_1_valid           (colourW_valid                               ), //i
+    .io_inputs_1_valid           (colourWq_valid                              ), //i
     .io_inputs_1_ready           (streamArbiter_io_inputs_1_ready             ), //o
-    .io_inputs_1_payload_b_addr  (colourW_payload_b_addr[27:0]                ), //i
-    .io_inputs_1_payload_b_data  (colourW_payload_b_data[63:0]                ), //i
-    .io_inputs_1_payload_b_be    (colourW_payload_b_be[7:0]                   ), //i
-    .io_inputs_1_payload_rel     (colourW_payload_rel                         ), //i
-    .io_inputs_1_payload_relSlot (colourW_payload_relSlot[2:0]                ), //i
+    .io_inputs_1_payload_b_addr  (colourWq_payload_b_addr[27:0]               ), //i
+    .io_inputs_1_payload_b_data  (colourWq_payload_b_data[63:0]               ), //i
+    .io_inputs_1_payload_b_be    (colourWq_payload_b_be[7:0]                  ), //i
+    .io_inputs_1_payload_rel     (colourWq_payload_rel                        ), //i
+    .io_inputs_1_payload_relSlot (colourWq_payload_relSlot[2:0]               ), //i
     .io_inputs_2_valid           (clearW_valid                                ), //i
     .io_inputs_2_ready           (streamArbiter_io_inputs_2_ready             ), //o
     .io_inputs_2_payload_b_addr  (clearW_payload_b_addr[27:0]                 ), //i
@@ -3268,22 +3387,22 @@ module hng64_raster_RenderBuf (
 
   always @(*) begin
     case(px)
-      4'b0000 : _zz_readWord = bankRd_0;
-      4'b0001 : _zz_readWord = bankRd_1;
-      4'b0010 : _zz_readWord = bankRd_2;
-      4'b0011 : _zz_readWord = bankRd_3;
-      4'b0100 : _zz_readWord = bankRd_4;
-      4'b0101 : _zz_readWord = bankRd_5;
-      4'b0110 : _zz_readWord = bankRd_6;
-      4'b0111 : _zz_readWord = bankRd_7;
-      4'b1000 : _zz_readWord = bankRd_8;
-      4'b1001 : _zz_readWord = bankRd_9;
-      4'b1010 : _zz_readWord = bankRd_10;
-      4'b1011 : _zz_readWord = bankRd_11;
-      4'b1100 : _zz_readWord = bankRd_12;
-      4'b1101 : _zz_readWord = bankRd_13;
-      4'b1110 : _zz_readWord = bankRd_14;
-      default : _zz_readWord = bankRd_15;
+      4'b0000 : _zz_pass = passRead_0;
+      4'b0001 : _zz_pass = passRead_1;
+      4'b0010 : _zz_pass = passRead_2;
+      4'b0011 : _zz_pass = passRead_3;
+      4'b0100 : _zz_pass = passRead_4;
+      4'b0101 : _zz_pass = passRead_5;
+      4'b0110 : _zz_pass = passRead_6;
+      4'b0111 : _zz_pass = passRead_7;
+      4'b1000 : _zz_pass = passRead_8;
+      4'b1001 : _zz_pass = passRead_9;
+      4'b1010 : _zz_pass = passRead_10;
+      4'b1011 : _zz_pass = passRead_11;
+      4'b1100 : _zz_pass = passRead_12;
+      4'b1101 : _zz_pass = passRead_13;
+      4'b1110 : _zz_pass = passRead_14;
+      default : _zz_pass = passRead_15;
     endcase
   end
 
@@ -3325,44 +3444,44 @@ module hng64_raster_RenderBuf (
   end
 
   always @(*) begin
-    case(_zz_when_RenderBuf_l423_1)
-      4'b0000 : _zz_when_RenderBuf_l423 = tValid_0;
-      4'b0001 : _zz_when_RenderBuf_l423 = tValid_1;
-      4'b0010 : _zz_when_RenderBuf_l423 = tValid_2;
-      4'b0011 : _zz_when_RenderBuf_l423 = tValid_3;
-      4'b0100 : _zz_when_RenderBuf_l423 = tValid_4;
-      4'b0101 : _zz_when_RenderBuf_l423 = tValid_5;
-      4'b0110 : _zz_when_RenderBuf_l423 = tValid_6;
-      4'b0111 : _zz_when_RenderBuf_l423 = tValid_7;
-      4'b1000 : _zz_when_RenderBuf_l423 = tValid_8;
-      4'b1001 : _zz_when_RenderBuf_l423 = tValid_9;
-      4'b1010 : _zz_when_RenderBuf_l423 = tValid_10;
-      4'b1011 : _zz_when_RenderBuf_l423 = tValid_11;
-      4'b1100 : _zz_when_RenderBuf_l423 = tValid_12;
-      4'b1101 : _zz_when_RenderBuf_l423 = tValid_13;
-      4'b1110 : _zz_when_RenderBuf_l423 = tValid_14;
-      default : _zz_when_RenderBuf_l423 = tValid_15;
+    case(_zz_when_RenderBuf_l428_1)
+      4'b0000 : _zz_when_RenderBuf_l428 = tValid_0;
+      4'b0001 : _zz_when_RenderBuf_l428 = tValid_1;
+      4'b0010 : _zz_when_RenderBuf_l428 = tValid_2;
+      4'b0011 : _zz_when_RenderBuf_l428 = tValid_3;
+      4'b0100 : _zz_when_RenderBuf_l428 = tValid_4;
+      4'b0101 : _zz_when_RenderBuf_l428 = tValid_5;
+      4'b0110 : _zz_when_RenderBuf_l428 = tValid_6;
+      4'b0111 : _zz_when_RenderBuf_l428 = tValid_7;
+      4'b1000 : _zz_when_RenderBuf_l428 = tValid_8;
+      4'b1001 : _zz_when_RenderBuf_l428 = tValid_9;
+      4'b1010 : _zz_when_RenderBuf_l428 = tValid_10;
+      4'b1011 : _zz_when_RenderBuf_l428 = tValid_11;
+      4'b1100 : _zz_when_RenderBuf_l428 = tValid_12;
+      4'b1101 : _zz_when_RenderBuf_l428 = tValid_13;
+      4'b1110 : _zz_when_RenderBuf_l428 = tValid_14;
+      default : _zz_when_RenderBuf_l428 = tValid_15;
     endcase
   end
 
   always @(*) begin
-    case(_zz_when_RenderBuf_l423_3)
-      4'b0000 : _zz_when_RenderBuf_l423_2 = dirty_0;
-      4'b0001 : _zz_when_RenderBuf_l423_2 = dirty_1;
-      4'b0010 : _zz_when_RenderBuf_l423_2 = dirty_2;
-      4'b0011 : _zz_when_RenderBuf_l423_2 = dirty_3;
-      4'b0100 : _zz_when_RenderBuf_l423_2 = dirty_4;
-      4'b0101 : _zz_when_RenderBuf_l423_2 = dirty_5;
-      4'b0110 : _zz_when_RenderBuf_l423_2 = dirty_6;
-      4'b0111 : _zz_when_RenderBuf_l423_2 = dirty_7;
-      4'b1000 : _zz_when_RenderBuf_l423_2 = dirty_8;
-      4'b1001 : _zz_when_RenderBuf_l423_2 = dirty_9;
-      4'b1010 : _zz_when_RenderBuf_l423_2 = dirty_10;
-      4'b1011 : _zz_when_RenderBuf_l423_2 = dirty_11;
-      4'b1100 : _zz_when_RenderBuf_l423_2 = dirty_12;
-      4'b1101 : _zz_when_RenderBuf_l423_2 = dirty_13;
-      4'b1110 : _zz_when_RenderBuf_l423_2 = dirty_14;
-      default : _zz_when_RenderBuf_l423_2 = dirty_15;
+    case(_zz_when_RenderBuf_l428_3)
+      4'b0000 : _zz_when_RenderBuf_l428_2 = dirty_0;
+      4'b0001 : _zz_when_RenderBuf_l428_2 = dirty_1;
+      4'b0010 : _zz_when_RenderBuf_l428_2 = dirty_2;
+      4'b0011 : _zz_when_RenderBuf_l428_2 = dirty_3;
+      4'b0100 : _zz_when_RenderBuf_l428_2 = dirty_4;
+      4'b0101 : _zz_when_RenderBuf_l428_2 = dirty_5;
+      4'b0110 : _zz_when_RenderBuf_l428_2 = dirty_6;
+      4'b0111 : _zz_when_RenderBuf_l428_2 = dirty_7;
+      4'b1000 : _zz_when_RenderBuf_l428_2 = dirty_8;
+      4'b1001 : _zz_when_RenderBuf_l428_2 = dirty_9;
+      4'b1010 : _zz_when_RenderBuf_l428_2 = dirty_10;
+      4'b1011 : _zz_when_RenderBuf_l428_2 = dirty_11;
+      4'b1100 : _zz_when_RenderBuf_l428_2 = dirty_12;
+      4'b1101 : _zz_when_RenderBuf_l428_2 = dirty_13;
+      4'b1110 : _zz_when_RenderBuf_l428_2 = dirty_14;
+      default : _zz_when_RenderBuf_l428_2 = dirty_15;
     endcase
   end
 
@@ -3412,14 +3531,28 @@ module hng64_raster_RenderBuf (
 
   always @(*) begin
     io_done = 1'b0;
-    if(when_RenderBuf_l444) begin
+    if(when_RenderBuf_l449) begin
       io_done = 1'b1;
     end
   end
 
   assign when_RenderBuf_l62 = ((fs == hng64_raster_F_Idle) && io_start);
+  always @(*) begin
+    colourW_ready = colourWq_ready;
+    if(when_Stream_l477) begin
+      colourW_ready = 1'b1;
+    end
+  end
+
+  assign when_Stream_l477 = (! colourWq_valid);
+  assign colourWq_valid = colourW_rValid;
+  assign colourWq_payload_b_addr = colourW_rData_b_addr;
+  assign colourWq_payload_b_data = colourW_rData_b_data;
+  assign colourWq_payload_b_be = colourW_rData_b_be;
+  assign colourWq_payload_rel = colourW_rData_rel;
+  assign colourWq_payload_relSlot = colourW_rData_relSlot;
   assign backW_ready = streamArbiter_io_inputs_0_ready;
-  assign colourW_ready = streamArbiter_io_inputs_1_ready;
+  assign colourWq_ready = streamArbiter_io_inputs_1_ready;
   assign clearW_ready = streamArbiter_io_inputs_2_ready;
   assign wq_io_pop_translated_valid = wq_io_pop_valid;
   assign wq_io_pop_translated_payload_addr = wq_io_pop_payload_b_addr;
@@ -3439,8 +3572,8 @@ module hng64_raster_RenderBuf (
   assign clearW_payload_b_data = ((fs == hng64_raster_F_Clear) ? 64'h0 : {{{stale,24'h0},stale},24'h0});
   assign clearW_payload_b_be = 8'hff;
   assign clearW_fire = (clearW_valid && clearW_ready);
-  assign when_RenderBuf_l94 = ((fs == hng64_raster_F_Clear) && (count == 18'h0ffff));
-  assign when_RenderBuf_l98 = ((fs == hng64_raster_F_Scrub) && ((full && (count == 18'h1ffff)) || ((! full) && (count == 18'h003ff))));
+  assign when_RenderBuf_l97 = ((fs == hng64_raster_F_Clear) && (count == 18'h0ffff));
+  assign when_RenderBuf_l101 = ((fs == hng64_raster_F_Scrub) && ((full && (count == 18'h1ffff)) || ((! full) && (count == 18'h003ff))));
   assign when_Stream_l581 = ((! io_i_payload_f_flat) && ((io_i_payload_f_tex4bpp ? _zz_when_Stream_l581 : io_i_payload_texel) == 8'h0));
   always @(*) begin
     io_i_throwWhen_valid = io_i_valid;
@@ -3476,12 +3609,12 @@ module hng64_raster_RenderBuf (
   assign io_i_throwWhen_map_payload_colour = (io_i_throwWhen_payload_f_flat ? io_i_throwWhen_payload_f_pal : {{io_i_throwWhen_payload_f_light[3 : 0],io_i_throwWhen_payload_f_blend},_zz_io_i_throwWhen_map_payload_colour});
   always @(*) begin
     io_i_throwWhen_map_ready = io_i_throwWhen_map_m2sPipe_ready;
-    if(when_Stream_l477) begin
+    if(when_Stream_l477_1) begin
       io_i_throwWhen_map_ready = 1'b1;
     end
   end
 
-  assign when_Stream_l477 = (! io_i_throwWhen_map_m2sPipe_valid);
+  assign when_Stream_l477_1 = (! io_i_throwWhen_map_m2sPipe_valid);
   assign io_i_throwWhen_map_m2sPipe_valid = io_i_throwWhen_map_rValid;
   assign io_i_throwWhen_map_m2sPipe_payload_x = io_i_throwWhen_map_rData_x;
   assign io_i_throwWhen_map_m2sPipe_payload_y = io_i_throwWhen_map_rData_y;
@@ -3523,12 +3656,12 @@ module hng64_raster_RenderBuf (
   assign freeSlot = {_zz_freeSlot_6,{_zz_freeSlot_5,_zz_freeSlot_4}};
   always @(*) begin
     fragIn_ready = fragIn_m2sPipe_ready;
-    if(when_Stream_l477_1) begin
+    if(when_Stream_l477_2) begin
       fragIn_ready = 1'b1;
     end
   end
 
-  assign when_Stream_l477_1 = (! fragIn_m2sPipe_valid);
+  assign when_Stream_l477_2 = (! fragIn_m2sPipe_valid);
   assign fragIn_m2sPipe_valid = fragIn_rValid;
   assign fragIn_m2sPipe_payload_f_x = fragIn_rData_f_x;
   assign fragIn_m2sPipe_payload_f_y = fragIn_rData_f_y;
@@ -3556,18 +3689,18 @@ module hng64_raster_RenderBuf (
   assign prep_fire = (prep_valid && prep_ready);
   assign allocate = (prep_fire && (! hit));
   assign mSlot = {set,_zz_way};
-  assign when_RenderBuf_l177 = (! pOcc_0);
+  assign when_RenderBuf_l180 = (! pOcc_0);
   assign _zz_pVic_0 = _zz__zz_pVic_0;
   assign _zz_pLine_0 = _zz__zz_pLine_0;
-  assign when_RenderBuf_l177_1 = (! pOcc_1);
-  assign when_RenderBuf_l177_2 = (! pOcc_2);
-  assign when_RenderBuf_l177_3 = (! pOcc_3);
-  assign when_RenderBuf_l177_4 = (! pOcc_4);
-  assign when_RenderBuf_l177_5 = (! pOcc_5);
-  assign when_RenderBuf_l177_6 = (! pOcc_6);
-  assign when_RenderBuf_l177_7 = (! pOcc_7);
+  assign when_RenderBuf_l180_1 = (! pOcc_1);
+  assign when_RenderBuf_l180_2 = (! pOcc_2);
+  assign when_RenderBuf_l180_3 = (! pOcc_3);
+  assign when_RenderBuf_l180_4 = (! pOcc_4);
+  assign when_RenderBuf_l180_5 = (! pOcc_5);
+  assign when_RenderBuf_l180_6 = (! pOcc_6);
+  assign when_RenderBuf_l180_7 = (! pOcc_7);
   assign _zz_lru_0 = (! way[0]);
-  assign when_RenderBuf_l183 = (! hit);
+  assign when_RenderBuf_l186 = (! hit);
   assign _zz_4 = ({7'd0,1'b1} <<< freeSlot);
   assign _zz_5 = ({7'd0,1'b1} <<< release_payload);
   assign _zz_6 = ({7'd0,1'b1} <<< releaseWb_payload);
@@ -3597,15 +3730,15 @@ module hng64_raster_RenderBuf (
   assign bankRd_15 = banks_15_spinal_port0;
   always @(*) begin
     consume = 1'b0;
-    if(when_RenderBuf_l257) begin
+    if(when_RenderBuf_l260) begin
       consume = 1'b1;
     end
   end
 
   always @(*) begin
     release_valid = 1'b0;
-    if(when_RenderBuf_l257) begin
-      if(when_RenderBuf_l264) begin
+    if(when_RenderBuf_l260) begin
+      if(when_RenderBuf_l267) begin
         release_valid = 1'b1;
       end
     end
@@ -3613,8 +3746,8 @@ module hng64_raster_RenderBuf (
 
   always @(*) begin
     release_payload = vPend;
-    if(when_RenderBuf_l257) begin
-      if(when_RenderBuf_l264) begin
+    if(when_RenderBuf_l260) begin
+      if(when_RenderBuf_l267) begin
         release_payload = frags_io_pop_payload_pend;
       end
     end
@@ -3622,7 +3755,7 @@ module hng64_raster_RenderBuf (
 
   always @(*) begin
     lineQ_io_pop_ready = 1'b0;
-    if(when_RenderBuf_l257) begin
+    if(when_RenderBuf_l260) begin
       lineQ_io_pop_ready = 1'b1;
     end
   end
@@ -3630,12 +3763,12 @@ module hng64_raster_RenderBuf (
   assign needFill = ((frags_io_pop_valid && frags_io_pop_payload_miss) && (! filled));
   always @(*) begin
     bankRdAddr = (go ? frags_io_pop_payload_slot : rF_slot);
-    if(when_RenderBuf_l252) begin
+    if(when_RenderBuf_l255) begin
       bankRdAddr = frags_io_pop_payload_slot;
     end
-    if(when_RenderBuf_l420) begin
-      if(!when_RenderBuf_l421) begin
-        if(when_RenderBuf_l423) begin
+    if(when_RenderBuf_l425) begin
+      if(!when_RenderBuf_l426) begin
+        if(when_RenderBuf_l428) begin
           bankRdAddr = flushSlot[3 : 0];
         end
       end
@@ -3644,23 +3777,23 @@ module hng64_raster_RenderBuf (
 
   always @(*) begin
     bankRdEn = (go || rValid);
-    if(when_RenderBuf_l252) begin
+    if(when_RenderBuf_l255) begin
       bankRdEn = 1'b1;
     end
-    if(when_RenderBuf_l420) begin
-      if(!when_RenderBuf_l421) begin
-        if(when_RenderBuf_l423) begin
+    if(when_RenderBuf_l425) begin
+      if(!when_RenderBuf_l426) begin
+        if(when_RenderBuf_l428) begin
           bankRdEn = 1'b1;
         end
       end
     end
   end
 
-  assign when_RenderBuf_l252 = (((((hs == hng64_raster_H_Wait_1) && needFill) && lineQ_io_pop_valid) && (vLeft == 4'b0000)) && rIdle);
-  assign when_RenderBuf_l257 = (hs == hng64_raster_H_ReadVictim);
+  assign when_RenderBuf_l255 = (((((hs == hng64_raster_H_Wait_1) && needFill) && lineQ_io_pop_valid) && (vLeft == 4'b0000)) && rIdle);
+  assign when_RenderBuf_l260 = (hs == hng64_raster_H_ReadVictim);
   assign _zz_24 = ({15'd0,1'b1} <<< frags_io_pop_payload_slot);
   assign _zz_vLeft = (frags_io_pop_payload_victim && _zz__zz_vLeft);
-  assign when_RenderBuf_l264 = (! _zz_vLeft);
+  assign when_RenderBuf_l267 = (! _zz_vLeft);
   assign backW_valid = (vLeft != 4'b0000);
   assign backW_payload_b_addr = (dBase + _zz_backW_payload_b_addr);
   assign backW_payload_b_data = _zz_backW_payload_b_data;
@@ -3678,23 +3811,38 @@ module hng64_raster_RenderBuf (
   assign rFree = ((! rValid) || sFree);
   assign go = ((((frags_io_pop_valid && ((! frags_io_pop_payload_miss) || filled)) && (hs == hng64_raster_H_Wait_1)) && (! needFill)) && rFree);
   assign px = rF_f_x[3 : 0];
-  assign readWord = _zz_readWord;
+  assign passRead_0 = (_zz_passRead_0 < ((bankRd_0[31 : 24] == tag) ? _zz_passRead_0_1 : 25'h1000000));
+  assign passRead_1 = (_zz_passRead_1 < ((bankRd_1[31 : 24] == tag) ? _zz_passRead_1_1 : 25'h1000000));
+  assign passRead_2 = (_zz_passRead_2 < ((bankRd_2[31 : 24] == tag) ? _zz_passRead_2_1 : 25'h1000000));
+  assign passRead_3 = (_zz_passRead_3 < ((bankRd_3[31 : 24] == tag) ? _zz_passRead_3_1 : 25'h1000000));
+  assign passRead_4 = (_zz_passRead_4 < ((bankRd_4[31 : 24] == tag) ? _zz_passRead_4_1 : 25'h1000000));
+  assign passRead_5 = (_zz_passRead_5 < ((bankRd_5[31 : 24] == tag) ? _zz_passRead_5_1 : 25'h1000000));
+  assign passRead_6 = (_zz_passRead_6 < ((bankRd_6[31 : 24] == tag) ? _zz_passRead_6_1 : 25'h1000000));
+  assign passRead_7 = (_zz_passRead_7 < ((bankRd_7[31 : 24] == tag) ? _zz_passRead_7_1 : 25'h1000000));
+  assign passRead_8 = (_zz_passRead_8 < ((bankRd_8[31 : 24] == tag) ? _zz_passRead_8_1 : 25'h1000000));
+  assign passRead_9 = (_zz_passRead_9 < ((bankRd_9[31 : 24] == tag) ? _zz_passRead_9_1 : 25'h1000000));
+  assign passRead_10 = (_zz_passRead_10 < ((bankRd_10[31 : 24] == tag) ? _zz_passRead_10_1 : 25'h1000000));
+  assign passRead_11 = (_zz_passRead_11 < ((bankRd_11[31 : 24] == tag) ? _zz_passRead_11_1 : 25'h1000000));
+  assign passRead_12 = (_zz_passRead_12 < ((bankRd_12[31 : 24] == tag) ? _zz_passRead_12_1 : 25'h1000000));
+  assign passRead_13 = (_zz_passRead_13 < ((bankRd_13[31 : 24] == tag) ? _zz_passRead_13_1 : 25'h1000000));
+  assign passRead_14 = (_zz_passRead_14 < ((bankRd_14[31 : 24] == tag) ? _zz_passRead_14_1 : 25'h1000000));
+  assign passRead_15 = (_zz_passRead_15 < ((bankRd_15[31 : 24] == tag) ? _zz_passRead_15_1 : 25'h1000000));
   always @(*) begin
-    pass = (_zz_pass < ((readWord[31 : 24] == tag) ? _zz_pass_1 : 25'h1000000));
-    if(when_RenderBuf_l323) begin
-      pass = (_zz_pass_3 < ((lastWord[31 : 24] == tag) ? _zz_pass_4 : 25'h1000000));
+    pass = _zz_pass;
+    if(when_RenderBuf_l328) begin
+      pass = (_zz_pass_1 < ((lastWord[31 : 24] == tag) ? _zz_pass_2 : 25'h1000000));
     end
-    if(when_RenderBuf_l324) begin
-      pass = (_zz_pass_6 < ((cWord[31 : 24] == tag) ? _zz_pass_7 : 25'h1000000));
+    if(when_RenderBuf_l329) begin
+      pass = (_zz_pass_4 < ((cWord[31 : 24] == tag) ? _zz_pass_5 : 25'h1000000));
     end
-    if(when_RenderBuf_l325) begin
-      pass = (_zz_pass_9 < ((sWord[31 : 24] == tag) ? _zz_pass_10 : 25'h1000000));
+    if(when_RenderBuf_l330) begin
+      pass = (_zz_pass_7 < ((sWord[31 : 24] == tag) ? _zz_pass_8 : 25'h1000000));
     end
   end
 
-  assign when_RenderBuf_l323 = ((lastWr && (lastSlot == rF_slot)) && (lastPx == px));
-  assign when_RenderBuf_l324 = (((cValid && cPass) && (cF_slot == rF_slot)) && (cF_f_x[3 : 0] == px));
-  assign when_RenderBuf_l325 = (((sValid && sPass) && (sF_slot == rF_slot)) && (sF_f_x[3 : 0] == px));
+  assign when_RenderBuf_l328 = ((lastWr && (lastSlot == rF_slot)) && (lastPx == px));
+  assign when_RenderBuf_l329 = (((cValid && cPass) && (cF_slot == rF_slot)) && (cF_f_x[3 : 0] == px));
+  assign when_RenderBuf_l330 = (((sValid && sPass) && (sF_slot == rF_slot)) && (sF_f_x[3 : 0] == px));
   assign comb_valid = (cValid && cPass);
   assign comb_payload_pixel = {cF_f_y,cF_f_x};
   assign comb_payload_colour = cF_f_colour;
@@ -3707,7 +3855,7 @@ module hng64_raster_RenderBuf (
   assign cLineOf = comb_payload_pixel[17 : 5];
   assign needFlush = ((comb_valid && anyBe) && (cLineOf != cLine));
   assign frameFlush = ((fs == hng64_raster_F_Flush) && anyBe);
-  assign when_RenderBuf_l382 = ((! flushing) && (needFlush || frameFlush));
+  assign when_RenderBuf_l387 = ((! flushing) && (needFlush || frameFlush));
   assign _zz_colourW_valid = _zz__zz_colourW_valid;
   assign _zz_42 = ({7'd0,1'b1} <<< fBeat);
   assign colourW_valid = (flushing && (|_zz_colourW_valid));
@@ -3717,57 +3865,58 @@ module hng64_raster_RenderBuf (
   assign colourW_payload_b_data = _zz_colourW_payload_b_data;
   assign colourW_payload_b_be = _zz_colourW_valid;
   assign colourW_fire = (colourW_valid && colourW_ready);
-  assign when_RenderBuf_l392 = (flushing && (colourW_fire || (! (|_zz_colourW_valid))));
-  assign when_RenderBuf_l395 = (fBeat == 3'b111);
+  assign when_RenderBuf_l397 = (flushing && (colourW_fire || (! (|_zz_colourW_valid))));
+  assign when_RenderBuf_l400 = (fBeat == 3'b111);
   assign comb_ready = ((! flushing) && (! needFlush));
   assign comb_fire = (comb_valid && comb_ready);
-  assign _zz_when_RenderBuf_l403 = comb_payload_pixel[4 : 0];
-  assign when_RenderBuf_l403 = (_zz_when_RenderBuf_l403 == 5'h0);
-  assign when_RenderBuf_l403_1 = (_zz_when_RenderBuf_l403 == 5'h01);
-  assign when_RenderBuf_l403_2 = (_zz_when_RenderBuf_l403 == 5'h02);
-  assign when_RenderBuf_l403_3 = (_zz_when_RenderBuf_l403 == 5'h03);
-  assign when_RenderBuf_l403_4 = (_zz_when_RenderBuf_l403 == 5'h04);
-  assign when_RenderBuf_l403_5 = (_zz_when_RenderBuf_l403 == 5'h05);
-  assign when_RenderBuf_l403_6 = (_zz_when_RenderBuf_l403 == 5'h06);
-  assign when_RenderBuf_l403_7 = (_zz_when_RenderBuf_l403 == 5'h07);
-  assign when_RenderBuf_l403_8 = (_zz_when_RenderBuf_l403 == 5'h08);
-  assign when_RenderBuf_l403_9 = (_zz_when_RenderBuf_l403 == 5'h09);
-  assign when_RenderBuf_l403_10 = (_zz_when_RenderBuf_l403 == 5'h0a);
-  assign when_RenderBuf_l403_11 = (_zz_when_RenderBuf_l403 == 5'h0b);
-  assign when_RenderBuf_l403_12 = (_zz_when_RenderBuf_l403 == 5'h0c);
-  assign when_RenderBuf_l403_13 = (_zz_when_RenderBuf_l403 == 5'h0d);
-  assign when_RenderBuf_l403_14 = (_zz_when_RenderBuf_l403 == 5'h0e);
-  assign when_RenderBuf_l403_15 = (_zz_when_RenderBuf_l403 == 5'h0f);
-  assign when_RenderBuf_l403_16 = (_zz_when_RenderBuf_l403 == 5'h10);
-  assign when_RenderBuf_l403_17 = (_zz_when_RenderBuf_l403 == 5'h11);
-  assign when_RenderBuf_l403_18 = (_zz_when_RenderBuf_l403 == 5'h12);
-  assign when_RenderBuf_l403_19 = (_zz_when_RenderBuf_l403 == 5'h13);
-  assign when_RenderBuf_l403_20 = (_zz_when_RenderBuf_l403 == 5'h14);
-  assign when_RenderBuf_l403_21 = (_zz_when_RenderBuf_l403 == 5'h15);
-  assign when_RenderBuf_l403_22 = (_zz_when_RenderBuf_l403 == 5'h16);
-  assign when_RenderBuf_l403_23 = (_zz_when_RenderBuf_l403 == 5'h17);
-  assign when_RenderBuf_l403_24 = (_zz_when_RenderBuf_l403 == 5'h18);
-  assign when_RenderBuf_l403_25 = (_zz_when_RenderBuf_l403 == 5'h19);
-  assign when_RenderBuf_l403_26 = (_zz_when_RenderBuf_l403 == 5'h1a);
-  assign when_RenderBuf_l403_27 = (_zz_when_RenderBuf_l403 == 5'h1b);
-  assign when_RenderBuf_l403_28 = (_zz_when_RenderBuf_l403 == 5'h1c);
-  assign when_RenderBuf_l403_29 = (_zz_when_RenderBuf_l403 == 5'h1d);
-  assign when_RenderBuf_l403_30 = (_zz_when_RenderBuf_l403 == 5'h1e);
-  assign when_RenderBuf_l403_31 = (_zz_when_RenderBuf_l403 == 5'h1f);
+  assign _zz_when_RenderBuf_l408 = comb_payload_pixel[4 : 0];
+  assign when_RenderBuf_l408 = (_zz_when_RenderBuf_l408 == 5'h0);
+  assign when_RenderBuf_l408_1 = (_zz_when_RenderBuf_l408 == 5'h01);
+  assign when_RenderBuf_l408_2 = (_zz_when_RenderBuf_l408 == 5'h02);
+  assign when_RenderBuf_l408_3 = (_zz_when_RenderBuf_l408 == 5'h03);
+  assign when_RenderBuf_l408_4 = (_zz_when_RenderBuf_l408 == 5'h04);
+  assign when_RenderBuf_l408_5 = (_zz_when_RenderBuf_l408 == 5'h05);
+  assign when_RenderBuf_l408_6 = (_zz_when_RenderBuf_l408 == 5'h06);
+  assign when_RenderBuf_l408_7 = (_zz_when_RenderBuf_l408 == 5'h07);
+  assign when_RenderBuf_l408_8 = (_zz_when_RenderBuf_l408 == 5'h08);
+  assign when_RenderBuf_l408_9 = (_zz_when_RenderBuf_l408 == 5'h09);
+  assign when_RenderBuf_l408_10 = (_zz_when_RenderBuf_l408 == 5'h0a);
+  assign when_RenderBuf_l408_11 = (_zz_when_RenderBuf_l408 == 5'h0b);
+  assign when_RenderBuf_l408_12 = (_zz_when_RenderBuf_l408 == 5'h0c);
+  assign when_RenderBuf_l408_13 = (_zz_when_RenderBuf_l408 == 5'h0d);
+  assign when_RenderBuf_l408_14 = (_zz_when_RenderBuf_l408 == 5'h0e);
+  assign when_RenderBuf_l408_15 = (_zz_when_RenderBuf_l408 == 5'h0f);
+  assign when_RenderBuf_l408_16 = (_zz_when_RenderBuf_l408 == 5'h10);
+  assign when_RenderBuf_l408_17 = (_zz_when_RenderBuf_l408 == 5'h11);
+  assign when_RenderBuf_l408_18 = (_zz_when_RenderBuf_l408 == 5'h12);
+  assign when_RenderBuf_l408_19 = (_zz_when_RenderBuf_l408 == 5'h13);
+  assign when_RenderBuf_l408_20 = (_zz_when_RenderBuf_l408 == 5'h14);
+  assign when_RenderBuf_l408_21 = (_zz_when_RenderBuf_l408 == 5'h15);
+  assign when_RenderBuf_l408_22 = (_zz_when_RenderBuf_l408 == 5'h16);
+  assign when_RenderBuf_l408_23 = (_zz_when_RenderBuf_l408 == 5'h17);
+  assign when_RenderBuf_l408_24 = (_zz_when_RenderBuf_l408 == 5'h18);
+  assign when_RenderBuf_l408_25 = (_zz_when_RenderBuf_l408 == 5'h19);
+  assign when_RenderBuf_l408_26 = (_zz_when_RenderBuf_l408 == 5'h1a);
+  assign when_RenderBuf_l408_27 = (_zz_when_RenderBuf_l408 == 5'h1b);
+  assign when_RenderBuf_l408_28 = (_zz_when_RenderBuf_l408 == 5'h1c);
+  assign when_RenderBuf_l408_29 = (_zz_when_RenderBuf_l408 == 5'h1d);
+  assign when_RenderBuf_l408_30 = (_zz_when_RenderBuf_l408 == 5'h1e);
+  assign when_RenderBuf_l408_31 = (_zz_when_RenderBuf_l408 == 5'h1f);
   assign pipeEmpty = ((((((((! prep_valid) && (! fragIn_m2sPipe_valid)) && (frags_io_occupancy == 7'h0)) && rIdle) && (missQ_io_occupancy == 4'b0000)) && (lineQ_io_occupancy == 4'b0000)) && (vLeft == 4'b0000)) && (hs == hng64_raster_H_Wait_1));
-  assign when_RenderBuf_l414 = ((((fs == hng64_raster_F_Render) && finishing) && pipeEmpty) && (! io_i_valid));
-  assign when_RenderBuf_l420 = (((fs == hng64_raster_F_Drain) && (vLeft == 4'b0000)) && (! drainRead));
-  assign when_RenderBuf_l421 = flushSlot[4];
-  assign when_RenderBuf_l423 = (_zz_when_RenderBuf_l423 && _zz_when_RenderBuf_l423_2);
+  assign when_RenderBuf_l419 = ((((fs == hng64_raster_F_Render) && finishing) && pipeEmpty) && (! io_i_valid));
+  assign when_RenderBuf_l425 = (((fs == hng64_raster_F_Drain) && (vLeft == 4'b0000)) && (! drainRead));
+  assign when_RenderBuf_l426 = flushSlot[4];
+  assign when_RenderBuf_l428 = (_zz_when_RenderBuf_l428 && _zz_when_RenderBuf_l428_2);
   assign _zz_vAddr = flushSlot[3 : 0];
   assign _zz_43 = ({15'd0,1'b1} <<< _zz_vAddr);
-  assign when_RenderBuf_l441 = (((((fs == hng64_raster_F_Flush) && (! anyBe)) && (! flushing)) && (wq_io_occupancy == 5'h0)) && (! wq_io_pop_valid));
-  assign when_RenderBuf_l444 = (fs == hng64_raster_F_Done);
+  assign when_RenderBuf_l446 = ((((((fs == hng64_raster_F_Flush) && (! anyBe)) && (! flushing)) && (! colourWq_valid)) && (wq_io_occupancy == 5'h0)) && (! wq_io_pop_valid));
+  assign when_RenderBuf_l449 = (fs == hng64_raster_F_Done);
   assign io_busy = (fs != hng64_raster_F_Idle);
   always @(posedge clk) begin
     if(reset) begin
       fs <= hng64_raster_F_Idle;
       finishing <= 1'b0;
+      colourW_rValid <= 1'b0;
       io_i_throwWhen_map_rValid <= 1'b0;
       tValid_0 <= 1'b0;
       tValid_1 <= 1'b0;
@@ -3848,11 +3997,14 @@ module hng64_raster_RenderBuf (
       if(io_finish) begin
         finishing <= 1'b1;
       end
+      if(colourW_ready) begin
+        colourW_rValid <= colourW_valid;
+      end
       if(clearW_fire) begin
-        if(when_RenderBuf_l94) begin
+        if(when_RenderBuf_l97) begin
           fs <= hng64_raster_F_Scrub;
         end
-        if(when_RenderBuf_l98) begin
+        if(when_RenderBuf_l101) begin
           fs <= hng64_raster_F_Render;
         end
       end
@@ -3887,7 +4039,7 @@ module hng64_raster_RenderBuf (
         if(_zz_1[7]) begin
           lru_7 <= _zz_lru_0;
         end
-        if(when_RenderBuf_l183) begin
+        if(when_RenderBuf_l186) begin
           if(_zz_2[0]) begin
             tValid_0 <= 1'b1;
           end
@@ -4021,10 +4173,10 @@ module hng64_raster_RenderBuf (
       if(io_rdData_valid) begin
         gBeat <= (gBeat + 3'b001);
       end
-      if(when_RenderBuf_l252) begin
+      if(when_RenderBuf_l255) begin
         hs <= hng64_raster_H_ReadVictim;
       end
-      if(when_RenderBuf_l257) begin
+      if(when_RenderBuf_l260) begin
         vLeft <= (_zz_vLeft ? 4'b1000 : 4'b0000);
         if(_zz_24[0]) begin
           dirty_0 <= 1'b0;
@@ -4156,11 +4308,11 @@ module hng64_raster_RenderBuf (
         end
         lastWr <= 1'b1;
       end
-      if(when_RenderBuf_l382) begin
+      if(when_RenderBuf_l387) begin
         flushing <= 1'b1;
         fBeat <= 3'b000;
       end
-      if(when_RenderBuf_l392) begin
+      if(when_RenderBuf_l397) begin
         if(_zz_42[0]) begin
           cBe_0 <= 8'h0;
         end
@@ -4186,118 +4338,118 @@ module hng64_raster_RenderBuf (
           cBe_7 <= 8'h0;
         end
         fBeat <= (fBeat + 3'b001);
-        if(when_RenderBuf_l395) begin
+        if(when_RenderBuf_l400) begin
           flushing <= 1'b0;
           anyBe <= 1'b0;
         end
       end
       if(comb_fire) begin
         anyBe <= 1'b1;
-        if(when_RenderBuf_l403) begin
+        if(when_RenderBuf_l408) begin
           cBe_0[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_1) begin
+        if(when_RenderBuf_l408_1) begin
           cBe_0[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_2) begin
+        if(when_RenderBuf_l408_2) begin
           cBe_0[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_3) begin
+        if(when_RenderBuf_l408_3) begin
           cBe_0[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_4) begin
+        if(when_RenderBuf_l408_4) begin
           cBe_1[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_5) begin
+        if(when_RenderBuf_l408_5) begin
           cBe_1[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_6) begin
+        if(when_RenderBuf_l408_6) begin
           cBe_1[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_7) begin
+        if(when_RenderBuf_l408_7) begin
           cBe_1[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_8) begin
+        if(when_RenderBuf_l408_8) begin
           cBe_2[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_9) begin
+        if(when_RenderBuf_l408_9) begin
           cBe_2[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_10) begin
+        if(when_RenderBuf_l408_10) begin
           cBe_2[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_11) begin
+        if(when_RenderBuf_l408_11) begin
           cBe_2[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_12) begin
+        if(when_RenderBuf_l408_12) begin
           cBe_3[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_13) begin
+        if(when_RenderBuf_l408_13) begin
           cBe_3[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_14) begin
+        if(when_RenderBuf_l408_14) begin
           cBe_3[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_15) begin
+        if(when_RenderBuf_l408_15) begin
           cBe_3[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_16) begin
+        if(when_RenderBuf_l408_16) begin
           cBe_4[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_17) begin
+        if(when_RenderBuf_l408_17) begin
           cBe_4[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_18) begin
+        if(when_RenderBuf_l408_18) begin
           cBe_4[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_19) begin
+        if(when_RenderBuf_l408_19) begin
           cBe_4[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_20) begin
+        if(when_RenderBuf_l408_20) begin
           cBe_5[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_21) begin
+        if(when_RenderBuf_l408_21) begin
           cBe_5[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_22) begin
+        if(when_RenderBuf_l408_22) begin
           cBe_5[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_23) begin
+        if(when_RenderBuf_l408_23) begin
           cBe_5[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_24) begin
+        if(when_RenderBuf_l408_24) begin
           cBe_6[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_25) begin
+        if(when_RenderBuf_l408_25) begin
           cBe_6[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_26) begin
+        if(when_RenderBuf_l408_26) begin
           cBe_6[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_27) begin
+        if(when_RenderBuf_l408_27) begin
           cBe_6[7 : 6] <= 2'b11;
         end
-        if(when_RenderBuf_l403_28) begin
+        if(when_RenderBuf_l408_28) begin
           cBe_7[1 : 0] <= 2'b11;
         end
-        if(when_RenderBuf_l403_29) begin
+        if(when_RenderBuf_l408_29) begin
           cBe_7[3 : 2] <= 2'b11;
         end
-        if(when_RenderBuf_l403_30) begin
+        if(when_RenderBuf_l408_30) begin
           cBe_7[5 : 4] <= 2'b11;
         end
-        if(when_RenderBuf_l403_31) begin
+        if(when_RenderBuf_l408_31) begin
           cBe_7[7 : 6] <= 2'b11;
         end
       end
-      if(when_RenderBuf_l414) begin
+      if(when_RenderBuf_l419) begin
         fs <= hng64_raster_F_Drain;
       end
-      if(when_RenderBuf_l420) begin
-        if(when_RenderBuf_l421) begin
+      if(when_RenderBuf_l425) begin
+        if(when_RenderBuf_l426) begin
           fs <= hng64_raster_F_Flush;
         end else begin
-          if(when_RenderBuf_l423) begin
+          if(when_RenderBuf_l428) begin
             drainRead <= 1'b1;
           end
         end
@@ -4354,10 +4506,10 @@ module hng64_raster_RenderBuf (
         end
         drainRead <= 1'b0;
       end
-      if(when_RenderBuf_l441) begin
+      if(when_RenderBuf_l446) begin
         fs <= hng64_raster_F_Done;
       end
-      if(when_RenderBuf_l444) begin
+      if(when_RenderBuf_l449) begin
         tValid_0 <= 1'b0;
         tValid_1 <= 1'b0;
         tValid_2 <= 1'b0;
@@ -4388,9 +4540,16 @@ module hng64_raster_RenderBuf (
       dBase <= io_depthBase;
       count <= 18'h0;
     end
+    if(colourW_ready) begin
+      colourW_rData_b_addr <= colourW_payload_b_addr;
+      colourW_rData_b_data <= colourW_payload_b_data;
+      colourW_rData_b_be <= colourW_payload_b_be;
+      colourW_rData_rel <= colourW_payload_rel;
+      colourW_rData_relSlot <= colourW_payload_relSlot;
+    end
     if(clearW_fire) begin
       count <= (count + 18'h00001);
-      if(when_RenderBuf_l94) begin
+      if(when_RenderBuf_l97) begin
         count <= 18'h0;
       end
     end
@@ -4411,40 +4570,40 @@ module hng64_raster_RenderBuf (
       fragIn_rData_vLine <= fragIn_payload_vLine;
       fragIn_rData_pend <= fragIn_payload_pend;
     end
-    if(when_RenderBuf_l177) begin
+    if(when_RenderBuf_l180) begin
       pVic_0 <= _zz_pVic_0;
       pLine_0 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_1) begin
+    if(when_RenderBuf_l180_1) begin
       pVic_1 <= _zz_pVic_0;
       pLine_1 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_2) begin
+    if(when_RenderBuf_l180_2) begin
       pVic_2 <= _zz_pVic_0;
       pLine_2 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_3) begin
+    if(when_RenderBuf_l180_3) begin
       pVic_3 <= _zz_pVic_0;
       pLine_3 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_4) begin
+    if(when_RenderBuf_l180_4) begin
       pVic_4 <= _zz_pVic_0;
       pLine_4 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_5) begin
+    if(when_RenderBuf_l180_5) begin
       pVic_5 <= _zz_pVic_0;
       pLine_5 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_6) begin
+    if(when_RenderBuf_l180_6) begin
       pVic_6 <= _zz_pVic_0;
       pLine_6 <= {_zz_pLine_0,set};
     end
-    if(when_RenderBuf_l177_7) begin
+    if(when_RenderBuf_l180_7) begin
       pVic_7 <= _zz_pVic_0;
       pLine_7 <= {_zz_pLine_0,set};
     end
     if(prep_fire) begin
-      if(when_RenderBuf_l183) begin
+      if(when_RenderBuf_l186) begin
         if(_zz_3[0]) begin
           tTag_0 <= ltag;
         end
@@ -4521,7 +4680,7 @@ module hng64_raster_RenderBuf (
         gather_7 <= io_rdData_payload;
       end
     end
-    if(when_RenderBuf_l257) begin
+    if(when_RenderBuf_l260) begin
       vBuf_0 <= {bankRd_1,bankRd_0};
       vBuf_1 <= {bankRd_3,bankRd_2};
       vBuf_2 <= {bankRd_5,bankRd_4};
@@ -4578,109 +4737,109 @@ module hng64_raster_RenderBuf (
     end
     if(comb_fire) begin
       cLine <= cLineOf;
-      if(when_RenderBuf_l403) begin
+      if(when_RenderBuf_l408) begin
         cData_0[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_1) begin
+      if(when_RenderBuf_l408_1) begin
         cData_0[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_2) begin
+      if(when_RenderBuf_l408_2) begin
         cData_0[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_3) begin
+      if(when_RenderBuf_l408_3) begin
         cData_0[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_4) begin
+      if(when_RenderBuf_l408_4) begin
         cData_1[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_5) begin
+      if(when_RenderBuf_l408_5) begin
         cData_1[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_6) begin
+      if(when_RenderBuf_l408_6) begin
         cData_1[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_7) begin
+      if(when_RenderBuf_l408_7) begin
         cData_1[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_8) begin
+      if(when_RenderBuf_l408_8) begin
         cData_2[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_9) begin
+      if(when_RenderBuf_l408_9) begin
         cData_2[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_10) begin
+      if(when_RenderBuf_l408_10) begin
         cData_2[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_11) begin
+      if(when_RenderBuf_l408_11) begin
         cData_2[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_12) begin
+      if(when_RenderBuf_l408_12) begin
         cData_3[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_13) begin
+      if(when_RenderBuf_l408_13) begin
         cData_3[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_14) begin
+      if(when_RenderBuf_l408_14) begin
         cData_3[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_15) begin
+      if(when_RenderBuf_l408_15) begin
         cData_3[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_16) begin
+      if(when_RenderBuf_l408_16) begin
         cData_4[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_17) begin
+      if(when_RenderBuf_l408_17) begin
         cData_4[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_18) begin
+      if(when_RenderBuf_l408_18) begin
         cData_4[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_19) begin
+      if(when_RenderBuf_l408_19) begin
         cData_4[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_20) begin
+      if(when_RenderBuf_l408_20) begin
         cData_5[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_21) begin
+      if(when_RenderBuf_l408_21) begin
         cData_5[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_22) begin
+      if(when_RenderBuf_l408_22) begin
         cData_5[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_23) begin
+      if(when_RenderBuf_l408_23) begin
         cData_5[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_24) begin
+      if(when_RenderBuf_l408_24) begin
         cData_6[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_25) begin
+      if(when_RenderBuf_l408_25) begin
         cData_6[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_26) begin
+      if(when_RenderBuf_l408_26) begin
         cData_6[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_27) begin
+      if(when_RenderBuf_l408_27) begin
         cData_6[63 : 48] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_28) begin
+      if(when_RenderBuf_l408_28) begin
         cData_7[15 : 0] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_29) begin
+      if(when_RenderBuf_l408_29) begin
         cData_7[31 : 16] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_30) begin
+      if(when_RenderBuf_l408_30) begin
         cData_7[47 : 32] <= comb_payload_colour;
       end
-      if(when_RenderBuf_l403_31) begin
+      if(when_RenderBuf_l408_31) begin
         cData_7[63 : 48] <= comb_payload_colour;
       end
     end
-    if(when_RenderBuf_l414) begin
+    if(when_RenderBuf_l419) begin
       flushSlot <= 5'h0;
     end
-    if(when_RenderBuf_l420) begin
-      if(!when_RenderBuf_l421) begin
-        if(!when_RenderBuf_l423) begin
+    if(when_RenderBuf_l425) begin
+      if(!when_RenderBuf_l426) begin
+        if(!when_RenderBuf_l428) begin
           flushSlot <= (flushSlot + 5'h01);
         end
       end
@@ -5352,55 +5511,39 @@ module hng64_raster_PixelUnit (
   wire       [6:0]    _zz__zz_e_map_payload_ps;
   wire       [6:0]    _zz__zz_e_map_payload_pl;
   wire       [45:0]   _zz_fc_map_payload_ml;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_4;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_4_1;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_4_2;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_4_3;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_4_4;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_4_5;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_4_6;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_4_7;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_4_8;
-  wire       [8:0]    _zz__zz_f0_map_payload_addr_4_9;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_5;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_5_1;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_5_2;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_5_3;
-  wire       [0:0]    _zz__zz_f0_map_payload_addr_5_4;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_5_5;
-  wire       [3:0]    _zz__zz_f0_map_payload_addr_5_6;
-  wire       [3:0]    _zz__zz_f0_map_payload_addr_5_7;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_6;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_6_1;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_6_2;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_6_3;
-  wire       [6:0]    _zz__zz_f0_map_payload_addr_6_4;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_6_5;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_7;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_7_1;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_7_2;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_7_3;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_7_4;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_7_5;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_7_6;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_7_7;
-  wire       [53:0]   _zz__zz_f0_map_payload_addr_7_8;
-  wire       [8:0]    _zz__zz_f0_map_payload_addr_7_9;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_8;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_8_1;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_8_2;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_8_3;
-  wire       [0:0]    _zz__zz_f0_map_payload_addr_8_4;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_8_5;
-  wire       [3:0]    _zz__zz_f0_map_payload_addr_8_6;
-  wire       [3:0]    _zz__zz_f0_map_payload_addr_8_7;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_9;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_9_1;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_9_2;
-  wire       [9:0]    _zz__zz_f0_map_payload_addr_9_3;
-  wire       [6:0]    _zz__zz_f0_map_payload_addr_9_4;
-  wire       [54:0]   _zz__zz_f0_map_payload_addr_9_5;
-  wire       [7:0]    _zz_f0_map_payload_light;
+  wire       [53:0]   _zz__zz_f0_map_payload_sNeg;
+  wire       [53:0]   _zz__zz_f0_map_payload_sNeg_1;
+  wire       [53:0]   _zz__zz_f0_map_payload_sNeg_1_1;
+  wire       [8:0]    _zz__zz_f0_map_payload_sNeg_1_2;
+  wire       [54:0]   _zz__zz_f0_map_payload_sNeg_2;
+  wire       [54:0]   _zz__zz_f0_map_payload_sNeg_2_1;
+  wire       [53:0]   _zz__zz_f0_map_payload_tNeg;
+  wire       [53:0]   _zz__zz_f0_map_payload_tNeg_1;
+  wire       [53:0]   _zz__zz_f0_map_payload_tNeg_1_1;
+  wire       [8:0]    _zz__zz_f0_map_payload_tNeg_1_2;
+  wire       [54:0]   _zz__zz_f0_map_payload_tNeg_2;
+  wire       [54:0]   _zz__zz_f0_map_payload_tNeg_2_1;
+  wire       [54:0]   _zz_f0_map_payload_s10;
+  wire       [54:0]   _zz_f0_map_payload_t10;
+  wire       [7:0]    _zz_f0_map_payload_l;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_4;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_4_1;
+  wire       [3:0]    _zz__zz_f1_map_payload_addr_4_2;
+  wire       [3:0]    _zz__zz_f1_map_payload_addr_4_3;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_5;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_5_1;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_5_2;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_5_3;
+  wire       [6:0]    _zz__zz_f1_map_payload_addr_5_4;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_6;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_6_1;
+  wire       [3:0]    _zz__zz_f1_map_payload_addr_6_2;
+  wire       [3:0]    _zz__zz_f1_map_payload_addr_6_3;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_7;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_7_1;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_7_2;
+  wire       [9:0]    _zz__zz_f1_map_payload_addr_7_3;
+  wire       [6:0]    _zz__zz_f1_map_payload_addr_7_4;
   wire       [11:0]   table_0;
   wire       [11:0]   table_1;
   wire       [11:0]   table_2;
@@ -6915,28 +7058,83 @@ module hng64_raster_PixelUnit (
   reg        [53:0]   fc_map_rData_mt;
   reg        [7:0]    fc_map_rData_ml;
   wire                when_Stream_l477_8;
-  wire                _zz_f0_map_payload_addr;
-  wire       [4:0]    _zz_f0_map_payload_addr_1;
-  wire       [4:0]    _zz_f0_map_payload_addr_2;
-  wire                _zz_f0_map_payload_addr_3;
-  wire       [54:0]   _zz_f0_map_payload_addr_4;
-  wire       [9:0]    _zz_f0_map_payload_addr_5;
-  wire       [9:0]    _zz_f0_map_payload_addr_6;
-  wire       [54:0]   _zz_f0_map_payload_addr_7;
-  wire       [9:0]    _zz_f0_map_payload_addr_8;
-  wire       [9:0]    _zz_f0_map_payload_addr_9;
+  wire       [54:0]   _zz_f0_map_payload_sNeg;
+  wire       [54:0]   _zz_f0_map_payload_sNeg_1;
+  wire       [54:0]   _zz_f0_map_payload_sNeg_2;
+  wire       [54:0]   _zz_f0_map_payload_tNeg;
+  wire       [54:0]   _zz_f0_map_payload_tNeg_1;
+  wire       [54:0]   _zz_f0_map_payload_tNeg_2;
   wire                f0_map_valid;
   reg                 f0_map_ready;
-  wire       [8:0]    f0_map_payload_x;
-  wire       [8:0]    f0_map_payload_y;
-  wire       [29:0]   f0_map_payload_z;
-  wire       [23:0]   f0_map_payload_addr;
-  wire                f0_map_payload_nib;
-  wire       [7:0]    f0_map_payload_light;
-  wire                f0_map_payload_flat;
-  wire                f0_map_payload_blend;
-  wire                f0_map_payload_tex4bpp;
-  wire       [15:0]   f0_map_payload_pal;
+  wire       [8:0]    f0_map_payload_a_px_x;
+  wire       [8:0]    f0_map_payload_a_px_y;
+  wire       [29:0]   f0_map_payload_a_px_p_v_0;
+  wire       [33:0]   f0_map_payload_a_px_p_v_1;
+  wire       [23:0]   f0_map_payload_a_px_p_v_2;
+  wire       [31:0]   f0_map_payload_a_px_p_v_3;
+  wire       [31:0]   f0_map_payload_a_px_p_v_4;
+  wire       [66:0]   f0_map_payload_a_px_attr;
+  wire       [5:0]    f0_map_payload_a_e;
+  wire       [20:0]   f0_map_payload_a_wn;
+  wire                f0_map_payload_sNeg;
+  wire                f0_map_payload_tNeg;
+  wire       [9:0]    f0_map_payload_s10;
+  wire       [9:0]    f0_map_payload_t10;
+  wire       [7:0]    f0_map_payload_l;
+  wire                f1_valid;
+  wire                f1_ready;
+  wire       [8:0]    f1_payload_a_px_x;
+  wire       [8:0]    f1_payload_a_px_y;
+  wire       [29:0]   f1_payload_a_px_p_v_0;
+  wire       [33:0]   f1_payload_a_px_p_v_1;
+  wire       [23:0]   f1_payload_a_px_p_v_2;
+  wire       [31:0]   f1_payload_a_px_p_v_3;
+  wire       [31:0]   f1_payload_a_px_p_v_4;
+  wire       [66:0]   f1_payload_a_px_attr;
+  wire       [5:0]    f1_payload_a_e;
+  wire       [20:0]   f1_payload_a_wn;
+  wire                f1_payload_sNeg;
+  wire                f1_payload_tNeg;
+  wire       [9:0]    f1_payload_s10;
+  wire       [9:0]    f1_payload_t10;
+  wire       [7:0]    f1_payload_l;
+  reg                 f0_map_rValid;
+  reg        [8:0]    f0_map_rData_a_px_x;
+  reg        [8:0]    f0_map_rData_a_px_y;
+  reg        [29:0]   f0_map_rData_a_px_p_v_0;
+  reg        [33:0]   f0_map_rData_a_px_p_v_1;
+  reg        [23:0]   f0_map_rData_a_px_p_v_2;
+  reg        [31:0]   f0_map_rData_a_px_p_v_3;
+  reg        [31:0]   f0_map_rData_a_px_p_v_4;
+  reg        [66:0]   f0_map_rData_a_px_attr;
+  reg        [5:0]    f0_map_rData_a_e;
+  reg        [20:0]   f0_map_rData_a_wn;
+  reg                 f0_map_rData_sNeg;
+  reg                 f0_map_rData_tNeg;
+  reg        [9:0]    f0_map_rData_s10;
+  reg        [9:0]    f0_map_rData_t10;
+  reg        [7:0]    f0_map_rData_l;
+  wire                when_Stream_l477_9;
+  wire                _zz_f1_map_payload_addr;
+  wire       [4:0]    _zz_f1_map_payload_addr_1;
+  wire       [4:0]    _zz_f1_map_payload_addr_2;
+  wire                _zz_f1_map_payload_addr_3;
+  wire       [9:0]    _zz_f1_map_payload_addr_4;
+  wire       [9:0]    _zz_f1_map_payload_addr_5;
+  wire       [9:0]    _zz_f1_map_payload_addr_6;
+  wire       [9:0]    _zz_f1_map_payload_addr_7;
+  wire                f1_map_valid;
+  reg                 f1_map_ready;
+  wire       [8:0]    f1_map_payload_x;
+  wire       [8:0]    f1_map_payload_y;
+  wire       [29:0]   f1_map_payload_z;
+  wire       [23:0]   f1_map_payload_addr;
+  wire                f1_map_payload_nib;
+  wire       [7:0]    f1_map_payload_light;
+  wire                f1_map_payload_flat;
+  wire                f1_map_payload_blend;
+  wire                f1_map_payload_tex4bpp;
+  wire       [15:0]   f1_map_payload_pal;
   wire                f_valid;
   wire                f_ready;
   wire       [8:0]    f_payload_x;
@@ -6949,18 +7147,18 @@ module hng64_raster_PixelUnit (
   wire                f_payload_blend;
   wire                f_payload_tex4bpp;
   wire       [15:0]   f_payload_pal;
-  reg                 f0_map_rValid;
-  reg        [8:0]    f0_map_rData_x;
-  reg        [8:0]    f0_map_rData_y;
-  reg        [29:0]   f0_map_rData_z;
-  reg        [23:0]   f0_map_rData_addr;
-  reg                 f0_map_rData_nib;
-  reg        [7:0]    f0_map_rData_light;
-  reg                 f0_map_rData_flat;
-  reg                 f0_map_rData_blend;
-  reg                 f0_map_rData_tex4bpp;
-  reg        [15:0]   f0_map_rData_pal;
-  wire                when_Stream_l477_9;
+  reg                 f1_map_rValid;
+  reg        [8:0]    f1_map_rData_x;
+  reg        [8:0]    f1_map_rData_y;
+  reg        [29:0]   f1_map_rData_z;
+  reg        [23:0]   f1_map_rData_addr;
+  reg                 f1_map_rData_nib;
+  reg        [7:0]    f1_map_rData_light;
+  reg                 f1_map_rData_flat;
+  reg                 f1_map_rData_blend;
+  reg                 f1_map_rData_tex4bpp;
+  reg        [15:0]   f1_map_rData_pal;
+  wire                when_Stream_l477_10;
   reg [11:0] rom [0:1023];
 
   assign _zz__zz_io_i_map_payload_e_3 = (_zz_io_i_map_payload_e_1 - 34'h000000001);
@@ -6984,55 +7182,39 @@ module hng64_raster_PixelUnit (
   assign _zz__zz_e_map_payload_ps = {1'd0, e_payload_a_e};
   assign _zz__zz_e_map_payload_pl = {1'd0, e_payload_a_e};
   assign _zz_fc_map_payload_ml = (fc_payload_pl >>> fc_payload_fineL);
-  assign _zz__zz_f0_map_payload_addr_4 = (f0_payload_sNeg ? _zz__zz_f0_map_payload_addr_4_1 : _zz__zz_f0_map_payload_addr_4_4);
-  assign _zz__zz_f0_map_payload_addr_4_1 = (- _zz__zz_f0_map_payload_addr_4_2);
-  assign _zz__zz_f0_map_payload_addr_4_3 = f0_payload_ms;
-  assign _zz__zz_f0_map_payload_addr_4_2 = {{1{_zz__zz_f0_map_payload_addr_4_3[53]}}, _zz__zz_f0_map_payload_addr_4_3};
-  assign _zz__zz_f0_map_payload_addr_4_5 = f0_payload_ms;
-  assign _zz__zz_f0_map_payload_addr_4_4 = {{1{_zz__zz_f0_map_payload_addr_4_5[53]}}, _zz__zz_f0_map_payload_addr_4_5};
-  assign _zz__zz_f0_map_payload_addr_4_7 = _zz__zz_f0_map_payload_addr_4_8;
-  assign _zz__zz_f0_map_payload_addr_4_6 = {{1{_zz__zz_f0_map_payload_addr_4_7[53]}}, _zz__zz_f0_map_payload_addr_4_7};
-  assign _zz__zz_f0_map_payload_addr_4_9 = f0_payload_a_px_attr[56 : 48];
-  assign _zz__zz_f0_map_payload_addr_4_8 = {45'd0, _zz__zz_f0_map_payload_addr_4_9};
-  assign _zz__zz_f0_map_payload_addr_5 = (_zz__zz_f0_map_payload_addr_5_1 + _zz__zz_f0_map_payload_addr_5_3);
-  assign _zz__zz_f0_map_payload_addr_5_1 = (_zz_f0_map_payload_addr_4[54] ? _zz__zz_f0_map_payload_addr_5_2 : _zz_f0_map_payload_addr_4);
-  assign _zz__zz_f0_map_payload_addr_5_2 = (~ _zz_f0_map_payload_addr_4);
-  assign _zz__zz_f0_map_payload_addr_5_4 = _zz_f0_map_payload_addr_4[54];
-  assign _zz__zz_f0_map_payload_addr_5_3 = {54'd0, _zz__zz_f0_map_payload_addr_5_4};
-  assign _zz__zz_f0_map_payload_addr_5_5 = (10'h3ff >>> _zz__zz_f0_map_payload_addr_5_6);
-  assign _zz__zz_f0_map_payload_addr_5_6 = (4'b1010 - _zz__zz_f0_map_payload_addr_5_7);
-  assign _zz__zz_f0_map_payload_addr_5_7 = _zz_f0_map_payload_addr_2[3:0];
-  assign _zz__zz_f0_map_payload_addr_6 = ((_zz_f0_map_payload_addr_4[54] ? _zz__zz_f0_map_payload_addr_6_1 : _zz_f0_map_payload_addr_5) + _zz__zz_f0_map_payload_addr_6_2);
-  assign _zz__zz_f0_map_payload_addr_6_1 = (10'h0 - _zz_f0_map_payload_addr_5);
-  assign _zz__zz_f0_map_payload_addr_6_2 = (_zz__zz_f0_map_payload_addr_6_3 <<< 3);
-  assign _zz__zz_f0_map_payload_addr_6_4 = f0_payload_a_px_attr[22 : 16];
-  assign _zz__zz_f0_map_payload_addr_6_3 = {3'd0, _zz__zz_f0_map_payload_addr_6_4};
-  assign _zz__zz_f0_map_payload_addr_6_5 = _zz_f0_map_payload_addr_4;
-  assign _zz__zz_f0_map_payload_addr_7 = (f0_payload_tNeg ? _zz__zz_f0_map_payload_addr_7_1 : _zz__zz_f0_map_payload_addr_7_4);
-  assign _zz__zz_f0_map_payload_addr_7_1 = (- _zz__zz_f0_map_payload_addr_7_2);
-  assign _zz__zz_f0_map_payload_addr_7_3 = f0_payload_mt;
-  assign _zz__zz_f0_map_payload_addr_7_2 = {{1{_zz__zz_f0_map_payload_addr_7_3[53]}}, _zz__zz_f0_map_payload_addr_7_3};
-  assign _zz__zz_f0_map_payload_addr_7_5 = f0_payload_mt;
-  assign _zz__zz_f0_map_payload_addr_7_4 = {{1{_zz__zz_f0_map_payload_addr_7_5[53]}}, _zz__zz_f0_map_payload_addr_7_5};
-  assign _zz__zz_f0_map_payload_addr_7_7 = _zz__zz_f0_map_payload_addr_7_8;
-  assign _zz__zz_f0_map_payload_addr_7_6 = {{1{_zz__zz_f0_map_payload_addr_7_7[53]}}, _zz__zz_f0_map_payload_addr_7_7};
-  assign _zz__zz_f0_map_payload_addr_7_9 = f0_payload_a_px_attr[47 : 39];
-  assign _zz__zz_f0_map_payload_addr_7_8 = {45'd0, _zz__zz_f0_map_payload_addr_7_9};
-  assign _zz__zz_f0_map_payload_addr_8 = (_zz__zz_f0_map_payload_addr_8_1 + _zz__zz_f0_map_payload_addr_8_3);
-  assign _zz__zz_f0_map_payload_addr_8_1 = (_zz_f0_map_payload_addr_7[54] ? _zz__zz_f0_map_payload_addr_8_2 : _zz_f0_map_payload_addr_7);
-  assign _zz__zz_f0_map_payload_addr_8_2 = (~ _zz_f0_map_payload_addr_7);
-  assign _zz__zz_f0_map_payload_addr_8_4 = _zz_f0_map_payload_addr_7[54];
-  assign _zz__zz_f0_map_payload_addr_8_3 = {54'd0, _zz__zz_f0_map_payload_addr_8_4};
-  assign _zz__zz_f0_map_payload_addr_8_5 = (10'h3ff >>> _zz__zz_f0_map_payload_addr_8_6);
-  assign _zz__zz_f0_map_payload_addr_8_6 = (4'b1010 - _zz__zz_f0_map_payload_addr_8_7);
-  assign _zz__zz_f0_map_payload_addr_8_7 = _zz_f0_map_payload_addr_1[3:0];
-  assign _zz__zz_f0_map_payload_addr_9 = ((_zz_f0_map_payload_addr_7[54] ? _zz__zz_f0_map_payload_addr_9_1 : _zz_f0_map_payload_addr_8) + _zz__zz_f0_map_payload_addr_9_2);
-  assign _zz__zz_f0_map_payload_addr_9_1 = (10'h0 - _zz_f0_map_payload_addr_8);
-  assign _zz__zz_f0_map_payload_addr_9_2 = (_zz__zz_f0_map_payload_addr_9_3 <<< 3);
-  assign _zz__zz_f0_map_payload_addr_9_4 = f0_payload_a_px_attr[15 : 9];
-  assign _zz__zz_f0_map_payload_addr_9_3 = {3'd0, _zz__zz_f0_map_payload_addr_9_4};
-  assign _zz__zz_f0_map_payload_addr_9_5 = _zz_f0_map_payload_addr_7;
-  assign _zz_f0_map_payload_light = (8'h0 - f0_payload_ml);
+  assign _zz__zz_f0_map_payload_sNeg = f0_payload_ms;
+  assign _zz__zz_f0_map_payload_sNeg_1 = _zz__zz_f0_map_payload_sNeg_1_1;
+  assign _zz__zz_f0_map_payload_sNeg_1_2 = f0_payload_a_px_attr[56 : 48];
+  assign _zz__zz_f0_map_payload_sNeg_1_1 = {45'd0, _zz__zz_f0_map_payload_sNeg_1_2};
+  assign _zz__zz_f0_map_payload_sNeg_2 = ($signed(_zz_f0_map_payload_sNeg_1) - $signed(_zz_f0_map_payload_sNeg));
+  assign _zz__zz_f0_map_payload_sNeg_2_1 = ($signed(_zz_f0_map_payload_sNeg_1) + $signed(_zz_f0_map_payload_sNeg));
+  assign _zz__zz_f0_map_payload_tNeg = f0_payload_mt;
+  assign _zz__zz_f0_map_payload_tNeg_1 = _zz__zz_f0_map_payload_tNeg_1_1;
+  assign _zz__zz_f0_map_payload_tNeg_1_2 = f0_payload_a_px_attr[47 : 39];
+  assign _zz__zz_f0_map_payload_tNeg_1_1 = {45'd0, _zz__zz_f0_map_payload_tNeg_1_2};
+  assign _zz__zz_f0_map_payload_tNeg_2 = ($signed(_zz_f0_map_payload_tNeg_1) - $signed(_zz_f0_map_payload_tNeg));
+  assign _zz__zz_f0_map_payload_tNeg_2_1 = ($signed(_zz_f0_map_payload_tNeg_1) + $signed(_zz_f0_map_payload_tNeg));
+  assign _zz_f0_map_payload_s10 = _zz_f0_map_payload_sNeg_2;
+  assign _zz_f0_map_payload_t10 = _zz_f0_map_payload_tNeg_2;
+  assign _zz_f0_map_payload_l = (8'h0 - f0_payload_ml);
+  assign _zz__zz_f1_map_payload_addr_4 = (10'h0 - f1_payload_s10);
+  assign _zz__zz_f1_map_payload_addr_4_1 = (10'h3ff >>> _zz__zz_f1_map_payload_addr_4_2);
+  assign _zz__zz_f1_map_payload_addr_4_2 = (4'b1010 - _zz__zz_f1_map_payload_addr_4_3);
+  assign _zz__zz_f1_map_payload_addr_4_3 = _zz_f1_map_payload_addr_2[3:0];
+  assign _zz__zz_f1_map_payload_addr_5 = ((f1_payload_sNeg ? _zz__zz_f1_map_payload_addr_5_1 : _zz_f1_map_payload_addr_4) + _zz__zz_f1_map_payload_addr_5_2);
+  assign _zz__zz_f1_map_payload_addr_5_1 = (10'h0 - _zz_f1_map_payload_addr_4);
+  assign _zz__zz_f1_map_payload_addr_5_2 = (_zz__zz_f1_map_payload_addr_5_3 <<< 3);
+  assign _zz__zz_f1_map_payload_addr_5_4 = f1_payload_a_px_attr[22 : 16];
+  assign _zz__zz_f1_map_payload_addr_5_3 = {3'd0, _zz__zz_f1_map_payload_addr_5_4};
+  assign _zz__zz_f1_map_payload_addr_6 = (10'h0 - f1_payload_t10);
+  assign _zz__zz_f1_map_payload_addr_6_1 = (10'h3ff >>> _zz__zz_f1_map_payload_addr_6_2);
+  assign _zz__zz_f1_map_payload_addr_6_2 = (4'b1010 - _zz__zz_f1_map_payload_addr_6_3);
+  assign _zz__zz_f1_map_payload_addr_6_3 = _zz_f1_map_payload_addr_1[3:0];
+  assign _zz__zz_f1_map_payload_addr_7 = ((f1_payload_tNeg ? _zz__zz_f1_map_payload_addr_7_1 : _zz_f1_map_payload_addr_6) + _zz__zz_f1_map_payload_addr_7_2);
+  assign _zz__zz_f1_map_payload_addr_7_1 = (10'h0 - _zz_f1_map_payload_addr_6);
+  assign _zz__zz_f1_map_payload_addr_7_2 = (_zz__zz_f1_map_payload_addr_7_3 <<< 3);
+  assign _zz__zz_f1_map_payload_addr_7_4 = f1_payload_a_px_attr[15 : 9];
+  assign _zz__zz_f1_map_payload_addr_7_3 = {3'd0, _zz__zz_f1_map_payload_addr_7_4};
   assign _zz__zz_io_i_map_payload_e_32 = _zz_io_i_map_payload_e_2[1];
   initial begin
     rom[0] = 12'b111111111110;
@@ -9564,47 +9746,92 @@ module hng64_raster_PixelUnit (
   assign f0_payload_ms = fc_map_rData_ms;
   assign f0_payload_mt = fc_map_rData_mt;
   assign f0_payload_ml = fc_map_rData_ml;
-  assign _zz_f0_map_payload_addr = f0_payload_a_px_attr[2];
-  assign _zz_f0_map_payload_addr_1 = f0_payload_a_px_attr[61 : 57];
-  assign _zz_f0_map_payload_addr_2 = f0_payload_a_px_attr[66 : 62];
-  assign _zz_f0_map_payload_addr_3 = f0_payload_a_px_attr[8];
-  assign _zz_f0_map_payload_addr_4 = ($signed(_zz__zz_f0_map_payload_addr_4) + $signed(_zz__zz_f0_map_payload_addr_4_6));
-  assign _zz_f0_map_payload_addr_5 = (_zz__zz_f0_map_payload_addr_5[9 : 0] & ((5'h0a <= _zz_f0_map_payload_addr_2) ? 10'h3ff : _zz__zz_f0_map_payload_addr_5_5));
-  assign _zz_f0_map_payload_addr_6 = (_zz_f0_map_payload_addr_3 ? _zz__zz_f0_map_payload_addr_6 : _zz__zz_f0_map_payload_addr_6_5[9 : 0]);
-  assign _zz_f0_map_payload_addr_7 = ($signed(_zz__zz_f0_map_payload_addr_7) + $signed(_zz__zz_f0_map_payload_addr_7_6));
-  assign _zz_f0_map_payload_addr_8 = (_zz__zz_f0_map_payload_addr_8[9 : 0] & ((5'h0a <= _zz_f0_map_payload_addr_1) ? 10'h3ff : _zz__zz_f0_map_payload_addr_8_5));
-  assign _zz_f0_map_payload_addr_9 = (_zz_f0_map_payload_addr_3 ? _zz__zz_f0_map_payload_addr_9 : _zz__zz_f0_map_payload_addr_9_5[9 : 0]);
+  assign _zz_f0_map_payload_sNeg = {{1{_zz__zz_f0_map_payload_sNeg[53]}}, _zz__zz_f0_map_payload_sNeg};
+  assign _zz_f0_map_payload_sNeg_1 = {{1{_zz__zz_f0_map_payload_sNeg_1[53]}}, _zz__zz_f0_map_payload_sNeg_1};
+  assign _zz_f0_map_payload_sNeg_2 = (f0_payload_sNeg ? _zz__zz_f0_map_payload_sNeg_2 : _zz__zz_f0_map_payload_sNeg_2_1);
+  assign _zz_f0_map_payload_tNeg = {{1{_zz__zz_f0_map_payload_tNeg[53]}}, _zz__zz_f0_map_payload_tNeg};
+  assign _zz_f0_map_payload_tNeg_1 = {{1{_zz__zz_f0_map_payload_tNeg_1[53]}}, _zz__zz_f0_map_payload_tNeg_1};
+  assign _zz_f0_map_payload_tNeg_2 = (f0_payload_tNeg ? _zz__zz_f0_map_payload_tNeg_2 : _zz__zz_f0_map_payload_tNeg_2_1);
   assign f0_map_valid = f0_valid;
   assign f0_ready = f0_map_ready;
-  assign f0_map_payload_x = f0_payload_a_px_x;
-  assign f0_map_payload_y = f0_payload_a_px_y;
-  assign f0_map_payload_z = f0_payload_a_px_p_v_0;
-  assign f0_map_payload_addr = {f0_payload_a_px_attr[6 : 3],(_zz_f0_map_payload_addr ? {{1'b0,_zz_f0_map_payload_addr_6},_zz_f0_map_payload_addr_9[9 : 1]} : {_zz_f0_map_payload_addr_6,_zz_f0_map_payload_addr_9})};
-  assign f0_map_payload_nib = _zz_f0_map_payload_addr_9[0];
-  assign f0_map_payload_light = (f0_payload_lNeg ? _zz_f0_map_payload_light : f0_payload_ml);
-  assign f0_map_payload_flat = f0_payload_a_px_attr[0];
-  assign f0_map_payload_blend = f0_payload_a_px_attr[1];
-  assign f0_map_payload_tex4bpp = _zz_f0_map_payload_addr;
-  assign f0_map_payload_pal = f0_payload_a_px_attr[38 : 23];
+  assign f0_map_payload_a_px_x = f0_payload_a_px_x;
+  assign f0_map_payload_a_px_y = f0_payload_a_px_y;
+  assign f0_map_payload_a_px_p_v_0 = f0_payload_a_px_p_v_0;
+  assign f0_map_payload_a_px_p_v_1 = f0_payload_a_px_p_v_1;
+  assign f0_map_payload_a_px_p_v_2 = f0_payload_a_px_p_v_2;
+  assign f0_map_payload_a_px_p_v_3 = f0_payload_a_px_p_v_3;
+  assign f0_map_payload_a_px_p_v_4 = f0_payload_a_px_p_v_4;
+  assign f0_map_payload_a_px_attr = f0_payload_a_px_attr;
+  assign f0_map_payload_a_e = f0_payload_a_e;
+  assign f0_map_payload_a_wn = f0_payload_a_wn;
+  assign f0_map_payload_sNeg = _zz_f0_map_payload_sNeg_2[54];
+  assign f0_map_payload_tNeg = _zz_f0_map_payload_tNeg_2[54];
+  assign f0_map_payload_s10 = _zz_f0_map_payload_s10[9 : 0];
+  assign f0_map_payload_t10 = _zz_f0_map_payload_t10[9 : 0];
+  assign f0_map_payload_l = (f0_payload_lNeg ? _zz_f0_map_payload_l : f0_payload_ml);
   always @(*) begin
-    f0_map_ready = f_ready;
+    f0_map_ready = f1_ready;
     if(when_Stream_l477_9) begin
       f0_map_ready = 1'b1;
     end
   end
 
-  assign when_Stream_l477_9 = (! f_valid);
-  assign f_valid = f0_map_rValid;
-  assign f_payload_x = f0_map_rData_x;
-  assign f_payload_y = f0_map_rData_y;
-  assign f_payload_z = f0_map_rData_z;
-  assign f_payload_addr = f0_map_rData_addr;
-  assign f_payload_nib = f0_map_rData_nib;
-  assign f_payload_light = f0_map_rData_light;
-  assign f_payload_flat = f0_map_rData_flat;
-  assign f_payload_blend = f0_map_rData_blend;
-  assign f_payload_tex4bpp = f0_map_rData_tex4bpp;
-  assign f_payload_pal = f0_map_rData_pal;
+  assign when_Stream_l477_9 = (! f1_valid);
+  assign f1_valid = f0_map_rValid;
+  assign f1_payload_a_px_x = f0_map_rData_a_px_x;
+  assign f1_payload_a_px_y = f0_map_rData_a_px_y;
+  assign f1_payload_a_px_p_v_0 = f0_map_rData_a_px_p_v_0;
+  assign f1_payload_a_px_p_v_1 = f0_map_rData_a_px_p_v_1;
+  assign f1_payload_a_px_p_v_2 = f0_map_rData_a_px_p_v_2;
+  assign f1_payload_a_px_p_v_3 = f0_map_rData_a_px_p_v_3;
+  assign f1_payload_a_px_p_v_4 = f0_map_rData_a_px_p_v_4;
+  assign f1_payload_a_px_attr = f0_map_rData_a_px_attr;
+  assign f1_payload_a_e = f0_map_rData_a_e;
+  assign f1_payload_a_wn = f0_map_rData_a_wn;
+  assign f1_payload_sNeg = f0_map_rData_sNeg;
+  assign f1_payload_tNeg = f0_map_rData_tNeg;
+  assign f1_payload_s10 = f0_map_rData_s10;
+  assign f1_payload_t10 = f0_map_rData_t10;
+  assign f1_payload_l = f0_map_rData_l;
+  assign _zz_f1_map_payload_addr = f1_payload_a_px_attr[2];
+  assign _zz_f1_map_payload_addr_1 = f1_payload_a_px_attr[61 : 57];
+  assign _zz_f1_map_payload_addr_2 = f1_payload_a_px_attr[66 : 62];
+  assign _zz_f1_map_payload_addr_3 = f1_payload_a_px_attr[8];
+  assign _zz_f1_map_payload_addr_4 = ((f1_payload_sNeg ? _zz__zz_f1_map_payload_addr_4 : f1_payload_s10) & ((5'h0a <= _zz_f1_map_payload_addr_2) ? 10'h3ff : _zz__zz_f1_map_payload_addr_4_1));
+  assign _zz_f1_map_payload_addr_5 = (_zz_f1_map_payload_addr_3 ? _zz__zz_f1_map_payload_addr_5 : f1_payload_s10);
+  assign _zz_f1_map_payload_addr_6 = ((f1_payload_tNeg ? _zz__zz_f1_map_payload_addr_6 : f1_payload_t10) & ((5'h0a <= _zz_f1_map_payload_addr_1) ? 10'h3ff : _zz__zz_f1_map_payload_addr_6_1));
+  assign _zz_f1_map_payload_addr_7 = (_zz_f1_map_payload_addr_3 ? _zz__zz_f1_map_payload_addr_7 : f1_payload_t10);
+  assign f1_map_valid = f1_valid;
+  assign f1_ready = f1_map_ready;
+  assign f1_map_payload_x = f1_payload_a_px_x;
+  assign f1_map_payload_y = f1_payload_a_px_y;
+  assign f1_map_payload_z = f1_payload_a_px_p_v_0;
+  assign f1_map_payload_addr = {f1_payload_a_px_attr[6 : 3],(_zz_f1_map_payload_addr ? {{1'b0,_zz_f1_map_payload_addr_5},_zz_f1_map_payload_addr_7[9 : 1]} : {_zz_f1_map_payload_addr_5,_zz_f1_map_payload_addr_7})};
+  assign f1_map_payload_nib = _zz_f1_map_payload_addr_7[0];
+  assign f1_map_payload_light = f1_payload_l;
+  assign f1_map_payload_flat = f1_payload_a_px_attr[0];
+  assign f1_map_payload_blend = f1_payload_a_px_attr[1];
+  assign f1_map_payload_tex4bpp = _zz_f1_map_payload_addr;
+  assign f1_map_payload_pal = f1_payload_a_px_attr[38 : 23];
+  always @(*) begin
+    f1_map_ready = f_ready;
+    if(when_Stream_l477_10) begin
+      f1_map_ready = 1'b1;
+    end
+  end
+
+  assign when_Stream_l477_10 = (! f_valid);
+  assign f_valid = f1_map_rValid;
+  assign f_payload_x = f1_map_rData_x;
+  assign f_payload_y = f1_map_rData_y;
+  assign f_payload_z = f1_map_rData_z;
+  assign f_payload_addr = f1_map_rData_addr;
+  assign f_payload_nib = f1_map_rData_nib;
+  assign f_payload_light = f1_map_rData_light;
+  assign f_payload_flat = f1_map_rData_flat;
+  assign f_payload_blend = f1_map_rData_blend;
+  assign f_payload_tex4bpp = f1_map_rData_tex4bpp;
+  assign f_payload_pal = f1_map_rData_pal;
   assign io_o_valid = f_valid;
   assign f_ready = io_o_ready;
   assign io_o_payload_x = f_payload_x;
@@ -9617,7 +9844,7 @@ module hng64_raster_PixelUnit (
   assign io_o_payload_blend = f_payload_blend;
   assign io_o_payload_tex4bpp = f_payload_tex4bpp;
   assign io_o_payload_pal = f_payload_pal;
-  assign io_busy = ((((((((((a0_valid || a_valid) || b_valid) || c0_valid) || cS_valid) || d_valid) || e0_valid) || e_valid) || fc_valid) || f0_valid) || f_valid);
+  assign io_busy = (((((((((((a0_valid || a_valid) || b_valid) || c0_valid) || cS_valid) || d_valid) || e0_valid) || e_valid) || fc_valid) || f0_valid) || f1_valid) || f_valid);
   always @(posedge clk) begin
     if(reset) begin
       io_i_map_rValid <= 1'b0;
@@ -9631,6 +9858,7 @@ module hng64_raster_PixelUnit (
       e_map_rValid <= 1'b0;
       fc_map_rValid <= 1'b0;
       f0_map_rValid <= 1'b0;
+      f1_map_rValid <= 1'b0;
     end else begin
       if(io_i_map_ready) begin
         io_i_map_rValid <= io_i_map_valid;
@@ -9664,6 +9892,9 @@ module hng64_raster_PixelUnit (
       end
       if(f0_map_ready) begin
         f0_map_rValid <= f0_map_valid;
+      end
+      if(f1_map_ready) begin
+        f1_map_rValid <= f1_map_valid;
       end
     end
   end
@@ -9822,16 +10053,33 @@ module hng64_raster_PixelUnit (
       fc_map_rData_ml <= fc_map_payload_ml;
     end
     if(f0_map_ready) begin
-      f0_map_rData_x <= f0_map_payload_x;
-      f0_map_rData_y <= f0_map_payload_y;
-      f0_map_rData_z <= f0_map_payload_z;
-      f0_map_rData_addr <= f0_map_payload_addr;
-      f0_map_rData_nib <= f0_map_payload_nib;
-      f0_map_rData_light <= f0_map_payload_light;
-      f0_map_rData_flat <= f0_map_payload_flat;
-      f0_map_rData_blend <= f0_map_payload_blend;
-      f0_map_rData_tex4bpp <= f0_map_payload_tex4bpp;
-      f0_map_rData_pal <= f0_map_payload_pal;
+      f0_map_rData_a_px_x <= f0_map_payload_a_px_x;
+      f0_map_rData_a_px_y <= f0_map_payload_a_px_y;
+      f0_map_rData_a_px_p_v_0 <= f0_map_payload_a_px_p_v_0;
+      f0_map_rData_a_px_p_v_1 <= f0_map_payload_a_px_p_v_1;
+      f0_map_rData_a_px_p_v_2 <= f0_map_payload_a_px_p_v_2;
+      f0_map_rData_a_px_p_v_3 <= f0_map_payload_a_px_p_v_3;
+      f0_map_rData_a_px_p_v_4 <= f0_map_payload_a_px_p_v_4;
+      f0_map_rData_a_px_attr <= f0_map_payload_a_px_attr;
+      f0_map_rData_a_e <= f0_map_payload_a_e;
+      f0_map_rData_a_wn <= f0_map_payload_a_wn;
+      f0_map_rData_sNeg <= f0_map_payload_sNeg;
+      f0_map_rData_tNeg <= f0_map_payload_tNeg;
+      f0_map_rData_s10 <= f0_map_payload_s10;
+      f0_map_rData_t10 <= f0_map_payload_t10;
+      f0_map_rData_l <= f0_map_payload_l;
+    end
+    if(f1_map_ready) begin
+      f1_map_rData_x <= f1_map_payload_x;
+      f1_map_rData_y <= f1_map_payload_y;
+      f1_map_rData_z <= f1_map_payload_z;
+      f1_map_rData_addr <= f1_map_payload_addr;
+      f1_map_rData_nib <= f1_map_payload_nib;
+      f1_map_rData_light <= f1_map_payload_light;
+      f1_map_rData_flat <= f1_map_payload_flat;
+      f1_map_rData_blend <= f1_map_payload_blend;
+      f1_map_rData_tex4bpp <= f1_map_payload_tex4bpp;
+      f1_map_rData_pal <= f1_map_payload_pal;
     end
   end
 
@@ -10014,6 +10262,37 @@ module hng64_raster_SpanWalker (
   wire       [50:0]   _zz_bma_2;
   wire       [50:0]   _zz_bma_2_1;
   wire       [50:0]   _zz_bma_2_2;
+  wire       [50:0]   _zz__zz_aK_0_0;
+  wire       [50:0]   _zz__zz_aK_0_0_1;
+  wire       [50:0]   _zz__zz_aK_0_1;
+  wire       [50:0]   _zz__zz_aK_0_1_1;
+  wire       [50:0]   _zz__zz_aK_0_2;
+  wire       [50:0]   _zz__zz_aK_0_2_1;
+  wire       [50:0]   _zz__zz_aK_1_0;
+  wire       [50:0]   _zz__zz_aK_1_0_1;
+  wire       [50:0]   _zz__zz_aK_1_1;
+  wire       [50:0]   _zz__zz_aK_1_1_1;
+  wire       [50:0]   _zz__zz_aK_1_2;
+  wire       [50:0]   _zz__zz_aK_1_2_1;
+  wire       [50:0]   _zz__zz_aK_2_0;
+  wire       [50:0]   _zz__zz_aK_2_0_1;
+  wire       [50:0]   _zz__zz_aK_2_0_1_1;
+  wire       [50:0]   _zz__zz_aK_2_1;
+  wire       [50:0]   _zz__zz_aK_2_1_1;
+  wire       [50:0]   _zz__zz_aK_2_1_1_1;
+  wire       [50:0]   _zz__zz_aK_2_2;
+  wire       [50:0]   _zz__zz_aK_2_2_1;
+  wire       [50:0]   _zz__zz_aK_2_2_1_1;
+  wire       [50:0]   _zz__zz_aK_3_0;
+  wire       [50:0]   _zz__zz_aK_3_0_1;
+  wire       [50:0]   _zz__zz_aK_3_1;
+  wire       [50:0]   _zz__zz_aK_3_1_1;
+  wire       [50:0]   _zz__zz_aK_3_2;
+  wire       [50:0]   _zz__zz_aK_3_2_1;
+  wire       [13:0]   _zz__zz_pS;
+  wire       [13:0]   _zz__zz_pS_1;
+  wire       [13:0]   _zz__zz_pE;
+  wire       [13:0]   _zz__zz_pE_1;
   wire       [50:0]   _zz_leftEdge_e_0;
   wire       [50:0]   _zz_leftEdge_e_0_1;
   wire       [50:0]   _zz_leftEdge_e_1;
@@ -10068,7 +10347,88 @@ module hng64_raster_SpanWalker (
   wire       [50:0]   _zz_probe_e_1_9;
   wire       [50:0]   _zz_probe_e_2_8;
   wire       [50:0]   _zz_probe_e_2_9;
-  wire       [12:0]   _zz_when_SpanWalker_l204;
+  wire       [12:0]   _zz_probe_x;
+  wire       [12:0]   _zz_probe_x_1;
+  wire       [13:0]   _zz_pS_2;
+  wire       [13:0]   _zz_pS_3;
+  wire       [13:0]   _zz_pE_2;
+  wire       [13:0]   _zz_pE_3;
+  wire       [50:0]   _zz_ahead_0_0;
+  wire       [50:0]   _zz_ahead_0_0_1;
+  wire       [50:0]   _zz_ahead_0_0_2;
+  wire       [50:0]   _zz_ahead_0_0_3;
+  wire       [50:0]   _zz_ahead_0_0_4;
+  wire       [50:0]   _zz_ahead_0_0_5;
+  wire       [50:0]   _zz_ahead_0_1;
+  wire       [50:0]   _zz_ahead_0_1_1;
+  wire       [50:0]   _zz_ahead_0_1_2;
+  wire       [50:0]   _zz_ahead_0_1_3;
+  wire       [50:0]   _zz_ahead_0_1_4;
+  wire       [50:0]   _zz_ahead_0_1_5;
+  wire       [50:0]   _zz_ahead_0_2;
+  wire       [50:0]   _zz_ahead_0_2_1;
+  wire       [50:0]   _zz_ahead_0_2_2;
+  wire       [50:0]   _zz_ahead_0_2_3;
+  wire       [50:0]   _zz_ahead_0_2_4;
+  wire       [50:0]   _zz_ahead_0_2_5;
+  wire       [50:0]   _zz_ahead_1_0;
+  wire       [50:0]   _zz_ahead_1_0_1;
+  wire       [50:0]   _zz_ahead_1_0_2;
+  wire       [50:0]   _zz_ahead_1_0_3;
+  wire       [50:0]   _zz_ahead_1_0_4;
+  wire       [50:0]   _zz_ahead_1_0_5;
+  wire       [50:0]   _zz_ahead_1_1;
+  wire       [50:0]   _zz_ahead_1_1_1;
+  wire       [50:0]   _zz_ahead_1_1_2;
+  wire       [50:0]   _zz_ahead_1_1_3;
+  wire       [50:0]   _zz_ahead_1_1_4;
+  wire       [50:0]   _zz_ahead_1_1_5;
+  wire       [50:0]   _zz_ahead_1_2;
+  wire       [50:0]   _zz_ahead_1_2_1;
+  wire       [50:0]   _zz_ahead_1_2_2;
+  wire       [50:0]   _zz_ahead_1_2_3;
+  wire       [50:0]   _zz_ahead_1_2_4;
+  wire       [50:0]   _zz_ahead_1_2_5;
+  wire       [50:0]   _zz_ahead_2_0;
+  wire       [50:0]   _zz_ahead_2_0_1;
+  wire       [50:0]   _zz_ahead_2_0_2;
+  wire       [50:0]   _zz_ahead_2_0_3;
+  wire       [50:0]   _zz_ahead_2_0_4;
+  wire       [50:0]   _zz_ahead_2_0_5;
+  wire       [50:0]   _zz_ahead_2_1;
+  wire       [50:0]   _zz_ahead_2_1_1;
+  wire       [50:0]   _zz_ahead_2_1_2;
+  wire       [50:0]   _zz_ahead_2_1_3;
+  wire       [50:0]   _zz_ahead_2_1_4;
+  wire       [50:0]   _zz_ahead_2_1_5;
+  wire       [50:0]   _zz_ahead_2_2;
+  wire       [50:0]   _zz_ahead_2_2_1;
+  wire       [50:0]   _zz_ahead_2_2_2;
+  wire       [50:0]   _zz_ahead_2_2_3;
+  wire       [50:0]   _zz_ahead_2_2_4;
+  wire       [50:0]   _zz_ahead_2_2_5;
+  wire       [50:0]   _zz_ahead_3_0;
+  wire       [50:0]   _zz_ahead_3_0_1;
+  wire       [50:0]   _zz_ahead_3_0_2;
+  wire       [50:0]   _zz_ahead_3_0_3;
+  wire       [50:0]   _zz_ahead_3_0_4;
+  wire       [50:0]   _zz_ahead_3_0_5;
+  wire       [50:0]   _zz_ahead_3_0_6;
+  wire       [50:0]   _zz_ahead_3_1;
+  wire       [50:0]   _zz_ahead_3_1_1;
+  wire       [50:0]   _zz_ahead_3_1_2;
+  wire       [50:0]   _zz_ahead_3_1_3;
+  wire       [50:0]   _zz_ahead_3_1_4;
+  wire       [50:0]   _zz_ahead_3_1_5;
+  wire       [50:0]   _zz_ahead_3_1_6;
+  wire       [50:0]   _zz_ahead_3_2;
+  wire       [50:0]   _zz_ahead_3_2_1;
+  wire       [50:0]   _zz_ahead_3_2_2;
+  wire       [50:0]   _zz_ahead_3_2_3;
+  wire       [50:0]   _zz_ahead_3_2_4;
+  wire       [50:0]   _zz_ahead_3_2_5;
+  wire       [50:0]   _zz_ahead_3_2_6;
+  wire       [12:0]   _zz_when_SpanWalker_l280;
   wire       [12:0]   _zz__zz_rowGuess_x;
   wire       [12:0]   _zz__zz_rowGuess_y;
   wire       [12:0]   _zz__zz_rowGuess_y_1;
@@ -10084,6 +10444,10 @@ module hng64_raster_SpanWalker (
   wire       [50:0]   _zz__zz_rowGuess_e_2_1;
   wire       [50:0]   _zz__zz_rowGuess_e_2_2;
   wire       [50:0]   _zz__zz_rowGuess_e_2_3;
+  wire       [13:0]   _zz__zz_pS_1_1;
+  wire       [13:0]   _zz__zz_pS_1_2;
+  wire       [13:0]   _zz__zz_pE_1_1;
+  wire       [13:0]   _zz__zz_pE_1_2;
   reg        [2:0]    state;
   reg        [50:0]   bma_0;
   reg        [50:0]   bma_1;
@@ -10117,39 +10481,148 @@ module hng64_raster_SpanWalker (
   reg        [12:0]   emitRight;
   reg                 firstSpanPending;
   reg                 recoverFoundInside;
+  reg        [50:0]   ahead_0_0;
+  reg        [50:0]   ahead_0_1;
+  reg        [50:0]   ahead_0_2;
+  reg        [50:0]   ahead_1_0;
+  reg        [50:0]   ahead_1_1;
+  reg        [50:0]   ahead_1_2;
+  reg        [50:0]   ahead_2_0;
+  reg        [50:0]   ahead_2_1;
+  reg        [50:0]   ahead_2_2;
+  reg        [50:0]   ahead_3_0;
+  reg        [50:0]   ahead_3_1;
+  reg        [50:0]   ahead_3_2;
+  reg                 aValid;
+  reg                 aRight;
+  reg                 stepped;
+  reg                 moved;
+  wire                goRight;
+  wire                aReady;
   reg        [12:0]   visibleStart;
+  reg        [13:0]   pS;
+  reg        [13:0]   pE;
+  reg        [13:0]   bS;
+  reg        [13:0]   bE;
   reg        [12:0]   visibleEnd;
   reg        [12:0]   lastRow;
   wire                emitVisibleX;
   wire                emitVisibleY;
   wire                emitVisible;
-  wire                when_SpanWalker_l96;
-  wire                when_SpanWalker_l111;
-  wire                when_SpanWalker_l112;
-  wire                when_SpanWalker_l120;
-  wire                when_SpanWalker_l121;
-  wire                when_SpanWalker_l122;
-  wire                when_SpanWalker_l126;
-  wire                when_SpanWalker_l89;
-  wire                when_SpanWalker_l143;
-  wire                when_SpanWalker_l152;
-  wire                when_SpanWalker_l153;
+  reg        [50:0]   aK_0_0;
+  reg        [50:0]   aK_0_1;
+  reg        [50:0]   aK_0_2;
+  reg        [50:0]   aK_1_0;
+  reg        [50:0]   aK_1_1;
+  reg        [50:0]   aK_1_2;
+  reg        [50:0]   aK_2_0;
+  reg        [50:0]   aK_2_1;
+  reg        [50:0]   aK_2_2;
+  reg        [50:0]   aK_3_0;
+  reg        [50:0]   aK_3_1;
+  reg        [50:0]   aK_3_2;
+  reg        [50:0]   aKn_0_0;
+  reg        [50:0]   aKn_0_1;
+  reg        [50:0]   aKn_0_2;
+  reg        [50:0]   aKn_1_0;
+  reg        [50:0]   aKn_1_1;
+  reg        [50:0]   aKn_1_2;
+  reg        [50:0]   aKn_2_0;
+  reg        [50:0]   aKn_2_1;
+  reg        [50:0]   aKn_2_2;
+  reg        [50:0]   aKn_3_0;
+  reg        [50:0]   aKn_3_1;
+  reg        [50:0]   aKn_3_2;
+  wire                when_SpanWalker_l123;
+  wire       [50:0]   _zz_aK_0_0;
+  wire       [50:0]   _zz_aK_0_1;
+  wire       [50:0]   _zz_aK_0_2;
+  wire       [50:0]   _zz_aK_1_0;
+  wire       [50:0]   _zz_aK_1_1;
+  wire       [50:0]   _zz_aK_1_2;
+  wire       [50:0]   _zz_aK_2_0;
+  wire       [50:0]   _zz_aK_2_0_1;
+  wire       [50:0]   _zz_aK_2_1;
+  wire       [50:0]   _zz_aK_2_1_1;
+  wire       [50:0]   _zz_aK_2_2;
+  wire       [50:0]   _zz_aK_2_2_1;
+  wire       [50:0]   _zz_aK_3_0;
+  wire       [50:0]   _zz_aK_3_1;
+  wire       [50:0]   _zz_aK_3_2;
+  wire                when_SpanWalker_l145;
+  wire       [13:0]   _zz_pS;
+  wire       [13:0]   _zz_pE;
+  wire                when_SpanWalker_l149;
   wire                when_SpanWalker_l157;
-  wire                when_SpanWalker_l168;
-  wire                when_SpanWalker_l169;
-  wire                when_SpanWalker_l170;
-  wire                when_SpanWalker_l89_1;
-  wire                when_SpanWalker_l184;
-  wire                when_SpanWalker_l185;
-  wire                when_SpanWalker_l186;
-  wire                when_SpanWalker_l198;
-  wire                when_SpanWalker_l203;
-  wire                when_SpanWalker_l204;
+  wire                when_SpanWalker_l158;
+  wire                when_SpanWalker_l159;
+  wire                when_SpanWalker_l163;
+  wire                when_SpanWalker_l113;
+  wire                when_SpanWalker_l180;
+  wire                when_SpanWalker_l189;
+  wire                when_SpanWalker_l190;
+  wire                when_SpanWalker_l194;
+  wire                when_SpanWalker_l205;
+  wire                when_SpanWalker_l206;
+  wire                when_SpanWalker_l207;
+  wire                when_SpanWalker_l113_1;
+  wire                when_SpanWalker_l221;
+  wire                when_SpanWalker_l222;
+  wire                when_SpanWalker_l223;
+  wire                _zz_runR;
+  wire                _zz_runR_1;
+  wire                _zz_runR_2;
+  reg                 _zz_runR_3;
+  wire                _zz_runR_4;
+  wire                _zz_runR_5;
+  wire                _zz_runR_6;
+  reg                 _zz_runR_7;
+  wire                _zz_runR_8;
+  wire                _zz_runR_9;
+  wire                _zz_runR_10;
+  reg                 _zz_runR_11;
+  wire                runR;
+  wire                _zz_runL;
+  wire                _zz_runL_1;
+  wire                _zz_runL_2;
+  reg                 _zz_runL_3;
+  wire                _zz_runL_4;
+  wire                _zz_runL_5;
+  wire                _zz_runL_6;
+  reg                 _zz_runL_7;
+  wire                _zz_runL_8;
+  wire                _zz_runL_9;
+  wire                _zz_runL_10;
+  reg                 _zz_runL_11;
+  wire                runL;
+  wire                _zz_here;
+  wire                _zz_here_1;
+  wire                _zz_here_2;
+  reg                 here;
+  wire                jump;
+  wire                remake;
+  wire                when_SpanWalker_l270;
+  wire                when_SpanWalker_l270_1;
+  wire                when_SpanWalker_l270_2;
+  wire                when_SpanWalker_l270_3;
+  wire                when_SpanWalker_l270_4;
+  wire                when_SpanWalker_l270_5;
+  wire                when_SpanWalker_l270_6;
+  wire                when_SpanWalker_l270_7;
+  wire                when_SpanWalker_l270_8;
+  wire                when_SpanWalker_l270_9;
+  wire                when_SpanWalker_l270_10;
+  wire                when_SpanWalker_l270_11;
+  wire                when_SpanWalker_l274;
+  wire                when_SpanWalker_l279;
+  wire                when_SpanWalker_l280;
   wire       [12:0]   _zz_rowGuess_x;
   wire       [12:0]   _zz_rowGuess_y;
   wire       [50:0]   _zz_rowGuess_e_0;
   wire       [50:0]   _zz_rowGuess_e_1;
   wire       [50:0]   _zz_rowGuess_e_2;
+  wire       [13:0]   _zz_pS_1;
+  wire       [13:0]   _zz_pE_1;
   wire       [2:0]    _zz_state;
   `ifndef SYNTHESIS
   reg [143:0] state_string;
@@ -10170,6 +10643,37 @@ module hng64_raster_SpanWalker (
   assign _zz_bma_2 = ($signed(_zz_bma_2_1) - $signed(_zz_bma_2_2));
   assign _zz_bma_2_1 = {{26{io_i_payload_b_2[24]}}, io_i_payload_b_2};
   assign _zz_bma_2_2 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
+  assign _zz__zz_aK_0_0 = (_zz__zz_aK_0_0_1 <<< 12);
+  assign _zz__zz_aK_0_0_1 = {{26{io_i_payload_a_0[24]}}, io_i_payload_a_0};
+  assign _zz__zz_aK_0_1 = (_zz__zz_aK_0_1_1 <<< 12);
+  assign _zz__zz_aK_0_1_1 = {{26{io_i_payload_a_1[24]}}, io_i_payload_a_1};
+  assign _zz__zz_aK_0_2 = (_zz__zz_aK_0_2_1 <<< 12);
+  assign _zz__zz_aK_0_2_1 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
+  assign _zz__zz_aK_1_0 = (_zz__zz_aK_1_0_1 <<< 12);
+  assign _zz__zz_aK_1_0_1 = {{26{io_i_payload_a_0[24]}}, io_i_payload_a_0};
+  assign _zz__zz_aK_1_1 = (_zz__zz_aK_1_1_1 <<< 12);
+  assign _zz__zz_aK_1_1_1 = {{26{io_i_payload_a_1[24]}}, io_i_payload_a_1};
+  assign _zz__zz_aK_1_2 = (_zz__zz_aK_1_2_1 <<< 12);
+  assign _zz__zz_aK_1_2_1 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
+  assign _zz__zz_aK_2_0 = {{26{io_i_payload_a_0[24]}}, io_i_payload_a_0};
+  assign _zz__zz_aK_2_0_1 = (_zz_aK_2_0 <<< 0);
+  assign _zz__zz_aK_2_0_1_1 = (_zz_aK_2_0 <<< 1);
+  assign _zz__zz_aK_2_1 = {{26{io_i_payload_a_1[24]}}, io_i_payload_a_1};
+  assign _zz__zz_aK_2_1_1 = (_zz_aK_2_1 <<< 0);
+  assign _zz__zz_aK_2_1_1_1 = (_zz_aK_2_1 <<< 1);
+  assign _zz__zz_aK_2_2 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
+  assign _zz__zz_aK_2_2_1 = (_zz_aK_2_2 <<< 0);
+  assign _zz__zz_aK_2_2_1_1 = (_zz_aK_2_2 <<< 1);
+  assign _zz__zz_aK_3_0 = (_zz__zz_aK_3_0_1 <<< 12);
+  assign _zz__zz_aK_3_0_1 = {{26{io_i_payload_a_0[24]}}, io_i_payload_a_0};
+  assign _zz__zz_aK_3_1 = (_zz__zz_aK_3_1_1 <<< 12);
+  assign _zz__zz_aK_3_1_1 = {{26{io_i_payload_a_1[24]}}, io_i_payload_a_1};
+  assign _zz__zz_aK_3_2 = (_zz__zz_aK_3_2_1 <<< 12);
+  assign _zz__zz_aK_3_2_1 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
+  assign _zz__zz_pS = {{1{probe_x[12]}}, probe_x};
+  assign _zz__zz_pS_1 = {{1{visibleStart[12]}}, visibleStart};
+  assign _zz__zz_pE = {{1{probe_x[12]}}, probe_x};
+  assign _zz__zz_pE_1 = {{1{visibleEnd[12]}}, visibleEnd};
   assign _zz_leftEdge_e_0 = (_zz_leftEdge_e_0_1 <<< 12);
   assign _zz_leftEdge_e_0_1 = {{26{io_i_payload_a_0[24]}}, io_i_payload_a_0};
   assign _zz_leftEdge_e_1 = (_zz_leftEdge_e_1_1 <<< 12);
@@ -10224,7 +10728,88 @@ module hng64_raster_SpanWalker (
   assign _zz_probe_e_1_9 = {{26{io_i_payload_a_1[24]}}, io_i_payload_a_1};
   assign _zz_probe_e_2_8 = (_zz_probe_e_2_9 <<< 12);
   assign _zz_probe_e_2_9 = {{26{io_i_payload_a_2[24]}}, io_i_payload_a_2};
-  assign _zz_when_SpanWalker_l204 = ($signed(nextRowBase_y) + $signed(13'h0001));
+  assign _zz_probe_x = ($signed(probe_x) + $signed(13'h0004));
+  assign _zz_probe_x_1 = ($signed(probe_x) - $signed(13'h0004));
+  assign _zz_pS_2 = ($signed(pS) + $signed(14'h0004));
+  assign _zz_pS_3 = ($signed(pS) - $signed(14'h0004));
+  assign _zz_pE_2 = ($signed(pE) + $signed(14'h0004));
+  assign _zz_pE_3 = ($signed(pE) - $signed(14'h0004));
+  assign _zz_ahead_0_0 = (jump ? ahead_0_0 : _zz_ahead_0_0_1);
+  assign _zz_ahead_0_0_1 = (stepped ? ahead_1_0 : probe_e_0);
+  assign _zz_ahead_0_0_2 = (jump ? _zz_ahead_0_0_3 : _zz_ahead_0_0_4);
+  assign _zz_ahead_0_0_3 = (goRight ? aK_3_0 : aKn_3_0);
+  assign _zz_ahead_0_0_4 = (stepped ? 51'h0 : _zz_ahead_0_0_5);
+  assign _zz_ahead_0_0_5 = (goRight ? aK_0_0 : aKn_0_0);
+  assign _zz_ahead_0_1 = (jump ? ahead_0_1 : _zz_ahead_0_1_1);
+  assign _zz_ahead_0_1_1 = (stepped ? ahead_1_1 : probe_e_1);
+  assign _zz_ahead_0_1_2 = (jump ? _zz_ahead_0_1_3 : _zz_ahead_0_1_4);
+  assign _zz_ahead_0_1_3 = (goRight ? aK_3_1 : aKn_3_1);
+  assign _zz_ahead_0_1_4 = (stepped ? 51'h0 : _zz_ahead_0_1_5);
+  assign _zz_ahead_0_1_5 = (goRight ? aK_0_1 : aKn_0_1);
+  assign _zz_ahead_0_2 = (jump ? ahead_0_2 : _zz_ahead_0_2_1);
+  assign _zz_ahead_0_2_1 = (stepped ? ahead_1_2 : probe_e_2);
+  assign _zz_ahead_0_2_2 = (jump ? _zz_ahead_0_2_3 : _zz_ahead_0_2_4);
+  assign _zz_ahead_0_2_3 = (goRight ? aK_3_2 : aKn_3_2);
+  assign _zz_ahead_0_2_4 = (stepped ? 51'h0 : _zz_ahead_0_2_5);
+  assign _zz_ahead_0_2_5 = (goRight ? aK_0_2 : aKn_0_2);
+  assign _zz_ahead_1_0 = (jump ? ahead_1_0 : _zz_ahead_1_0_1);
+  assign _zz_ahead_1_0_1 = (stepped ? ahead_2_0 : probe_e_0);
+  assign _zz_ahead_1_0_2 = (jump ? _zz_ahead_1_0_3 : _zz_ahead_1_0_4);
+  assign _zz_ahead_1_0_3 = (goRight ? aK_3_0 : aKn_3_0);
+  assign _zz_ahead_1_0_4 = (stepped ? 51'h0 : _zz_ahead_1_0_5);
+  assign _zz_ahead_1_0_5 = (goRight ? aK_1_0 : aKn_1_0);
+  assign _zz_ahead_1_1 = (jump ? ahead_1_1 : _zz_ahead_1_1_1);
+  assign _zz_ahead_1_1_1 = (stepped ? ahead_2_1 : probe_e_1);
+  assign _zz_ahead_1_1_2 = (jump ? _zz_ahead_1_1_3 : _zz_ahead_1_1_4);
+  assign _zz_ahead_1_1_3 = (goRight ? aK_3_1 : aKn_3_1);
+  assign _zz_ahead_1_1_4 = (stepped ? 51'h0 : _zz_ahead_1_1_5);
+  assign _zz_ahead_1_1_5 = (goRight ? aK_1_1 : aKn_1_1);
+  assign _zz_ahead_1_2 = (jump ? ahead_1_2 : _zz_ahead_1_2_1);
+  assign _zz_ahead_1_2_1 = (stepped ? ahead_2_2 : probe_e_2);
+  assign _zz_ahead_1_2_2 = (jump ? _zz_ahead_1_2_3 : _zz_ahead_1_2_4);
+  assign _zz_ahead_1_2_3 = (goRight ? aK_3_2 : aKn_3_2);
+  assign _zz_ahead_1_2_4 = (stepped ? 51'h0 : _zz_ahead_1_2_5);
+  assign _zz_ahead_1_2_5 = (goRight ? aK_1_2 : aKn_1_2);
+  assign _zz_ahead_2_0 = (jump ? ahead_2_0 : _zz_ahead_2_0_1);
+  assign _zz_ahead_2_0_1 = (stepped ? ahead_3_0 : probe_e_0);
+  assign _zz_ahead_2_0_2 = (jump ? _zz_ahead_2_0_3 : _zz_ahead_2_0_4);
+  assign _zz_ahead_2_0_3 = (goRight ? aK_3_0 : aKn_3_0);
+  assign _zz_ahead_2_0_4 = (stepped ? 51'h0 : _zz_ahead_2_0_5);
+  assign _zz_ahead_2_0_5 = (goRight ? aK_2_0 : aKn_2_0);
+  assign _zz_ahead_2_1 = (jump ? ahead_2_1 : _zz_ahead_2_1_1);
+  assign _zz_ahead_2_1_1 = (stepped ? ahead_3_1 : probe_e_1);
+  assign _zz_ahead_2_1_2 = (jump ? _zz_ahead_2_1_3 : _zz_ahead_2_1_4);
+  assign _zz_ahead_2_1_3 = (goRight ? aK_3_1 : aKn_3_1);
+  assign _zz_ahead_2_1_4 = (stepped ? 51'h0 : _zz_ahead_2_1_5);
+  assign _zz_ahead_2_1_5 = (goRight ? aK_2_1 : aKn_2_1);
+  assign _zz_ahead_2_2 = (jump ? ahead_2_2 : _zz_ahead_2_2_1);
+  assign _zz_ahead_2_2_1 = (stepped ? ahead_3_2 : probe_e_2);
+  assign _zz_ahead_2_2_2 = (jump ? _zz_ahead_2_2_3 : _zz_ahead_2_2_4);
+  assign _zz_ahead_2_2_3 = (goRight ? aK_3_2 : aKn_3_2);
+  assign _zz_ahead_2_2_4 = (stepped ? 51'h0 : _zz_ahead_2_2_5);
+  assign _zz_ahead_2_2_5 = (goRight ? aK_2_2 : aKn_2_2);
+  assign _zz_ahead_3_0 = (jump ? ahead_3_0 : _zz_ahead_3_0_1);
+  assign _zz_ahead_3_0_1 = (stepped ? ahead_3_0 : probe_e_0);
+  assign _zz_ahead_3_0_2 = (jump ? _zz_ahead_3_0_3 : _zz_ahead_3_0_4);
+  assign _zz_ahead_3_0_3 = (goRight ? aK_3_0 : aKn_3_0);
+  assign _zz_ahead_3_0_4 = (stepped ? _zz_ahead_3_0_5 : _zz_ahead_3_0_6);
+  assign _zz_ahead_3_0_5 = (goRight ? aK_0_0 : aKn_0_0);
+  assign _zz_ahead_3_0_6 = (goRight ? aK_3_0 : aKn_3_0);
+  assign _zz_ahead_3_1 = (jump ? ahead_3_1 : _zz_ahead_3_1_1);
+  assign _zz_ahead_3_1_1 = (stepped ? ahead_3_1 : probe_e_1);
+  assign _zz_ahead_3_1_2 = (jump ? _zz_ahead_3_1_3 : _zz_ahead_3_1_4);
+  assign _zz_ahead_3_1_3 = (goRight ? aK_3_1 : aKn_3_1);
+  assign _zz_ahead_3_1_4 = (stepped ? _zz_ahead_3_1_5 : _zz_ahead_3_1_6);
+  assign _zz_ahead_3_1_5 = (goRight ? aK_0_1 : aKn_0_1);
+  assign _zz_ahead_3_1_6 = (goRight ? aK_3_1 : aKn_3_1);
+  assign _zz_ahead_3_2 = (jump ? ahead_3_2 : _zz_ahead_3_2_1);
+  assign _zz_ahead_3_2_1 = (stepped ? ahead_3_2 : probe_e_2);
+  assign _zz_ahead_3_2_2 = (jump ? _zz_ahead_3_2_3 : _zz_ahead_3_2_4);
+  assign _zz_ahead_3_2_3 = (goRight ? aK_3_2 : aKn_3_2);
+  assign _zz_ahead_3_2_4 = (stepped ? _zz_ahead_3_2_5 : _zz_ahead_3_2_6);
+  assign _zz_ahead_3_2_5 = (goRight ? aK_0_2 : aKn_0_2);
+  assign _zz_ahead_3_2_6 = (goRight ? aK_3_2 : aKn_3_2);
+  assign _zz_when_SpanWalker_l280 = ($signed(nextRowBase_y) + $signed(13'h0001));
   assign _zz__zz_rowGuess_x = ($signed(nextRowBase_x) - $signed(13'h0001));
   assign _zz__zz_rowGuess_y = ($signed(nextRowBase_y) + $signed(13'h0001));
   assign _zz__zz_rowGuess_y_1 = ($signed(nextRowBase_y) + $signed(13'h0001));
@@ -10240,6 +10825,10 @@ module hng64_raster_SpanWalker (
   assign _zz__zz_rowGuess_e_2_1 = ($signed(nextRowBase_e_2) + $signed(_zz__zz_rowGuess_e_2_2));
   assign _zz__zz_rowGuess_e_2_2 = (_zz__zz_rowGuess_e_2_3 <<< 12);
   assign _zz__zz_rowGuess_e_2_3 = {{26{io_i_payload_b_2[24]}}, io_i_payload_b_2};
+  assign _zz__zz_pS_1_1 = {{1{_zz_rowGuess_x[12]}}, _zz_rowGuess_x};
+  assign _zz__zz_pS_1_2 = {{1{visibleStart[12]}}, visibleStart};
+  assign _zz__zz_pE_1_1 = {{1{_zz_rowGuess_x[12]}}, _zz_rowGuess_x};
+  assign _zz__zz_pE_1_2 = {{1{visibleEnd[12]}}, visibleEnd};
   `ifndef SYNTHESIS
   always @(*) begin
     case(state)
@@ -10270,6 +10859,94 @@ module hng64_raster_SpanWalker (
   `endif
 
   assign io_busy = (state != hng64_raster_W_Idle);
+  always @(*) begin
+    stepped = 1'b0;
+    if(when_SpanWalker_l157) begin
+      if(when_SpanWalker_l158) begin
+        if(!when_SpanWalker_l163) begin
+          if(aReady) begin
+            stepped = 1'b1;
+          end
+        end
+      end else begin
+        if(!recoverFoundInside) begin
+          if(!when_SpanWalker_l180) begin
+            if(aReady) begin
+              stepped = 1'b1;
+            end
+          end
+        end
+      end
+    end
+    if(when_SpanWalker_l189) begin
+      if(!when_SpanWalker_l190) begin
+        if(!when_SpanWalker_l194) begin
+          if(aReady) begin
+            stepped = 1'b1;
+          end
+        end
+      end
+    end
+    if(when_SpanWalker_l205) begin
+      if(when_SpanWalker_l206) begin
+        if(!when_SpanWalker_l207) begin
+          if(aReady) begin
+            stepped = 1'b1;
+          end
+        end
+      end
+    end
+    if(when_SpanWalker_l221) begin
+      if(when_SpanWalker_l222) begin
+        if(!when_SpanWalker_l223) begin
+          if(aReady) begin
+            stepped = 1'b1;
+          end
+        end
+      end
+    end
+  end
+
+  always @(*) begin
+    moved = 1'b0;
+    if(when_SpanWalker_l123) begin
+      moved = 1'b1;
+    end
+    if(when_SpanWalker_l157) begin
+      if(when_SpanWalker_l158) begin
+        if(when_SpanWalker_l163) begin
+          if(recoverFoundInside) begin
+            moved = 1'b1;
+          end
+        end
+      end else begin
+        if(recoverFoundInside) begin
+          moved = 1'b1;
+        end else begin
+          if(when_SpanWalker_l180) begin
+            moved = 1'b1;
+          end
+        end
+      end
+    end
+    if(when_SpanWalker_l205) begin
+      if(when_SpanWalker_l206) begin
+        if(when_SpanWalker_l207) begin
+          moved = 1'b1;
+        end
+      end else begin
+        moved = 1'b1;
+      end
+    end
+    if(when_SpanWalker_l279) begin
+      if(!when_SpanWalker_l280) begin
+        moved = 1'b1;
+      end
+    end
+  end
+
+  assign goRight = ((state == hng64_raster_W_SearchRightToEnter) || (state == hng64_raster_W_SearchRightToExit));
+  assign aReady = (aValid && (aRight == goRight));
   assign io_i_ready = (((state == hng64_raster_W_AdvanceRow) && ($signed(lastRow) <= $signed(_zz_io_i_ready))) && io_drained);
   assign emitVisibleX = ((($signed(leftEdge_x) <= $signed(emitRight)) && ($signed(13'h0) <= $signed(emitRight))) && ($signed(leftEdge_x) < $signed(13'h0201)));
   assign emitVisibleY = (($signed(13'h0) <= $signed(leftEdge_y)) && ($signed(leftEdge_y) < $signed(13'h0200)));
@@ -10278,33 +10955,229 @@ module hng64_raster_SpanWalker (
   assign io_o_payload_x0 = _zz_io_o_payload_x0;
   assign io_o_payload_x1 = _zz_io_o_payload_x1;
   assign io_o_payload_y = _zz_io_o_payload_y;
-  assign when_SpanWalker_l96 = ((state == hng64_raster_W_Idle) && io_i_valid);
-  assign when_SpanWalker_l111 = (state == hng64_raster_W_Decide);
-  assign when_SpanWalker_l112 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
-  assign when_SpanWalker_l120 = (state == hng64_raster_W_RecoverLeft);
-  assign when_SpanWalker_l121 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
-  assign when_SpanWalker_l122 = (! recoverFoundInside);
-  assign when_SpanWalker_l126 = ($signed(probe_x) <= $signed(visibleStart));
-  assign when_SpanWalker_l89 = ($signed(probe_x) < $signed(visibleStart));
-  assign when_SpanWalker_l143 = ($signed(probe_x) <= $signed(visibleStart));
-  assign when_SpanWalker_l152 = (state == hng64_raster_W_SearchRightToEnter);
-  assign when_SpanWalker_l153 = (((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2))) && ($signed(visibleStart) <= $signed(probe_x)));
-  assign when_SpanWalker_l157 = ($signed(visibleEnd) <= $signed(probe_x));
-  assign when_SpanWalker_l168 = (state == hng64_raster_W_SearchLeftToExit);
-  assign when_SpanWalker_l169 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
-  assign when_SpanWalker_l170 = ($signed(probe_x) <= $signed(visibleStart));
-  assign when_SpanWalker_l89_1 = ($signed(probe_x) < $signed(visibleStart));
-  assign when_SpanWalker_l184 = (state == hng64_raster_W_SearchRightToExit);
-  assign when_SpanWalker_l185 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
-  assign when_SpanWalker_l186 = ($signed(visibleEnd) <= $signed(probe_x));
-  assign when_SpanWalker_l198 = ((state == hng64_raster_W_EmitSpan) && ((! emitVisible) || io_o_ready));
-  assign when_SpanWalker_l203 = (state == hng64_raster_W_AdvanceRow);
-  assign when_SpanWalker_l204 = (($signed(lastRow) <= $signed(_zz_when_SpanWalker_l204)) && io_drained);
+  assign when_SpanWalker_l123 = ((state == hng64_raster_W_Idle) && io_i_valid);
+  assign _zz_aK_0_0 = (_zz__zz_aK_0_0 <<< 0);
+  assign _zz_aK_0_1 = (_zz__zz_aK_0_1 <<< 0);
+  assign _zz_aK_0_2 = (_zz__zz_aK_0_2 <<< 0);
+  assign _zz_aK_1_0 = (_zz__zz_aK_1_0 <<< 1);
+  assign _zz_aK_1_1 = (_zz__zz_aK_1_1 <<< 1);
+  assign _zz_aK_1_2 = (_zz__zz_aK_1_2 <<< 1);
+  assign _zz_aK_2_0 = (_zz__zz_aK_2_0 <<< 12);
+  assign _zz_aK_2_0_1 = ($signed(_zz__zz_aK_2_0_1) + $signed(_zz__zz_aK_2_0_1_1));
+  assign _zz_aK_2_1 = (_zz__zz_aK_2_1 <<< 12);
+  assign _zz_aK_2_1_1 = ($signed(_zz__zz_aK_2_1_1) + $signed(_zz__zz_aK_2_1_1_1));
+  assign _zz_aK_2_2 = (_zz__zz_aK_2_2 <<< 12);
+  assign _zz_aK_2_2_1 = ($signed(_zz__zz_aK_2_2_1) + $signed(_zz__zz_aK_2_2_1_1));
+  assign _zz_aK_3_0 = (_zz__zz_aK_3_0 <<< 2);
+  assign _zz_aK_3_1 = (_zz__zz_aK_3_1 <<< 2);
+  assign _zz_aK_3_2 = (_zz__zz_aK_3_2 <<< 2);
+  assign when_SpanWalker_l145 = (state == hng64_raster_W_Decide);
+  assign _zz_pS = ($signed(_zz__zz_pS) - $signed(_zz__zz_pS_1));
+  assign _zz_pE = ($signed(_zz__zz_pE) - $signed(_zz__zz_pE_1));
+  assign when_SpanWalker_l149 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
+  assign when_SpanWalker_l157 = (state == hng64_raster_W_RecoverLeft);
+  assign when_SpanWalker_l158 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
+  assign when_SpanWalker_l159 = (! recoverFoundInside);
+  assign when_SpanWalker_l163 = ($signed(pS) <= $signed(14'h0));
+  assign when_SpanWalker_l113 = ($signed(pS) < $signed(14'h0));
+  assign when_SpanWalker_l180 = ($signed(pS) <= $signed(14'h0));
+  assign when_SpanWalker_l189 = (state == hng64_raster_W_SearchRightToEnter);
+  assign when_SpanWalker_l190 = (((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2))) && ($signed(14'h0) <= $signed(pS)));
+  assign when_SpanWalker_l194 = ($signed(14'h0) <= $signed(pE));
+  assign when_SpanWalker_l205 = (state == hng64_raster_W_SearchLeftToExit);
+  assign when_SpanWalker_l206 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
+  assign when_SpanWalker_l207 = ($signed(pS) <= $signed(14'h0));
+  assign when_SpanWalker_l113_1 = ($signed(pS) < $signed(14'h0));
+  assign when_SpanWalker_l221 = (state == hng64_raster_W_SearchRightToExit);
+  assign when_SpanWalker_l222 = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
+  assign when_SpanWalker_l223 = ($signed(14'h0) <= $signed(pE));
+  assign _zz_runR = ((($signed(51'h0) <= $signed(ahead_0_0)) && ($signed(51'h0) <= $signed(ahead_0_1))) && ($signed(51'h0) <= $signed(ahead_0_2)));
+  assign _zz_runR_1 = 1'b0;
+  assign _zz_runR_2 = ($signed(pE) < $signed(14'h3fff));
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runR_3 = ((_zz_runR == recoverFoundInside) && _zz_runR_1);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runR_3 = ((! (_zz_runR && ($signed(14'h3fff) <= $signed(pS)))) && _zz_runR_2);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runR_3 = (_zz_runR && _zz_runR_1);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runR_3 = (_zz_runR && _zz_runR_2);
+      end
+      default : begin
+        _zz_runR_3 = 1'b0;
+      end
+    endcase
+  end
+
+  assign _zz_runR_4 = ((($signed(51'h0) <= $signed(ahead_1_0)) && ($signed(51'h0) <= $signed(ahead_1_1))) && ($signed(51'h0) <= $signed(ahead_1_2)));
+  assign _zz_runR_5 = 1'b0;
+  assign _zz_runR_6 = ($signed(pE) < $signed(14'h3ffe));
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runR_7 = ((_zz_runR_4 == recoverFoundInside) && _zz_runR_5);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runR_7 = ((! (_zz_runR_4 && ($signed(14'h3ffe) <= $signed(pS)))) && _zz_runR_6);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runR_7 = (_zz_runR_4 && _zz_runR_5);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runR_7 = (_zz_runR_4 && _zz_runR_6);
+      end
+      default : begin
+        _zz_runR_7 = 1'b0;
+      end
+    endcase
+  end
+
+  assign _zz_runR_8 = ((($signed(51'h0) <= $signed(ahead_2_0)) && ($signed(51'h0) <= $signed(ahead_2_1))) && ($signed(51'h0) <= $signed(ahead_2_2)));
+  assign _zz_runR_9 = 1'b0;
+  assign _zz_runR_10 = ($signed(pE) < $signed(14'h3ffd));
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runR_11 = ((_zz_runR_8 == recoverFoundInside) && _zz_runR_9);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runR_11 = ((! (_zz_runR_8 && ($signed(14'h3ffd) <= $signed(pS)))) && _zz_runR_10);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runR_11 = (_zz_runR_8 && _zz_runR_9);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runR_11 = (_zz_runR_8 && _zz_runR_10);
+      end
+      default : begin
+        _zz_runR_11 = 1'b0;
+      end
+    endcase
+  end
+
+  assign runR = ((_zz_runR_3 && _zz_runR_7) && _zz_runR_11);
+  assign _zz_runL = ((($signed(51'h0) <= $signed(ahead_0_0)) && ($signed(51'h0) <= $signed(ahead_0_1))) && ($signed(51'h0) <= $signed(ahead_0_2)));
+  assign _zz_runL_1 = ($signed(14'h0001) < $signed(pS));
+  assign _zz_runL_2 = 1'b0;
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runL_3 = ((_zz_runL == recoverFoundInside) && _zz_runL_1);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runL_3 = ((! (_zz_runL && 1'b0)) && _zz_runL_2);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runL_3 = (_zz_runL && _zz_runL_1);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runL_3 = (_zz_runL && _zz_runL_2);
+      end
+      default : begin
+        _zz_runL_3 = 1'b0;
+      end
+    endcase
+  end
+
+  assign _zz_runL_4 = ((($signed(51'h0) <= $signed(ahead_1_0)) && ($signed(51'h0) <= $signed(ahead_1_1))) && ($signed(51'h0) <= $signed(ahead_1_2)));
+  assign _zz_runL_5 = ($signed(14'h0002) < $signed(pS));
+  assign _zz_runL_6 = 1'b0;
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runL_7 = ((_zz_runL_4 == recoverFoundInside) && _zz_runL_5);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runL_7 = ((! (_zz_runL_4 && 1'b0)) && _zz_runL_6);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runL_7 = (_zz_runL_4 && _zz_runL_5);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runL_7 = (_zz_runL_4 && _zz_runL_6);
+      end
+      default : begin
+        _zz_runL_7 = 1'b0;
+      end
+    endcase
+  end
+
+  assign _zz_runL_8 = ((($signed(51'h0) <= $signed(ahead_2_0)) && ($signed(51'h0) <= $signed(ahead_2_1))) && ($signed(51'h0) <= $signed(ahead_2_2)));
+  assign _zz_runL_9 = ($signed(14'h0003) < $signed(pS));
+  assign _zz_runL_10 = 1'b0;
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        _zz_runL_11 = ((_zz_runL_8 == recoverFoundInside) && _zz_runL_9);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        _zz_runL_11 = ((! (_zz_runL_8 && 1'b0)) && _zz_runL_10);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        _zz_runL_11 = (_zz_runL_8 && _zz_runL_9);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        _zz_runL_11 = (_zz_runL_8 && _zz_runL_10);
+      end
+      default : begin
+        _zz_runL_11 = 1'b0;
+      end
+    endcase
+  end
+
+  assign runL = ((_zz_runL_3 && _zz_runL_7) && _zz_runL_11);
+  assign _zz_here = ((($signed(51'h0) <= $signed(probe_e_0)) && ($signed(51'h0) <= $signed(probe_e_1))) && ($signed(51'h0) <= $signed(probe_e_2)));
+  assign _zz_here_1 = ($signed(14'h0) < $signed(pS));
+  assign _zz_here_2 = ($signed(pE) < $signed(14'h0));
+  always @(*) begin
+    case(state)
+      hng64_raster_W_RecoverLeft : begin
+        here = ((_zz_here == recoverFoundInside) && _zz_here_1);
+      end
+      hng64_raster_W_SearchRightToEnter : begin
+        here = ((! (_zz_here && ($signed(14'h0) <= $signed(pS)))) && _zz_here_2);
+      end
+      hng64_raster_W_SearchLeftToExit : begin
+        here = (_zz_here && _zz_here_1);
+      end
+      hng64_raster_W_SearchRightToExit : begin
+        here = (_zz_here && _zz_here_2);
+      end
+      default : begin
+        here = 1'b0;
+      end
+    endcase
+  end
+
+  assign jump = ((aReady && here) && (goRight ? runR : runL));
+  assign remake = ((! aReady) && (! moved));
+  assign when_SpanWalker_l270 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_1 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_2 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_3 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_4 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_5 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_6 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_7 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_8 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_9 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_10 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l270_11 = ((jump || stepped) || remake);
+  assign when_SpanWalker_l274 = ((state == hng64_raster_W_EmitSpan) && ((! emitVisible) || io_o_ready));
+  assign when_SpanWalker_l279 = (state == hng64_raster_W_AdvanceRow);
+  assign when_SpanWalker_l280 = (($signed(lastRow) <= $signed(_zz_when_SpanWalker_l280)) && io_drained);
   assign _zz_rowGuess_x = (nextRowLeftBiased ? _zz__zz_rowGuess_x : nextRowBase_x);
   assign _zz_rowGuess_y = (nextRowLeftBiased ? _zz__zz_rowGuess_y : _zz__zz_rowGuess_y_1);
   assign _zz_rowGuess_e_0 = (nextRowLeftBiased ? _zz__zz_rowGuess_e_0 : _zz__zz_rowGuess_e_0_1);
   assign _zz_rowGuess_e_1 = (nextRowLeftBiased ? _zz__zz_rowGuess_e_1 : _zz__zz_rowGuess_e_1_1);
   assign _zz_rowGuess_e_2 = (nextRowLeftBiased ? _zz__zz_rowGuess_e_2 : _zz__zz_rowGuess_e_2_1);
+  assign _zz_pS_1 = ($signed(_zz__zz_pS_1_1) - $signed(_zz__zz_pS_1_2));
+  assign _zz_pE_1 = ($signed(_zz__zz_pE_1_1) - $signed(_zz__zz_pE_1_2));
   assign _zz_state = (nextRowLeftBiased ? hng64_raster_W_RecoverLeft : hng64_raster_W_Decide);
   always @(posedge clk) begin
     if(reset) begin
@@ -10312,24 +11185,25 @@ module hng64_raster_SpanWalker (
       nextRowLeftBiased <= 1'b0;
       firstSpanPending <= 1'b0;
       recoverFoundInside <= 1'b0;
+      aValid <= 1'b0;
     end else begin
-      if(when_SpanWalker_l96) begin
+      if(when_SpanWalker_l123) begin
         firstSpanPending <= 1'b1;
         state <= hng64_raster_W_Decide;
       end
-      if(when_SpanWalker_l111) begin
-        if(when_SpanWalker_l112) begin
+      if(when_SpanWalker_l145) begin
+        if(when_SpanWalker_l149) begin
           state <= hng64_raster_W_SearchLeftToExit;
         end else begin
           state <= hng64_raster_W_SearchRightToEnter;
         end
       end
-      if(when_SpanWalker_l120) begin
-        if(when_SpanWalker_l121) begin
-          if(when_SpanWalker_l122) begin
+      if(when_SpanWalker_l157) begin
+        if(when_SpanWalker_l158) begin
+          if(when_SpanWalker_l159) begin
             recoverFoundInside <= 1'b1;
           end
-          if(when_SpanWalker_l126) begin
+          if(when_SpanWalker_l163) begin
             recoverFoundInside <= 1'b0;
             state <= hng64_raster_W_SearchRightToExit;
           end
@@ -10338,17 +11212,17 @@ module hng64_raster_SpanWalker (
             recoverFoundInside <= 1'b0;
             state <= hng64_raster_W_SearchRightToExit;
           end else begin
-            if(when_SpanWalker_l143) begin
+            if(when_SpanWalker_l180) begin
               state <= hng64_raster_W_SearchRightToEnter;
             end
           end
         end
       end
-      if(when_SpanWalker_l152) begin
-        if(when_SpanWalker_l153) begin
+      if(when_SpanWalker_l189) begin
+        if(when_SpanWalker_l190) begin
           state <= hng64_raster_W_SearchRightToExit;
         end else begin
-          if(when_SpanWalker_l157) begin
+          if(when_SpanWalker_l194) begin
             if(firstSpanPending) begin
               nextRowLeftBiased <= 1'b0;
               state <= hng64_raster_W_AdvanceRow;
@@ -10359,31 +11233,38 @@ module hng64_raster_SpanWalker (
           end
         end
       end
-      if(when_SpanWalker_l168) begin
-        if(when_SpanWalker_l169) begin
-          if(when_SpanWalker_l170) begin
+      if(when_SpanWalker_l205) begin
+        if(when_SpanWalker_l206) begin
+          if(when_SpanWalker_l207) begin
             state <= hng64_raster_W_SearchRightToExit;
           end
         end else begin
           state <= hng64_raster_W_SearchRightToExit;
         end
       end
-      if(when_SpanWalker_l184) begin
-        if(when_SpanWalker_l185) begin
-          if(when_SpanWalker_l186) begin
+      if(when_SpanWalker_l221) begin
+        if(when_SpanWalker_l222) begin
+          if(when_SpanWalker_l223) begin
             state <= hng64_raster_W_EmitSpan;
           end
         end else begin
           state <= hng64_raster_W_EmitSpan;
         end
       end
-      if(when_SpanWalker_l198) begin
+      if(moved) begin
+        aValid <= 1'b0;
+      end else begin
+        if(remake) begin
+          aValid <= 1'b1;
+        end
+      end
+      if(when_SpanWalker_l274) begin
         firstSpanPending <= 1'b0;
         nextRowLeftBiased <= 1'b1;
         state <= hng64_raster_W_AdvanceRow;
       end
-      if(when_SpanWalker_l203) begin
-        if(when_SpanWalker_l204) begin
+      if(when_SpanWalker_l279) begin
+        if(when_SpanWalker_l280) begin
           state <= hng64_raster_W_Idle;
           firstSpanPending <= 1'b0;
           recoverFoundInside <= 1'b0;
@@ -10396,10 +11277,34 @@ module hng64_raster_SpanWalker (
   end
 
   always @(posedge clk) begin
-    if(when_SpanWalker_l96) begin
+    if(when_SpanWalker_l123) begin
       bma_0 <= (_zz_bma_0 <<< 12);
       bma_1 <= (_zz_bma_1 <<< 12);
       bma_2 <= (_zz_bma_2 <<< 12);
+      aK_0_0 <= _zz_aK_0_0;
+      aKn_0_0 <= (- _zz_aK_0_0);
+      aK_0_1 <= _zz_aK_0_1;
+      aKn_0_1 <= (- _zz_aK_0_1);
+      aK_0_2 <= _zz_aK_0_2;
+      aKn_0_2 <= (- _zz_aK_0_2);
+      aK_1_0 <= _zz_aK_1_0;
+      aKn_1_0 <= (- _zz_aK_1_0);
+      aK_1_1 <= _zz_aK_1_1;
+      aKn_1_1 <= (- _zz_aK_1_1);
+      aK_1_2 <= _zz_aK_1_2;
+      aKn_1_2 <= (- _zz_aK_1_2);
+      aK_2_0 <= _zz_aK_2_0_1;
+      aKn_2_0 <= (- _zz_aK_2_0_1);
+      aK_2_1 <= _zz_aK_2_1_1;
+      aKn_2_1 <= (- _zz_aK_2_1_1);
+      aK_2_2 <= _zz_aK_2_2_1;
+      aKn_2_2 <= (- _zz_aK_2_2_1);
+      aK_3_0 <= _zz_aK_3_0;
+      aKn_3_0 <= (- _zz_aK_3_0);
+      aK_3_1 <= _zz_aK_3_1;
+      aKn_3_1 <= (- _zz_aK_3_1);
+      aK_3_2 <= _zz_aK_3_2;
+      aKn_3_2 <= (- _zz_aK_3_2);
       rowGuess_x <= io_i_payload_x0;
       rowGuess_y <= io_i_payload_y0;
       rowGuess_e_0 <= io_i_payload_edge_0;
@@ -10419,8 +11324,12 @@ module hng64_raster_SpanWalker (
       visibleEnd <= (($signed(io_i_payload_x1) < $signed(13'h0201)) ? io_i_payload_x1 : 13'h0201);
       lastRow <= (($signed(io_i_payload_y1) < $signed(13'h0200)) ? io_i_payload_y1 : 13'h0200);
     end
-    if(when_SpanWalker_l111) begin
-      if(when_SpanWalker_l112) begin
+    if(when_SpanWalker_l145) begin
+      pS <= _zz_pS;
+      pE <= _zz_pE;
+      bS <= _zz_pS;
+      bE <= _zz_pE;
+      if(when_SpanWalker_l149) begin
         bookmark_x <= probe_x;
         bookmark_y <= probe_y;
         bookmark_e_0 <= probe_e_0;
@@ -10428,17 +11337,19 @@ module hng64_raster_SpanWalker (
         bookmark_e_2 <= probe_e_2;
       end
     end
-    if(when_SpanWalker_l120) begin
-      if(when_SpanWalker_l121) begin
-        if(when_SpanWalker_l122) begin
+    if(when_SpanWalker_l157) begin
+      if(when_SpanWalker_l158) begin
+        if(when_SpanWalker_l159) begin
           bookmark_x <= probe_x;
           bookmark_y <= probe_y;
           bookmark_e_0 <= probe_e_0;
           bookmark_e_1 <= probe_e_1;
           bookmark_e_2 <= probe_e_2;
+          bS <= pS;
+          bE <= pE;
         end
-        if(when_SpanWalker_l126) begin
-          if(when_SpanWalker_l89) begin
+        if(when_SpanWalker_l163) begin
+          if(when_SpanWalker_l113) begin
             leftEdge_x <= ($signed(probe_x) + $signed(13'h0001));
             leftEdge_y <= probe_y;
             leftEdge_e_0 <= ($signed(probe_e_0) + $signed(_zz_leftEdge_e_0));
@@ -10457,13 +11368,19 @@ module hng64_raster_SpanWalker (
             probe_e_0 <= bookmark_e_0;
             probe_e_1 <= bookmark_e_1;
             probe_e_2 <= bookmark_e_2;
+            pS <= bS;
+            pE <= bE;
           end
         end else begin
-          probe_x <= ($signed(probe_x) - $signed(13'h0001));
-          probe_y <= probe_y;
-          probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0));
-          probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1));
-          probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2));
+          if(aReady) begin
+            probe_x <= ($signed(probe_x) - $signed(13'h0001));
+            probe_y <= probe_y;
+            probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0));
+            probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1));
+            probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2));
+            pS <= ($signed(pS) - $signed(14'h0001));
+            pE <= ($signed(pE) - $signed(14'h0001));
+          end
         end
       end else begin
         if(recoverFoundInside) begin
@@ -10477,25 +11394,33 @@ module hng64_raster_SpanWalker (
           probe_e_0 <= bookmark_e_0;
           probe_e_1 <= bookmark_e_1;
           probe_e_2 <= bookmark_e_2;
+          pS <= bS;
+          pE <= bE;
         end else begin
-          if(when_SpanWalker_l143) begin
+          if(when_SpanWalker_l180) begin
             probe_x <= bookmark_x;
             probe_y <= bookmark_y;
             probe_e_0 <= bookmark_e_0;
             probe_e_1 <= bookmark_e_1;
             probe_e_2 <= bookmark_e_2;
+            pS <= bS;
+            pE <= bE;
           end else begin
-            probe_x <= ($signed(probe_x) - $signed(13'h0001));
-            probe_y <= probe_y;
-            probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0_2));
-            probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1_2));
-            probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2_2));
+            if(aReady) begin
+              probe_x <= ($signed(probe_x) - $signed(13'h0001));
+              probe_y <= probe_y;
+              probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0_2));
+              probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1_2));
+              probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2_2));
+              pS <= ($signed(pS) - $signed(14'h0001));
+              pE <= ($signed(pE) - $signed(14'h0001));
+            end
           end
         end
       end
     end
-    if(when_SpanWalker_l152) begin
-      if(when_SpanWalker_l153) begin
+    if(when_SpanWalker_l189) begin
+      if(when_SpanWalker_l190) begin
         leftEdge_x <= probe_x;
         leftEdge_y <= probe_y;
         leftEdge_e_0 <= probe_e_0;
@@ -10506,8 +11431,10 @@ module hng64_raster_SpanWalker (
         bookmark_e_0 <= probe_e_0;
         bookmark_e_1 <= probe_e_1;
         bookmark_e_2 <= probe_e_2;
+        bS <= pS;
+        bE <= pE;
       end else begin
-        if(when_SpanWalker_l157) begin
+        if(when_SpanWalker_l194) begin
           if(firstSpanPending) begin
             nextRowBase_x <= rowGuess_x;
             nextRowBase_y <= rowGuess_y;
@@ -10522,18 +11449,22 @@ module hng64_raster_SpanWalker (
             nextRowBase_e_2 <= bookmark_e_2;
           end
         end else begin
-          probe_x <= ($signed(probe_x) + $signed(13'h0001));
-          probe_y <= probe_y;
-          probe_e_0 <= ($signed(probe_e_0) + $signed(_zz_probe_e_0_4));
-          probe_e_1 <= ($signed(probe_e_1) + $signed(_zz_probe_e_1_4));
-          probe_e_2 <= ($signed(probe_e_2) + $signed(_zz_probe_e_2_4));
+          if(aReady) begin
+            probe_x <= ($signed(probe_x) + $signed(13'h0001));
+            probe_y <= probe_y;
+            probe_e_0 <= ($signed(probe_e_0) + $signed(_zz_probe_e_0_4));
+            probe_e_1 <= ($signed(probe_e_1) + $signed(_zz_probe_e_1_4));
+            probe_e_2 <= ($signed(probe_e_2) + $signed(_zz_probe_e_2_4));
+            pS <= ($signed(pS) + $signed(14'h0001));
+            pE <= ($signed(pE) + $signed(14'h0001));
+          end
         end
       end
     end
-    if(when_SpanWalker_l168) begin
-      if(when_SpanWalker_l169) begin
-        if(when_SpanWalker_l170) begin
-          if(when_SpanWalker_l89_1) begin
+    if(when_SpanWalker_l205) begin
+      if(when_SpanWalker_l206) begin
+        if(when_SpanWalker_l207) begin
+          if(when_SpanWalker_l113_1) begin
             leftEdge_x <= ($signed(probe_x) + $signed(13'h0001));
             leftEdge_y <= probe_y;
             leftEdge_e_0 <= ($signed(probe_e_0) + $signed(_zz_leftEdge_e_0_4));
@@ -10551,12 +11482,18 @@ module hng64_raster_SpanWalker (
           probe_e_0 <= bookmark_e_0;
           probe_e_1 <= bookmark_e_1;
           probe_e_2 <= bookmark_e_2;
+          pS <= bS;
+          pE <= bE;
         end else begin
-          probe_x <= ($signed(probe_x) - $signed(13'h0001));
-          probe_y <= probe_y;
-          probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0_6));
-          probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1_6));
-          probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2_6));
+          if(aReady) begin
+            probe_x <= ($signed(probe_x) - $signed(13'h0001));
+            probe_y <= probe_y;
+            probe_e_0 <= ($signed(probe_e_0) - $signed(_zz_probe_e_0_6));
+            probe_e_1 <= ($signed(probe_e_1) - $signed(_zz_probe_e_1_6));
+            probe_e_2 <= ($signed(probe_e_2) - $signed(_zz_probe_e_2_6));
+            pS <= ($signed(pS) - $signed(14'h0001));
+            pE <= ($signed(pE) - $signed(14'h0001));
+          end
         end
       end else begin
         leftEdge_x <= ($signed(probe_x) + $signed(13'h0001));
@@ -10569,32 +11506,87 @@ module hng64_raster_SpanWalker (
         probe_e_0 <= bookmark_e_0;
         probe_e_1 <= bookmark_e_1;
         probe_e_2 <= bookmark_e_2;
+        pS <= bS;
+        pE <= bE;
       end
     end
-    if(when_SpanWalker_l184) begin
-      if(when_SpanWalker_l185) begin
-        if(when_SpanWalker_l186) begin
+    if(when_SpanWalker_l221) begin
+      if(when_SpanWalker_l222) begin
+        if(when_SpanWalker_l223) begin
           emitRight <= ($signed(visibleEnd) - $signed(13'h0001));
         end else begin
-          probe_x <= ($signed(probe_x) + $signed(13'h0001));
-          probe_y <= probe_y;
-          probe_e_0 <= ($signed(probe_e_0) + $signed(_zz_probe_e_0_8));
-          probe_e_1 <= ($signed(probe_e_1) + $signed(_zz_probe_e_1_8));
-          probe_e_2 <= ($signed(probe_e_2) + $signed(_zz_probe_e_2_8));
+          if(aReady) begin
+            probe_x <= ($signed(probe_x) + $signed(13'h0001));
+            probe_y <= probe_y;
+            probe_e_0 <= ($signed(probe_e_0) + $signed(_zz_probe_e_0_8));
+            probe_e_1 <= ($signed(probe_e_1) + $signed(_zz_probe_e_1_8));
+            probe_e_2 <= ($signed(probe_e_2) + $signed(_zz_probe_e_2_8));
+            pS <= ($signed(pS) + $signed(14'h0001));
+            pE <= ($signed(pE) + $signed(14'h0001));
+          end
         end
       end else begin
         emitRight <= ($signed(probe_x) - $signed(13'h0001));
       end
     end
-    if(when_SpanWalker_l198) begin
+    if(jump) begin
+      probe_x <= (goRight ? _zz_probe_x : _zz_probe_x_1);
+      probe_e_0 <= ahead_3_0;
+      probe_e_1 <= ahead_3_1;
+      probe_e_2 <= ahead_3_2;
+      pS <= (goRight ? _zz_pS_2 : _zz_pS_3);
+      pE <= (goRight ? _zz_pE_2 : _zz_pE_3);
+    end
+    if(when_SpanWalker_l270) begin
+      ahead_0_0 <= ($signed(_zz_ahead_0_0) + $signed(_zz_ahead_0_0_2));
+    end
+    if(when_SpanWalker_l270_1) begin
+      ahead_0_1 <= ($signed(_zz_ahead_0_1) + $signed(_zz_ahead_0_1_2));
+    end
+    if(when_SpanWalker_l270_2) begin
+      ahead_0_2 <= ($signed(_zz_ahead_0_2) + $signed(_zz_ahead_0_2_2));
+    end
+    if(when_SpanWalker_l270_3) begin
+      ahead_1_0 <= ($signed(_zz_ahead_1_0) + $signed(_zz_ahead_1_0_2));
+    end
+    if(when_SpanWalker_l270_4) begin
+      ahead_1_1 <= ($signed(_zz_ahead_1_1) + $signed(_zz_ahead_1_1_2));
+    end
+    if(when_SpanWalker_l270_5) begin
+      ahead_1_2 <= ($signed(_zz_ahead_1_2) + $signed(_zz_ahead_1_2_2));
+    end
+    if(when_SpanWalker_l270_6) begin
+      ahead_2_0 <= ($signed(_zz_ahead_2_0) + $signed(_zz_ahead_2_0_2));
+    end
+    if(when_SpanWalker_l270_7) begin
+      ahead_2_1 <= ($signed(_zz_ahead_2_1) + $signed(_zz_ahead_2_1_2));
+    end
+    if(when_SpanWalker_l270_8) begin
+      ahead_2_2 <= ($signed(_zz_ahead_2_2) + $signed(_zz_ahead_2_2_2));
+    end
+    if(when_SpanWalker_l270_9) begin
+      ahead_3_0 <= ($signed(_zz_ahead_3_0) + $signed(_zz_ahead_3_0_2));
+    end
+    if(when_SpanWalker_l270_10) begin
+      ahead_3_1 <= ($signed(_zz_ahead_3_1) + $signed(_zz_ahead_3_1_2));
+    end
+    if(when_SpanWalker_l270_11) begin
+      ahead_3_2 <= ($signed(_zz_ahead_3_2) + $signed(_zz_ahead_3_2_2));
+    end
+    if(!moved) begin
+      if(remake) begin
+        aRight <= goRight;
+      end
+    end
+    if(when_SpanWalker_l274) begin
       nextRowBase_x <= leftEdge_x;
       nextRowBase_y <= leftEdge_y;
       nextRowBase_e_0 <= leftEdge_e_0;
       nextRowBase_e_1 <= leftEdge_e_1;
       nextRowBase_e_2 <= leftEdge_e_2;
     end
-    if(when_SpanWalker_l203) begin
-      if(!when_SpanWalker_l204) begin
+    if(when_SpanWalker_l279) begin
+      if(!when_SpanWalker_l280) begin
         rowGuess_x <= _zz_rowGuess_x;
         rowGuess_y <= _zz_rowGuess_y;
         rowGuess_e_0 <= _zz_rowGuess_e_0;
@@ -10605,6 +11597,10 @@ module hng64_raster_SpanWalker (
         probe_e_0 <= _zz_rowGuess_e_0;
         probe_e_1 <= _zz_rowGuess_e_1;
         probe_e_2 <= _zz_rowGuess_e_2;
+        pS <= _zz_pS_1;
+        pE <= _zz_pE_1;
+        bS <= _zz_pS_1;
+        bE <= _zz_pE_1;
         bookmark_x <= _zz_rowGuess_x;
         bookmark_y <= _zz_rowGuess_y;
         bookmark_e_0 <= _zz_rowGuess_e_0;
@@ -10728,10 +11724,10 @@ module hng64_raster_TriangleSetup (
   reg        [24:0]   _zz_selY;
   reg        [45:0]   _zz_selCX;
   reg        [45:0]   _zz_selCY;
-  wire       [71:0]   _zz__zz_out_edge_0;
-  wire       [71:0]   _zz__zz_out_edge_0_1;
+  wire       [71:0]   _zz_sumR;
+  wire       [71:0]   _zz_sumR_1;
+  wire       [71:0]   _zz_out_edge_0;
   wire       [71:0]   _zz_out_edge_0_1;
-  wire       [71:0]   _zz_out_edge_0_2;
   wire       [71:0]   _zz_out_edge_1;
   wire       [71:0]   _zz_out_edge_1_1;
   wire       [71:0]   _zz_out_edge_2;
@@ -10857,20 +11853,22 @@ module hng64_raster_TriangleSetup (
   reg        [45:0]   selCY;
   reg        [3:0]    selIdx;
   reg                 selValid;
-  wire                when_TriangleSetup_l143;
-  wire                when_TriangleSetup_l144;
+  reg                 sValid;
+  reg        [71:0]   sumR;
+  reg        [3:0]    sIdx;
+  wire                when_TriangleSetup_l146;
+  wire                when_TriangleSetup_l147;
   wire       [2:0]    _zz_selX;
-  wire       [71:0]   _zz_out_edge_0;
-  wire                when_TriangleSetup_l162;
-  wire                when_TriangleSetup_l162_1;
-  wire                when_TriangleSetup_l162_2;
-  wire                when_TriangleSetup_l165;
-  wire                when_TriangleSetup_l165_1;
-  wire                when_TriangleSetup_l165_2;
-  wire                when_TriangleSetup_l165_3;
-  wire                when_TriangleSetup_l165_4;
-  wire                when_TriangleSetup_l168;
-  wire                when_TriangleSetup_l179;
+  wire                when_TriangleSetup_l172;
+  wire                when_TriangleSetup_l172_1;
+  wire                when_TriangleSetup_l172_2;
+  wire                when_TriangleSetup_l175;
+  wire                when_TriangleSetup_l175_1;
+  wire                when_TriangleSetup_l175_2;
+  wire                when_TriangleSetup_l175_3;
+  wire                when_TriangleSetup_l175_4;
+  wire                when_TriangleSetup_l178;
+  wire                when_TriangleSetup_l189;
   `ifndef SYNTHESIS
   reg [39:0] state_string;
   `endif
@@ -10916,23 +11914,23 @@ module hng64_raster_TriangleSetup (
   assign _zz_offY_1 = {{1{io_i_payload_v_1_1[23]}}, io_i_payload_v_1_1};
   assign _zz_offX_2 = {{1{io_i_payload_v_2_0[23]}}, io_i_payload_v_2_0};
   assign _zz_offY_2 = {{1{io_i_payload_v_2_1[23]}}, io_i_payload_v_2_1};
-  assign _zz__zz_out_edge_0 = {{1{prodX[70]}}, prodX};
-  assign _zz__zz_out_edge_0_1 = {{1{prodY[70]}}, prodY};
-  assign _zz_out_edge_0_1 = (bias[0] ? _zz_out_edge_0_2 : _zz_out_edge_0);
-  assign _zz_out_edge_0_2 = ($signed(_zz_out_edge_0) - $signed(72'h000000000000000001));
-  assign _zz_out_edge_1 = (bias[1] ? _zz_out_edge_1_1 : _zz_out_edge_0);
-  assign _zz_out_edge_1_1 = ($signed(_zz_out_edge_0) - $signed(72'h000000000000000001));
-  assign _zz_out_edge_2 = (bias[2] ? _zz_out_edge_2_1 : _zz_out_edge_0);
-  assign _zz_out_edge_2_1 = ($signed(_zz_out_edge_0) - $signed(72'h000000000000000001));
-  assign _zz_out_p_v_0_1 = (_zz_out_edge_0 >>> 4'd12);
+  assign _zz_sumR = {{1{prodX[70]}}, prodX};
+  assign _zz_sumR_1 = {{1{prodY[70]}}, prodY};
+  assign _zz_out_edge_0 = (bias[0] ? _zz_out_edge_0_1 : sumR);
+  assign _zz_out_edge_0_1 = ($signed(sumR) - $signed(72'h000000000000000001));
+  assign _zz_out_edge_1 = (bias[1] ? _zz_out_edge_1_1 : sumR);
+  assign _zz_out_edge_1_1 = ($signed(sumR) - $signed(72'h000000000000000001));
+  assign _zz_out_edge_2 = (bias[2] ? _zz_out_edge_2_1 : sumR);
+  assign _zz_out_edge_2_1 = ($signed(sumR) - $signed(72'h000000000000000001));
+  assign _zz_out_p_v_0_1 = (sumR >>> 4'd12);
   assign _zz_out_p_v_0 = _zz_out_p_v_0_1[29:0];
-  assign _zz_out_p_v_1_1 = (_zz_out_edge_0 >>> 4'd12);
+  assign _zz_out_p_v_1_1 = (sumR >>> 4'd12);
   assign _zz_out_p_v_1 = _zz_out_p_v_1_1[33:0];
-  assign _zz_out_p_v_2_1 = (_zz_out_edge_0 >>> 4'd12);
+  assign _zz_out_p_v_2_1 = (sumR >>> 4'd12);
   assign _zz_out_p_v_2 = _zz_out_p_v_2_1[23:0];
-  assign _zz_out_p_v_3_1 = (_zz_out_edge_0 >>> 4'd12);
+  assign _zz_out_p_v_3_1 = (sumR >>> 4'd12);
   assign _zz_out_p_v_3 = _zz_out_p_v_3_1[31:0];
-  assign _zz_out_p_v_4_1 = (_zz_out_edge_0 >>> 4'd12);
+  assign _zz_out_p_v_4_1 = (sumR >>> 4'd12);
   assign _zz_out_p_v_4 = _zz_out_p_v_4_1[31:0];
   always @(*) begin
     case(_zz_selX)
@@ -11079,20 +12077,19 @@ module hng64_raster_TriangleSetup (
   assign coefY_7 = {{2{io_i_payload_dy_v_4[43]}}, io_i_payload_dy_v_4};
   assign mOffX_7 = offX_0;
   assign mOffY_7 = offY_0;
-  assign when_TriangleSetup_l143 = (state == hng64_raster_S_Mul);
-  assign when_TriangleSetup_l144 = (idx < 4'b1000);
+  assign when_TriangleSetup_l146 = (state == hng64_raster_S_Mul);
+  assign when_TriangleSetup_l147 = (idx < 4'b1000);
   assign _zz_selX = idx[2:0];
-  assign _zz_out_edge_0 = ($signed(_zz__zz_out_edge_0) + $signed(_zz__zz_out_edge_0_1));
-  assign when_TriangleSetup_l162 = (pIdx == 4'b0000);
-  assign when_TriangleSetup_l162_1 = (pIdx == 4'b0001);
-  assign when_TriangleSetup_l162_2 = (pIdx == 4'b0010);
-  assign when_TriangleSetup_l165 = (pIdx == 4'b0011);
-  assign when_TriangleSetup_l165_1 = (pIdx == 4'b0100);
-  assign when_TriangleSetup_l165_2 = (pIdx == 4'b0101);
-  assign when_TriangleSetup_l165_3 = (pIdx == 4'b0110);
-  assign when_TriangleSetup_l165_4 = (pIdx == 4'b0111);
-  assign when_TriangleSetup_l168 = (pIdx == 4'b0111);
-  assign when_TriangleSetup_l179 = ((state == hng64_raster_S_Done) && io_o_ready);
+  assign when_TriangleSetup_l172 = (sIdx == 4'b0000);
+  assign when_TriangleSetup_l172_1 = (sIdx == 4'b0001);
+  assign when_TriangleSetup_l172_2 = (sIdx == 4'b0010);
+  assign when_TriangleSetup_l175 = (sIdx == 4'b0011);
+  assign when_TriangleSetup_l175_1 = (sIdx == 4'b0100);
+  assign when_TriangleSetup_l175_2 = (sIdx == 4'b0101);
+  assign when_TriangleSetup_l175_3 = (sIdx == 4'b0110);
+  assign when_TriangleSetup_l175_4 = (sIdx == 4'b0111);
+  assign when_TriangleSetup_l178 = (sIdx == 4'b0111);
+  assign when_TriangleSetup_l189 = ((state == hng64_raster_S_Done) && io_o_ready);
   always @(posedge clk) begin
     if(reset) begin
       state <= hng64_raster_S_Idle;
@@ -11100,6 +12097,7 @@ module hng64_raster_TriangleSetup (
       pIdx <= 4'b0000;
       pValid <= 1'b0;
       selValid <= 1'b0;
+      sValid <= 1'b0;
     end else begin
       if(when_TriangleSetup_l39) begin
         state <= hng64_raster_S_Prep0;
@@ -11113,10 +12111,11 @@ module hng64_raster_TriangleSetup (
       if(when_TriangleSetup_l103) begin
         state <= hng64_raster_S_Mul;
       end
+      sValid <= pValid;
       pValid <= 1'b0;
       selValid <= 1'b0;
-      if(when_TriangleSetup_l143) begin
-        if(when_TriangleSetup_l144) begin
+      if(when_TriangleSetup_l146) begin
+        if(when_TriangleSetup_l147) begin
           selValid <= 1'b1;
           idx <= (idx + 4'b0001);
         end
@@ -11124,14 +12123,14 @@ module hng64_raster_TriangleSetup (
           pIdx <= selIdx;
           pValid <= 1'b1;
         end
-        if(pValid) begin
-          if(when_TriangleSetup_l168) begin
+        if(sValid) begin
+          if(when_TriangleSetup_l178) begin
             idx <= 4'b0000;
             state <= hng64_raster_S_Done;
           end
         end
       end
-      if(when_TriangleSetup_l179) begin
+      if(when_TriangleSetup_l189) begin
         state <= hng64_raster_S_Idle;
       end
     end
@@ -11184,8 +12183,8 @@ module hng64_raster_TriangleSetup (
       offX_2 <= ($signed(xc) - $signed(_zz_offX_2));
       offY_2 <= ($signed(yc) - $signed(_zz_offY_2));
     end
-    if(when_TriangleSetup_l143) begin
-      if(when_TriangleSetup_l144) begin
+    if(when_TriangleSetup_l146) begin
+      if(when_TriangleSetup_l147) begin
         selX <= _zz_selX_1;
         selY <= _zz_selY;
         selCX <= _zz_selCX;
@@ -11197,28 +12196,32 @@ module hng64_raster_TriangleSetup (
         prodY <= ($signed(selY) * $signed(selCY));
       end
       if(pValid) begin
-        if(when_TriangleSetup_l162) begin
-          out_edge_0 <= _zz_out_edge_0_1[50:0];
+        sumR <= ($signed(_zz_sumR) + $signed(_zz_sumR_1));
+        sIdx <= pIdx;
+      end
+      if(sValid) begin
+        if(when_TriangleSetup_l172) begin
+          out_edge_0 <= _zz_out_edge_0[50:0];
         end
-        if(when_TriangleSetup_l162_1) begin
+        if(when_TriangleSetup_l172_1) begin
           out_edge_1 <= _zz_out_edge_1[50:0];
         end
-        if(when_TriangleSetup_l162_2) begin
+        if(when_TriangleSetup_l172_2) begin
           out_edge_2 <= _zz_out_edge_2[50:0];
         end
-        if(when_TriangleSetup_l165) begin
+        if(when_TriangleSetup_l175) begin
           out_p_v_0 <= ($signed(io_i_payload_p0_v_0) + $signed(_zz_out_p_v_0));
         end
-        if(when_TriangleSetup_l165_1) begin
+        if(when_TriangleSetup_l175_1) begin
           out_p_v_1 <= ($signed(io_i_payload_p0_v_1) + $signed(_zz_out_p_v_1));
         end
-        if(when_TriangleSetup_l165_2) begin
+        if(when_TriangleSetup_l175_2) begin
           out_p_v_2 <= ($signed(io_i_payload_p0_v_2) + $signed(_zz_out_p_v_2));
         end
-        if(when_TriangleSetup_l165_3) begin
+        if(when_TriangleSetup_l175_3) begin
           out_p_v_3 <= ($signed(io_i_payload_p0_v_3) + $signed(_zz_out_p_v_3));
         end
-        if(when_TriangleSetup_l165_4) begin
+        if(when_TriangleSetup_l175_4) begin
           out_p_v_4 <= ($signed(io_i_payload_p0_v_4) + $signed(_zz_out_p_v_4));
         end
       end

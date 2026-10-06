@@ -131,6 +131,15 @@ class FxRenderer(r3.Renderer):
         for v in (v1, v2, v3):
             vs.append((q(v[0], 1 << XY_F), q(v[1], 1 << XY_F),
                        {k: q(v[2][k], SCALE[k]) for k in params}))
+        if 1 in params:                                  # geo_engine.near_scaled, on these keys
+            m = max(t[2][1] for t in vs)
+            if m >= 1 << 32:
+                s = m.bit_length() - 32
+                h = 1 << (s - 1)
+                for t in vs:
+                    for k in (1, 2, 5, 6):
+                        if k in t[2]:
+                            t[2][k] = (t[2][k] + h) >> s
         self._vs_in = list(vs)                           # as given, for the dump
         vs.sort(key=lambda t: t[1])                      # by y, stable, as MAME's swaps order it
         (x1, y1, p1), (x2, y2, p2), (x3, y3, p3) = vs

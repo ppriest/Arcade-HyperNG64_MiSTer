@@ -86,7 +86,7 @@ localparam CONF_STR = {
 	"-;",
 	"T[0],Reset;",
 	"R[0],Reset and close OSD;",
-	"J1,Button 1,Button 2,Button 3,Button 4,Start,Coin,Pause,Service,Test;",
+	"J1,Button 1,Button 2,Button 3,Button 4,Start,Coin,Pause,Service,Test,Button 5,Button 6,Button 7,Button 8;",
 	"jn,A,B,X,Y,Start,Select,L;",
 	"v,0;",
 	"V,v",`BUILD_DATE
@@ -97,6 +97,9 @@ wire [127:0] status;
 wire         direct_video;
 wire  [31:0] joy_pad_0, joy_pad_1;      // hps_io; joystick_N adds the keyboard (hng64_keyboard)
 wire  [31:0] joystick_0, joystick_1;
+wire  [31:0] joy_pad_2;                 // bbust2's third player
+wire  [15:0] stick_0, stick_1, stick_2; // left analogue sticks: Y [15:8], X [7:0], -127..127
+wire  [24:0] ps2_mouse;
 wire  [10:0] ps2_key;
 wire  [64:0] rtc;
 
@@ -149,6 +152,11 @@ hps_io #(.CONF_STR(CONF_STR)) hps_io
 	.RTC(rtc),
 	.joystick_0(joy_pad_0),
 	.joystick_1(joy_pad_1),
+	.joystick_2(joy_pad_2),
+	.joystick_l_analog_0(stick_0),
+	.joystick_l_analog_1(stick_1),
+	.joystick_l_analog_2(stick_2),
+	.ps2_mouse(ps2_mouse),
 	.ps2_key(ps2_key)
 );
 
@@ -216,34 +224,132 @@ wire reset = RESET | status[0] | buttons[1] | ~pll_locked | ioctl_download;
 ///////////////////////   INPUTS   ////////////////////////////////
 
 // MiSTer joystick bits: 0 R, 1 L, 2 D, 3 U, then the J1 list from bit 4: 4-7 buttons 1-4,
-// 8 start, 9 coin, 10 pause, 11 service, 12 test.
+// 8 start, 9 coin, 10 pause, 11 service, 12 test, 13-16 buttons 5-8.
 wire [31:0] dbg_j0;                     // stp: ISSP source K, held into player 1's inputs
-wire [31:0] j0 = joystick_0 | dbg_j0, j1 = joystick_1;
+// player 1 also takes the mouse's buttons: left button 1, right 2, middle 3 (bbust2's trigger,
+// pump and bomb)
+wire [31:0] j0 = joystick_0 | dbg_j0 | {25'd0, ps2_mouse[2], ps2_mouse[1], ps2_mouse[0], 4'd0};
+wire [31:0] j1 = joystick_1, j2 = joy_pad_2;
+
+// the board, from the .mra's flags (hng64_core): 1 fight, 2 drive, 3 shoot
+wire [1:0] board;
+wire       drive = board == 2'd2, shoot = board == 2'd3;
 
 // MAME's coins are PORT_IMPULSE(1): one frame low per press. 2^20 clk1x is 16.8 ms.
-reg [20:0] coin_t [2] = '{21'd0, 21'd0};
-reg  [1:0] coin_d = 2'b00;
-wire [1:0] coin = {j1[9], j0[9]};
+reg [20:0] coin_t [3] = '{21'd0, 21'd0, 21'd0};
+reg  [2:0] coin_d = 3'b000;
+wire [2:0] coin = {j2[9], j1[9], j0[9]};
 always @(posedge clk1x) begin
 	coin_d <= coin;
-	for (int i = 0; i < 2; i++) begin
+	for (int i = 0; i < 3; i++) begin
 		if (coin[i] && !coin_d[i])             coin_t[i] <= 21'h100000;
 		else if (coin_t[i] != 0)               coin_t[i] <= coin_t[i] - 1'd1;
 	end
 end
+wire [2:0] coined = {coin_t[2] != 0, coin_t[1] != 0, coin_t[0] != 0};
 
-// IN0-IN7 as MAME's hng64_fight ports, active low. IN5 is player 2 shifted up a bit, as MAME
-// has it; IN6 bit 0 is player 2's button 4.
+// IN0-IN7, active low, as MAME's ports for the board (hng64.cpp hng64_fight, hng64_drive,
+// hng64_shoot).
+//   fight: IN4 player 1, IN5 player 2 shifted up a bit, IN6 bit 0 player 2's button 4.
+//   drive: buttons 1-4 Accelerate, Brake, Shift Up, Shift Down (the pedals at full, digitally),
+//          5-8 View 1, View 2, BGM 1, BGM 2; MAME has BGM 3 and 4 too, not mapped.
+//   shoot: three players, buttons 1-3 trigger, pump, bomb.
+wire [7:0] f_in [0:7], d_in [0:7], s_in [0:7];
+assign f_in[0] = 8'hFF;
+assign f_in[1] = 8'hFF;
+assign f_in[2] = 8'hFF;
+assign f_in[3] = 8'hFF;
+assign f_in[4] = ~{j0[7], j0[6], j0[5], j0[4], j0[0], j0[1], j0[2], j0[3]};
+assign f_in[5] = ~{j1[6], j1[5], j1[4], j1[0], j1[1], j1[2], j1[3], 1'b0};
+assign f_in[6] = ~{7'd0, j1[7]};
+assign f_in[7] = ~{j1[8], j0[8], 2'b00, coined[1], coined[0], j0[12] | j1[12], j0[11] | j1[11]};
+
+assign d_in[0] = 8'hFF;
+assign d_in[1] = 8'hFF;
+assign d_in[2] = 8'hFF;
+assign d_in[3] = 8'hFF;
+assign d_in[4] = 8'hFF;
+assign d_in[5] = ~{1'b0, j0[16], j0[15], 5'd0};
+assign d_in[6] = ~{1'b0, j0[6], j0[7], j0[14], j0[13], 3'd0};
+assign d_in[7] = ~{1'b0, j0[8], 2'b00, coined[1], coined[0], j0[12], j0[11]};
+
+assign s_in[0] = ~{1'b0, j1[6], j1[5], j1[4], 1'b0, j0[6], j0[5], j0[4]};
+assign s_in[1] = ~{1'b0, j2[8], j1[8], j0[8], 1'b0, j2[6], j2[5], j2[4]};
+assign s_in[2] = ~{j0[12] | j1[12] | j2[12], j2[11], j1[11], j0[11], 1'b0, coined};   // 7 test
+assign s_in[3] = 8'hFF;
+assign s_in[4] = 8'hFF;
+assign s_in[5] = 8'hFF;
+assign s_in[6] = 8'hFF;
+assign s_in[7] = 8'hFF;
+
 wire [7:0] inputs [0:7];
-assign inputs[0] = 8'hFF;
-assign inputs[1] = 8'hFF;
-assign inputs[2] = 8'hFF;
-assign inputs[3] = 8'hFF;
-assign inputs[4] = ~{j0[7], j0[6], j0[5], j0[4], j0[0], j0[1], j0[2], j0[3]};
-assign inputs[5] = ~{j1[6], j1[5], j1[4], j1[0], j1[1], j1[2], j1[3], 1'b0};
-assign inputs[6] = ~{7'd0, j1[7]};
-assign inputs[7] = ~{j1[8], j0[8], 2'b00, coin_t[1] != 0, coin_t[0] != 0,
-                     j0[12] | j1[12], j0[11] | j1[11]};
+genvar gi;
+generate for (gi = 0; gi < 8; gi++) begin : g_in
+	assign inputs[gi] = drive ? d_in[gi] : shoot ? s_in[gi] : f_in[gi];
+end endgenerate
+
+// AN0-AN7, the IO MCU's ADC.
+//   drive: AN0 the wheel (MAME's paddle, 0x80 centred), AN1 accelerator, AN2 brake (0 at rest).
+//          The left stick's X steers, its Y up and down are the pedals; buttons 1 and 2 press
+//          them fully and the d-pad turns a quarter lock, for pads without a stick.
+//   shoot: AN0-AN5 the guns' X and Y, players 1-3: 0x80 centred and reversed, as MAME's
+//          AD_STICK ... PORT_REVERSE. A gun is where its player's stick points (Sinden and
+//          Gun4IR guns can present as one), else moved by the d-pad, and player 1's by the mouse.
+wire signed [7:0] sx [3], sy [3];
+assign {sy[0], sx[0]} = stick_0;
+assign {sy[1], sx[1]} = stick_1;
+assign {sy[2], sx[2]} = stick_2;
+wire [31:0] jp [3] = '{j0, j1, j2};
+
+// guns: position 0-255 on each axis, 0x80 the centre, x right and y down
+reg  [7:0] gun_x [3] = '{8'h80, 8'h80, 8'h80}, gun_y [3] = '{8'h80, 8'h80, 8'h80};
+reg [15:0] gun_tick = 16'd0;            // the d-pad moves a gun 2 each third 2^16 clk1x, 3.1 ms
+reg  [1:0] gun_div = 2'd0;              // (each 2^16 alone was too fast on the board, the user)
+reg        mouse_t = 1'b0;
+reg [15:0] stick_d [3];
+wire signed [9:0] mdx = {ps2_mouse[4], ps2_mouse[4], ps2_mouse[15:8]};
+wire signed [9:0] mdy = {ps2_mouse[5], ps2_mouse[5], ps2_mouse[23:16]};
+function automatic [7:0] clamp8(input signed [10:0] v);
+	clamp8 = v < 0 ? 8'd0 : v > 255 ? 8'd255 : v[7:0];
+endfunction
+always @(posedge clk1x) begin
+	gun_tick <= gun_tick + 1'd1;
+	if (gun_tick == 16'd0) gun_div <= (gun_div == 2'd2) ? 2'd0 : gun_div + 1'd1;
+	mouse_t  <= ps2_mouse[24];
+	for (int i = 0; i < 3; i++) begin
+		stick_d[i] <= {sy[i], sx[i]};
+		if ({sy[i], sx[i]} != stick_d[i]) begin
+			gun_x[i] <= 8'h80 + sx[i];
+			gun_y[i] <= 8'h80 + sy[i];
+		end else if (gun_tick == 16'd0 && gun_div == 2'd2) begin
+			if (jp[i][0] && gun_x[i] < 8'd254) gun_x[i] <= gun_x[i] + 8'd2;
+			if (jp[i][1] && gun_x[i] > 8'd1)   gun_x[i] <= gun_x[i] - 8'd2;
+			if (jp[i][2] && gun_y[i] < 8'd254) gun_y[i] <= gun_y[i] + 8'd2;
+			if (jp[i][3] && gun_y[i] > 8'd1)   gun_y[i] <= gun_y[i] - 8'd2;
+		end
+	end
+	// a PS/2 packet: y counts up, the screen down
+	if (ps2_mouse[24] != mouse_t) begin
+		gun_x[0] <= clamp8(11'(signed'({3'b000, gun_x[0]})) + 11'(mdx));
+		gun_y[0] <= clamp8(11'(signed'({3'b000, gun_y[0]})) - 11'(mdy));
+	end
+end
+
+// the pedals: the stick's Y doubled, up the accelerator and down the brake
+wire [7:0] ped_up   = sy[0] < 0 ? (sy[0] == -8'sd128 ? 8'hFF : {~sy[0][6:0] + 7'd1, 1'b0}) : 8'h00;
+wire [7:0] ped_down = sy[0] > 0 ? {sy[0][6:0], 1'b0} : 8'h00;
+wire [7:0] wheel    = sx[0] != 0 ? 8'h80 + sx[0] : j0[1] ? 8'h40 : j0[0] ? 8'hC0 : 8'h80;
+
+// a channel MAME's ports leave empty reads 0 there
+wire [7:0] analog [0:7];
+assign analog[0] = drive ? wheel : shoot ? 8'hFF - gun_x[0] : 8'h00;
+assign analog[1] = drive ? (j0[4] ? 8'hFF : ped_up) : shoot ? 8'hFF - gun_y[0] : 8'h00;
+assign analog[2] = drive ? (j0[5] ? 8'hFF : ped_down) : shoot ? 8'hFF - gun_x[1] : 8'h00;
+assign analog[3] = shoot ? 8'hFF - gun_y[1] : 8'h00;
+assign analog[4] = shoot ? 8'hFF - gun_x[2] : 8'h00;
+assign analog[5] = shoot ? 8'hFF - gun_y[2] : 8'h00;
+assign analog[6] = 8'h00;
+assign analog[7] = 8'h00;
 
 // DIP switches, .mra index 254. None of the fight sets has one in MAME; bit 0 of the first byte
 // is the core's own Flip Screen, a fake DIP the game never reads.
@@ -387,7 +493,7 @@ hng64_core u_core
 
 	.ioctl_download(ioctl_download), .ioctl_index(ioctl_index), .ioctl_wr(ioctl_wr),
 	.ioctl_addr(ioctl_addr), .ioctl_dout(ioctl_dout),
-	.rtc(rtc[55:0]), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .flip(flip), .game_speed(status[119:117]),
+	.rtc(rtc[55:0]), .nv_rdata(nv_rdata), .nv_written(nv_written), .inputs(inputs), .analog(analog), .board(board), .flip(flip), .game_speed(status[119:117]),
 
 	.SDRAM_A(SDRAM_A), .SDRAM_DQ(SDRAM_DQ), .SDRAM_DQML(SDRAM_DQML), .SDRAM_DQMH(SDRAM_DQMH),
 	.SDRAM_BA(SDRAM_BA), .SDRAM_nCS(SDRAM_nCS), .SDRAM_nWE(SDRAM_nWE),

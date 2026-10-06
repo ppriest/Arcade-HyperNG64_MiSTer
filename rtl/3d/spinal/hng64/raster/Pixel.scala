@@ -174,27 +174,50 @@ case class PixelUnit(c: RasterConfig) extends Component {
     o
   }).m2sPipe()
 
-  def texel(m: UInt, neg: Bool, scroll: UInt, wrapOn: Bool, wrap: UInt, off: UInt): UInt = {
-    val v = (neg ? -(m.asSInt.resize(m.getWidth + 1 bits)) | m.asSInt.resize(m.getWidth + 1 bits)) +
-      scroll.resize(m.getWidth bits).asSInt.resize(m.getWidth + 1 bits)
-    val vNeg = v.msb
-    val mag10 = v.abs(9 downto 0)
+  // A texel coordinate in two clocks: v = +-m + scroll at full width, of which only the sign and the
+  // low 10 bits are kept (|v|'s low 10 bits are those of v's, negated when v is), then the wrap on
+  // 10 bits. In one clock, from F0 through the negation, the add, |v|, the mask, the negation and
+  // the offset into the address it missed clk3d by 0.16 ns (64f9bd4 seed 6649).
+  def texelV(m: UInt, neg: Bool, scroll: UInt): (Bool, UInt) = {
+    val w = m.getWidth + 1
+    val ms = m.asSInt.resize(w bits)
+    val sc = scroll.resize(m.getWidth bits).asSInt.resize(w bits)
+    val v = neg ? (sc - ms) | (sc + ms)
+    (v.msb, v.asUInt(9 downto 0))
+  }
+  def texelW(vNeg: Bool, v10: UInt, wrapOn: Bool, wrap: UInt, off: UInt): UInt = {
+    val mag10 = vNeg ? (U(0, 10 bits) - v10) | v10
     val msk10 = (wrap >= 10) ? U(1023, 10 bits) | (U(1023, 10 bits) >> (U(10, 4 bits) - wrap.resize(4 bits)))
     val kept = mag10 & msk10
     val fm10 = vNeg ? (U(0, 10 bits) - kept) | kept
     val wrapped = fm10 + (off.resize(10 bits) |<< 3)
-    wrapOn ? wrapped | v.asUInt(9 downto 0)
+    wrapOn ? wrapped | v10
   }
 
-  val f = (f0 ~~ { r =>
+  val f1 = (f0 ~~ { r =>
+    val o = PixelUnit.F1(c)
+    val at = Attr()
+    at.assignFromBits(r.a.px.attr)
+    o.a := r.a
+    val (sn, s10) = texelV(r.ms, r.sNeg, at.scrollY)
+    val (tn, t10) = texelV(r.mt, r.tNeg, at.scrollX)
+    o.sNeg := sn
+    o.s10 := s10
+    o.tNeg := tn
+    o.t10 := t10
+    o.l := r.lNeg ? (U(0, 8 bits) - r.ml) | r.ml
+    o
+  }).m2sPipe()
+
+  val f = (f1 ~~ { r =>
     val o = Fragment(c)
     val px = r.a.px
     val at = Attr()
     at.assignFromBits(px.attr)
     val wrapOn = at.sub(1)
-    val si = texel(r.ms, r.sNeg, at.scrollY, wrapOn, at.wrapY, at.voff)
-    val ti = texel(r.mt, r.tNeg, at.scrollX, wrapOn, at.wrapX, at.hoff)
-    val l = r.lNeg ? (U(0, 8 bits) - r.ml) | r.ml
+    val si = texelW(r.sNeg, r.s10, wrapOn, at.wrapY, at.voff)
+    val ti = texelW(r.tNeg, r.t10, wrapOn, at.wrapX, at.hoff)
+    val l = r.l
     o.x := px.x
     o.y := px.y
     o.z := px.p.v(0)
@@ -209,7 +232,7 @@ case class PixelUnit(c: RasterConfig) extends Component {
   }).m2sPipe()
 
   io.o << f
-  io.busy := a0.valid || a.valid || b.valid || c0.valid || cS.valid || d.valid || e0.valid || e.valid || fc.valid || f0.valid || f.valid
+  io.busy := a0.valid || a.valid || b.valid || c0.valid || cS.valid || d.valid || e0.valid || e.valid || fc.valid || f0.valid || f1.valid || f.valid
 }
 
 object PixelUnit {
@@ -246,6 +269,12 @@ object PixelUnit {
     val ms = UInt(c.paramBits(3) + 22 bits)
     val mt = UInt(c.paramBits(4) + 22 bits)
     val ml = UInt(8 bits)
+  }
+  case class F1(c: RasterConfig) extends Bundle {
+    val a = A(c)
+    val sNeg, tNeg = Bool()
+    val s10, t10 = UInt(10 bits)
+    val l = UInt(8 bits)
   }
   case class FC(c: RasterConfig, eBits: Int) extends Bundle {
     val a = A(c)

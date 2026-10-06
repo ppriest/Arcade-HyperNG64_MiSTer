@@ -33,7 +33,7 @@ SRC = REPO / "sw" / "hng64snd"
 OBJ = REPO / "obj_hng64snd" / "arm"
 CORE = ["nec_core", "v53", "l7a1045", "board"]
 FLAGS = "-std=c++17 -O3 -marm -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard -Wall -Wno-sign-compare -I."
-SETS = ["sams64", "sams64_2", "fatfurwa", "buriki"]
+SETS = ["sams64", "sams64_2", "fatfurwa", "buriki", "roadedge", "xrally", "bbust2"]
 REMOTE_DIR = "/media/fat/games/HyperNG64"
 TRAIN = "/tmp/hng64snd"                  # where snd_arm_bench.py leaves the capture
 

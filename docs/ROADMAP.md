@@ -451,9 +451,63 @@ the V53A replies 7 us after the interrupt. A millisecond of latency each way is 
 **Phase 5 — The other fight sets, and accuracy.** `sams64_2`, `fatfurwa`, `buriki`, their
 `.mra` files, `docs/MAME_KLUDGES.md` and `docs/HACKS.md` current.
 
-**Phase 6 — Drive and shoot boards.** Analogue wheel and pedals, the network board; `bbust2`'s
-light guns with mouse aiming and a synthetic crosshair. Their OSD groups are hidden for the
-fight sets.
+**Phase 6 — Drive and shoot boards** (approved). `roadedge`, `xrally` and
+`bbust2`. What MAME (`hng64.cpp`) gives them beyond the fight sets:
+
+| | `roadedge`, `xrally` (`hng64_drive`) | `bbust2` (`hng64_shoot`) |
+|---|---|---|
+| IO MCU analogue inputs | AN0 wheel (paddle, centre 0x80), AN1 accelerator, AN2 brake (pedals, 0 at rest) | AN0-AN5: three guns' X and Y (centre 0x80, reversed) |
+| Buttons | Start, coins, Shift Up and Down, View 1 and 2, BGM 1-4 | per gun: trigger, pump, bomb; Start 1-3, coins 1-3 |
+| `m_no_machine_error_code` | 0x02 (fight 0x01) | 0x03 |
+| Other | `roadedge`: the 3D palette base not moved by `fbcontrol[2]` bit 5 (`m_roadedge_3d_hack`); network check screen, which the manual says runs about 40 s and goes on alone; `MACHINE_NODEVICE_LAN` | the L7A1045's outputs 2, 7 and 6 are the three guns' speakers |
+
+Steps, each verified before the next:
+
+1. **Boot.** The three `.mra` files (`build_mra.py`: layout, button names); the machine error
+   code and `roadedge`'s palette flag per set through the `.mra`'s configuration (the IO block
+   has the code as a constant). MAME captures of each set's boot and attract; `sys_tb`/`g3d_tb`
+   on them, then the board: each reaches its attract mode, `roadedge` past its network check.
+2. **Inputs.** The IO MCU's ADC is in the RTL with its eight inputs tied high
+   (`rtl/hng64_core.sv`); they take MiSTer's analogue axes. Drive: the wheel from the left
+   stick's X (or a paddle), the pedals from analogue axes, with digital buttons as a fallback
+   for pads. Shoot: three guns from the mouse and the analogue sticks (Sinden and Gun4IR guns
+   can present as either), a crosshair drawn over the video (OSD option). `iomcu_tb` replays
+   MAME's analogue reads. The OSD shows each board's controls only for its sets.
+3. **Picture and speed.** The three sets' frames against MAME (sweeps as for the fight sets);
+   the 3D's speed in their heavy scenes measured as for the fight sets.
+4. **Sound.** MAME routes the L7A1045's output 7 to a rear speaker and 6 to a subwoofer on the
+   fight and drive sets, and 2, 7 and 6 to `bbust2`'s gun speakers; the process plays only the
+   front pair now (the fight sets included). It mixes the others into the stereo pair.
+
+Step 1 done: `ecbbaa6` (the board's error code and `roadedge`'s palette flag from the `.mra`),
+`384afc3` (MAME's network id at 8 s, its `comhack`: `roadedge` looped on its network check without
+it). `384afc3` seed 6649 (`HyperNG64_30000067.rbf`, clk3d -0.030): `roadedge` and `xrally` reach
+their attract modes (`debug/hw_ch_roadedge_75.png`, `debug/hw_ch_xrally_75.png`), `bbust2` runs
+its attract, the fight sets load. `bbust2`'s 3D at frame 2000: g3d_tb 0 pixels from the model,
+the model 83 from MAME; 1.90 M clk3d a frame against 1.67 M (engine and rasteriser both busy
+nearly all of it). No set takes a coin yet: step 2.
+
+Step 2 (`ad830a69`): each board's IN0-IN7 and AN0-AN7 from the `.mra`'s board code. Built with
+`1e45b50` (seed 6649, `HyperNG64_30000068.rbf`; clk3d -1.867 on the SDRAM DQ inputs, -0.422
+internal); inputs not yet confirmed on the board.
+
+Near the camera (the user, on the board: `roadedge`'s car, `xrally`'s and `bbust2`'s ground,
+fatfurwa's helicopter): MAME's near plane is the game's (`hng64_3d.ipp:314`), and close to it 1/w,
+light/w, u/w and v/w outgrew their fields (to frame 4200 of `roadedge`, 1/w 36 bits of 34 on 55,705
+triangles, u/w 34 of 32, v/w 33 of 32); EMIT kept the low bits. `geo_engine.near_scaled`: a
+triangle with 1/w at 2^32 or more at a vertex has all four scaled by 2^-s together, which the
+rasteriser's ratios to 1/w undo. `roadedge` f4200: the fixed-point model 122 pixels from MAME before
+and after, g3d_tb 48,382 pixels from the model before, 0 after. g3d_tb 0 pixels from the model on every
+capture (the four fight-set frames, `bbust2` f2000, `xrally` f2000, `roadedge` f4200). On the board
+(`HyperNG64_30000068.rbf`), the user: `xrally` and `roadedge` clean.
+
+Speed and timing (`b0dbf87` to `30940a1`): the span walker's searches test 4 pixels a clock, the
+alu2 ops (but MIN, MAX) take one clock more in place of two, and the clk3d and clk2x paths these
+and the earlier builds missed are cut. `30940a1` seed 1 (`HyperNG64_30000073.rbf`): every setup and
+hold slack met but the SDRAM reads' (HACKS.md). g3d_tb clk3d a frame, against 1,667 K at 60 Hz:
+`bbust2` f2000 1,760 K (1,906 K before), `roadedge` f4200 1,387 K (1,436 K), `fatfurwa` f2500
+1,524 K, `buriki` f2500 1,306 K; `bbust2` is held by the geometry engine's fixed latencies (LDX,
+DIV, ADA, LOG2 and NORM; `scripts/geo_pcprof.py`).
 
 **Phase 7 — Savestates and cheats.** Optional but desirable. MAME has no savestate support for
 this driver, so there is no reference to check one against.
@@ -564,7 +618,7 @@ measured tolerance of MAME, recorded in `docs/MAME_KLUDGES.md`.
    (`3b64a0c`, item 3): seed 1 -0.055, 8 endpoints, none in the engine (the 3D bridge's `cr_t` to
    the texture cache's miss queue pointer), on the board as `HyperNG64_30000064.rbf`
    (`debug/hw_l1_sams64.png`); seed 2 -0.530 in the engine (the accumulator's add, DIV's start).
-   A sweep of random seeds (`debug/seed_sweep.log`) found 6649, which meets every clock but the
+   A sweep of random seeds found 6649, which meets every clock but the
    SDRAM reads (-1.867): clk3d setup +0.203, hold +0.273, HDMI +0.231. It is built from `19ae667`,
    the same RTL, and is on the board as `HyperNG64_30000065.rbf`. Of the store unit's other builds,
    5885 met clk3d and the rest missed it by 0.055 to 0.794 ns, one did not fit, and 5 of the 9 that

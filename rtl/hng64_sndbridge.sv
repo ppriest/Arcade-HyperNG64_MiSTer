@@ -11,6 +11,7 @@
 //   +0x10     main latch 0 (0-1), main latch 1 (2-3), interrupt-5    FPGA, on every change
 //             writes (4-5), sound CPU enables (6-7)
 //   +0x18     bit 0: the sound CPU runs (0x55AA last, not 0xAA55)    FPGA, on every change
+//   +0x20     a count (0-1), up every BEAT clocks out of reset       FPGA (version 2)
 //   +0x40     sound latch 0 (0-1) and 1 (2-3); flags (4-5): byte 5   the process
 //             0xA5, bit 0 the process runs the V53A; heartbeat (6-7)
 //   +0x10000  sound RAM, 2 MB, as the V53A sees it                   FPGA, every main-CPU write
@@ -31,7 +32,8 @@
 module hng64_sndbridge #(
     parameter logic [27:0] SHM  = 28'hF200000,
     parameter int          POLL = 1024,         // clk2x clocks between reads of the status word
-    parameter int          LIVE = 12207         // polls in 0.1 s at 125 MHz
+    parameter int          LIVE = 12207,        // polls in 0.1 s at 125 MHz
+    parameter int          BEAT = 1250000       // clk2x clocks between counts at +0x20, 10 ms
 ) (
     input  logic        clk,                    // clk2x
     input  logic        reset,
@@ -75,7 +77,8 @@ module hng64_sndbridge #(
 );
 
     localparam logic [27:0] OFF_MAGIC = 28'h00, OFF_SMP = 28'h08, OFF_MBOX = 28'h10,
-                            OFF_RUN = 28'h18, OFF_STATUS = 28'h40, OFF_RAM = 28'h10000;
+                            OFF_RUN = 28'h18, OFF_BEAT = 28'h20, OFF_STATUS = 28'h40,
+                            OFF_RAM = 28'h10000;
 
     // ---- the sound RAM copy: a queue of beats --------------------------------------------------
     // The queue's RAM is read a clock ahead, at the pointer it will have, so its head is ready
@@ -100,19 +103,46 @@ module hng64_sndbridge #(
     end
 
     // ---- the mailbox, from clk1x --------------------------------------------------------------------
+    // hng64_io's registers change on a clk1x edge, which is also a clk2x rising edge. Sampled straight
+    // on the rising edge, a placement with source and copy side by side missed hold (main_latch0 to
+    // main0_q, -0.25 ns at the fast corners, cd589b4 seed 1). They are taken on the falling edge, half
+    // a clk2x clock from any clk1x edge, then on the rising edge.
+    logic [15:0] m0_f, m1_f, cmd_f, m0, m1, cmd;
+    logic        irq_f, en_f, irq_s, en_s;
+    always_ff @(negedge clk) begin
+        m0_f  <= main0;
+        m1_f  <= main1;
+        cmd_f <= en_cmd;
+        irq_f <= irq;
+        en_f  <= en;
+    end
+    always_ff @(posedge clk) begin
+        m0    <= m0_f;
+        m1    <= m1_f;
+        cmd   <= cmd_f;
+        irq_s <= irq_f;
+        en_s  <= en_f;
+    end
+
     logic irq_q, en_q;
-    wire  irq_rise = irq && !irq_q;
-    wire  en_rise  = en && !en_q;
+    wire  irq_rise = irq_s && !irq_q;
+    wire  en_rise  = en_s && !en_q;
 
     logic [15:0] irq_cnt, en_cnt;
     logic        running;
     logic [15:0] main0_q, main1_q;
     logic        d_magic, d_smp, d_mbox, d_run;     // words owed to DDR3
+    // The count at +0x20: the process goes quiet when it stops, which it does from the moment a
+    // core load reconfigures the FPGA, through the ROM load (reset held), until this runs again.
+    // /tmp/CORENAME, its other sign, is written only after the ROMs.
+    logic [$clog2(BEAT)-1:0] beat_t;
+    logic [15:0] beat;
+    logic        d_beat;
 
     // what changes a word this clock; one going out this clock is owed again if its word changed
-    wire en_run  = en_rise && en_cmd == 16'h55AA;
-    wire en_hold = en_rise && en_cmd == 16'hAA55;
-    wire c_mbox  = main0 != main0_q || main1 != main1_q || irq_rise || en_run;
+    wire en_run  = en_rise && cmd == 16'h55AA;
+    wire en_hold = en_rise && cmd == 16'hAA55;
+    wire c_mbox  = m0 != main0_q || m1 != main1_q || irq_rise || en_run;
     wire c_run   = en_run || en_hold;
 
     always_ff @(posedge clk) begin
@@ -122,11 +152,12 @@ module hng64_sndbridge #(
             irq_cnt <= '0; en_cnt <= '0; running <= 1'b0;
             main0_q <= '0; main1_q <= '0;
             d_magic <= 1'b1; d_smp <= 1'b1; d_mbox <= 1'b1; d_run <= 1'b1;
+            beat_t <= '0; beat <= '0; d_beat <= 1'b0;
             w_valid <= 1'b0;
             dbg_overflow <= 1'b0;
         end else begin
-            irq_q <= irq;
-            en_q  <= en;
+            irq_q <= irq_s;
+            en_q  <= en_s;
 
             if (snd_wr) begin
                 if (q_full) dbg_overflow <= 1'b1;
@@ -135,8 +166,8 @@ module hng64_sndbridge #(
             q_wp_d <= q_wp;
             q_rp   <= q_rp_n;
 
-            main0_q <= main0;
-            main1_q <= main1;
+            main0_q <= m0;
+            main1_q <= m1;
             if (irq_rise) irq_cnt <= irq_cnt + 1'd1;
             // MAME's soundcpu_enable_w: 0x55AA releases the V53A from reset, 0xAA55 holds it
             if (en_run) begin
@@ -146,6 +177,11 @@ module hng64_sndbridge #(
             if (en_hold) running <= 1'b0;
             if (c_mbox) d_mbox <= 1'b1;
             if (c_run)  d_run  <= 1'b1;
+            beat_t <= (beat_t == BEAT - 1) ? '0 : beat_t + 1'd1;
+            if (beat_t == BEAT - 1) begin
+                beat   <= beat + 1'd1;
+                d_beat <= 1'b1;
+            end
 
             // a word goes out only once every beat before it has: the queue is empty, and the
             // stage holds nothing but what is loaded behind its last beat
@@ -159,7 +195,7 @@ module hng64_sndbridge #(
                     w_valid <= 1'b1;
                 end else if (q_empty && cfg_valid && d_magic) begin
                     w_addr  <= SHM + OFF_MAGIC;
-                    w_data  <= {32'd1, "S", "G", "N", "H"};       // "HNGS" in bytes 0-3, version 1
+                    w_data  <= {32'd2, "S", "G", "N", "H"};       // "HNGS" in bytes 0-3, version 2
                     w_valid <= 1'b1;
                     d_magic <= 1'b0;
                 end else if (q_empty && cfg_valid && d_smp) begin
@@ -169,7 +205,7 @@ module hng64_sndbridge #(
                     d_smp   <= 1'b0;
                 end else if (q_empty && d_mbox) begin
                     w_addr  <= SHM + OFF_MBOX;
-                    w_data  <= {en_cnt, irq_cnt, main1, main0};
+                    w_data  <= {en_cnt, irq_cnt, m1, m0};
                     w_valid <= 1'b1;
                     d_mbox  <= c_mbox;
                 end else if (q_empty && d_run) begin
@@ -177,6 +213,11 @@ module hng64_sndbridge #(
                     w_data  <= {63'd0, running};
                     w_valid <= 1'b1;
                     d_run   <= c_run;
+                end else if (q_empty && d_beat) begin
+                    w_addr  <= SHM + OFF_BEAT;
+                    w_data  <= {48'd0, beat};
+                    w_valid <= 1'b1;
+                    d_beat  <= 1'b0;
                 end
             end
         end

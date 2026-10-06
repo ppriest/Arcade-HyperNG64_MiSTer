@@ -105,6 +105,9 @@ int main(int argc, char **argv) {
     const long limit = atol(arg("n", "4000000").c_str());
     const bool with_fb = atoi(arg("fb", "0").c_str()) != 0;
     const bool flip = atoi(arg("flip", "0").c_str()) != 0;
+    // +dpdiff=1: every dual-port read that differs, with MAME's frame, to debug/<set>-sys/dpdiff.txt
+    FILE *dpdiff = atoi(arg("dpdiff", "0").c_str())
+                       ? fopen(("debug/" + set + "-sys/dpdiff.txt").c_str(), "w") : nullptr;
     std::set<int> frames;
     {
         std::string fl = arg("frames", "400,800");
@@ -139,15 +142,17 @@ int main(int argc, char **argv) {
     };
     const auto mcu = slurp("debug/rom/hng64-iomcu.bin");
 
-    // the blob: "HNG3", then base and size per region, big-endian, then flags; the BIOS cut to 16 KB
-    std::vector<uint8_t> blob = {'H', 'N', 'G', '3'};
+    // the blob: "HNG4", then base and size per region, big-endian, then flags; the BIOS cut to 16 KB
+    std::vector<uint8_t> blob = {'H', 'N', 'G', '4'};
     auto put32 = [&](uint32_t v) { for (int i = 3; i >= 0; i--) blob.push_back(uint8_t(v >> (8 * i))); };
     for (const auto &r : reg) {
         put32(r.base);
         put32(std::string(r.name) == "bios" ? 0x4000u : r.size);
     }
     for (int i = 0; i < 6; i++) put32(0);              // textures0, verts, l7a1045: not carried
-    put32(0);                                          // flags
+    // flags as scripts/build_mra.py's INIT_FLAGS: the board's m_no_machine_error_code in 15:8, and
+    // roadedge's 3D palette flag (the 3D hacks draw nothing here)
+    put32(set == "roadedge" ? 0x0202 : set == "xrally" ? 0x0200 : set == "bbust2" ? 0x0300 : 0x0100);
 
     // ---- the trace -----------------------------------------------------------------------------------
     std::vector<Ev> ev;
@@ -428,6 +433,9 @@ int main(int argc, char **argv) {
             t.first++;
             if ((got & e.mask) != (e.data & e.mask)) {
                 t.second++;
+                if (d == "dualport" && dpdiff)
+                    fprintf(dpdiff, "%d\t%08x\t%08x\t%08x\t%08x\n", int(e.frame) - 1, e.addr, e.mask,
+                            got & e.mask, e.data & e.mask);
                 if (d != "dualport") {
                     bad_reads++;
                     if (shown++ < 10)

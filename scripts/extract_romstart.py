@@ -74,7 +74,7 @@ PRE_REWRITE = [
      r'ROMX_LOAD( \g<2>, ROM_BIOS(\g<1>) )'),
 ]
 # The sets in scope: the default when none are named.
-IN_SCOPE = ["sams64", "sams64_2", "fatfurwa", "buriki"]
+IN_SCOPE = ["sams64", "sams64_2", "fatfurwa", "buriki", "roadedge", "xrally", "bbust2"]
 # ---------------------------------------------------------------------------
 
 

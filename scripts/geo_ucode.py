@@ -81,6 +81,7 @@ def program():
     S_DX21, S_DX31, S_DY21, S_DY31 = SU[16:20]
     S_DP2, S_DP3 = SU[20:25], SU[25:30]
     S_DET, S_MAG, S_E, S_DN, S_RR, S_NEGF, S_HI, S_LO, S_NH, S_SWT = SU[30:40]
+    S_RWM, S_SH, S_HALF = SU[40:43]
 
     L = A.label
 
@@ -895,7 +896,13 @@ def program():
         A.ldx(G[7 + k], a=S_SA, b=KI[2 + k])
         A.ldx(S_PB[k], a=S_SB, b=KI[2 + k])
         A.ldx(S_PC[k], a=S_SC, b=KI[2 + k])
-    A.sub(S_DX21, a=G[2], b=G[0])
+    # a triangle at the camera: 1/w, light/w, u/w and v/w scaled together (geo_engine.near_scaled),
+    # out of line at setup_scale
+    A.max(S_RWM, a=G[8], b=S_PB[1])
+    A.max(S_RWM, a=S_RWM, b=S_PC[1])
+    A.sub(S_DX21, a=G[2], b=G[0])                    # ahead of the test's branch
+    A.bge(a=S_RWM, b=TWO32, imm="setup_scale")
+    A.here("setup_scaled")
     A.sub(S_DX31, a=G[4], b=G[0])
     A.sub(S_DY21, a=G[3], b=G[1])
     A.sub(S_DY31, a=G[5], b=G[1])
@@ -959,6 +966,19 @@ def program():
     A.emit("EMIT", a=G[0])
     A.here("setup_none")
     A.ret()
+
+    # s = 1/w's top bit - 31 (at least 1), each value (v + 2^(s - 1)) >> s
+    A.here("setup_scale")
+    A.log2(S_SH, a=S_RWM)
+    A.addi(S_SH, a=S_SH, imm=-31)
+    A.addi(S_HALF, a=S_SH, imm=-1)
+    A.shlv(S_HALF, a=ONE, b=S_HALF)
+    A.sub(S_SH, a=R0, b=S_SH)                        # SHLV shifts right by a negative count
+    for k in range(1, 5):
+        for r in (G[7 + k], S_PB[k], S_PC[k]):
+            A.add(r, a=r, b=S_HALF)
+            A.shlv(r, a=r, b=S_SH)
+    A.j(imm="setup_scaled")
 
     code = A.assemble()
     return code, entries, A.reg_names

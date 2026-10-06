@@ -102,8 +102,8 @@ localparam STATE_CONT   = STATE_START+RASCAS_DELAY;
 // later. See the comment above the lane captures for why.
 // +4: the command, address and data outputs go through a register stage of their own (cmd_q
 // etc. below), so every command reaches the pins a clock later and its data comes back a clock
-// later; and the data is taken from dq_in2, a fabric register after the I/O cell's dq_in.
-localparam STATE_READ0  = STATE_CONT+CAS_LATENCY+4'd4;
+// later; and the data is taken from dq_in3, two fabric registers after the I/O cell's dq_in (+5).
+localparam STATE_READ0  = STATE_CONT+CAS_LATENCY+4'd5;
 localparam STATE_READ1  = STATE_READ0+4'd1;
 localparam STATE_READ2  = STATE_READ0+4'd2;
 localparam STATE_READ3  = STATE_READ0+4'd3;
@@ -147,6 +147,7 @@ reg [63:0] dout;
 reg [15:0] dq_in;    // the bus, captured once per cycle -- see the lane captures
 reg [15:0] dq_in2;   // and again in the fabric: from the I/O cell straight into the four lanes'
                      // registers it missed 125 MHz by 1.06 ns (HyperNG64, 063e9f2)
+reg [15:0] dq_in3;   // and once more: see the lane captures
 
 assign dout0 = dout;
 assign dout1 = dout;
@@ -247,19 +248,22 @@ always @(posedge clk) begin
 	// With dq_in the pin path is fixed by the I/O cell, and dq_in -> dout is
 	// an ordinary register-to-register path that STA times completely. The
 	// burst is one cycle longer; STATE_READ0 carries the +2.
+	// dq_in2 feeds only dq_in3, so it can sit by the pins: feeding the four lanes, the Fitter put
+	// it beside them, 6.4 ns of routing from the I/O cell (-0.42 ns at clk2x, 1e45b50 seed 6649).
 	dq_in  <= SDRAM_DQ;
 	dq_in2 <= dq_in;
+	dq_in3 <= dq_in2;
 
 	// Burst-of-4 read capture: one 16-bit lane per cycle across the four
 	// STATE_READ0..STATE_READ3 cycles, ascending address order (lane 0 =
 	// lowest address = dout[15:0]) matching ACCESS_TYPE=sequential above.
 	// Write completion (ack, no data capture) shares STATE_READ3 for a
 	// single uniform completion point -- see PROVENANCE.md for why.
-	if (state == STATE_READ0 && ram_req && !we) dout[15:0]  <= dq_in2;
-	if (state == STATE_READ1 && ram_req && !we) dout[31:16] <= dq_in2;
-	if (state == STATE_READ2 && ram_req && !we) dout[47:32] <= dq_in2;
+	if (state == STATE_READ0 && ram_req && !we) dout[15:0]  <= dq_in3;
+	if (state == STATE_READ1 && ram_req && !we) dout[31:16] <= dq_in3;
+	if (state == STATE_READ2 && ram_req && !we) dout[47:32] <= dq_in3;
 	if (state == STATE_READ3 && ram_req) begin
-		if (!we) dout[63:48] <= dq_in2;
+		if (!we) dout[63:48] <= dq_in3;
 		active <= 0;
 		ram_req <= 0;
 		if (ram_req[0]) ack0 <= req0;

@@ -69,7 +69,7 @@ D3_BASE = 0xE000000
 ALIGN = 0x100000                # rtl/hng64_core.sv adds only the tile ROM bases' top 8 bits
 
 # rom index 1. Big-endian, the CPU's order; `layout()` fills it.
-CFG_MAGIC = b"HNG3"
+CFG_MAGIC = b"HNG4"
 CFG_REGIONS = ["gameprg", "bios", "scrtile", "sprtile", "textures0", "verts", "l7a1045"]
 
 # Button names for the .mra's <buttons>, per set, FOR THE OWNER TO FILL IN from
@@ -81,6 +81,10 @@ BUTTONS = {
     "sams64_2": ["Light Slash", "Medium Slash", "Heavy Slash", "Kick"],  # Samurai Shodown 64: Warriors Rage
     "fatfurwa": ["Punch", "Kick", "Strong Attack", "Axis Shift"],  # Fatal Fury: Wild Ambition
     "buriki":   ["Move Left", "Move Right", "-", "-"],  # Buriki One
+    # the drive board: buttons 5-8 follow Test in CONF_STR's J1 line (HyperNG64.sv, inputs)
+    "roadedge": ["Accelerate", "Brake", "Shift Up", "Shift Down", "View 1", "View 2", "BGM 1", "BGM 2"],
+    "xrally":   ["Accelerate", "Brake", "Shift Up", "Shift Down", "View 1", "View 2", "BGM 1", "BGM 2"],
+    "bbust2":   ["Trigger", "Pump", "Bomb", "-"],  # Beast Busters: Second Nightmare, three players
 }
 # the rest of CONF_STR's J1 line: the core reads fixed bits, so these may not move
 BUTTONS_TAIL = ["Start", "Coin", "Pause", "Service", "Test"]
@@ -88,17 +92,19 @@ BUTTONS_TAIL = ["Start", "Coin", "Pause", "Service", "Test"]
 
 def buttons_xml(game):
     """Main_MiSTer applies `default` to the named buttons only, in order, so a
-    "-" takes no pad button: the game buttons get A, B, X, Y in turn, then
-    Start, Select and L for Start, Coin and Pause (CONF_STR's jn line)."""
+    "-" takes no pad button: buttons 1-4 get A, B, X, Y in turn, then Start,
+    Select and L for Start, Coin and Pause (CONF_STR's jn line). Buttons 5-8
+    come after Test in the J1 line and get no default."""
     names = BUTTONS.get(game)
     if names is None:
         sys.exit(f"{game}: no BUTTONS entry -- add one")
-    if not 1 <= len(names) <= 4:
-        sys.exit(f"{game}: BUTTONS has {len(names)} names; the core has 4 buttons")
+    if not 1 <= len(names) <= 8:
+        sys.exit(f"{game}: BUTTONS has {len(names)} names; the core has 8 buttons")
     if any("," in n or not n.strip() for n in names):
         sys.exit(f"{game}: a BUTTONS name is empty or has a comma, which splits the list")
-    used = [n for n in names if n != "-"]
-    names = list(names) + ["-"] * (4 - len(names)) + BUTTONS_TAIL
+    first, rest = list(names[:4]), list(names[4:])
+    used = [n for n in first if n != "-"]
+    names = first + ["-"] * (4 - len(first)) + BUTTONS_TAIL + rest + ["-"] * (4 - len(rest))
     pads = ["A", "B", "X", "Y"][:len(used)] + ["Start", "Select", "L"]
     return f'  <buttons names="{esc(",".join(names))}" default="{",".join(pads)}"/>'
 
@@ -147,9 +153,20 @@ def layout(decls):
     return out
 
 
+# the GAME() line's init: the board's m_no_machine_error_code, and the 3D hacks it sets
+INIT_FLAGS = {
+    "init_hng64_fght":  0x0100,
+    "init_ss64":        0x0100 | 1,                 # m_samsho64_3d_hack
+    "init_hng64_drive": 0x0200,
+    "init_roadedge":    0x0200 | 2,                 # m_roadedge_3d_hack
+    "init_hng64_shoot": 0x0300,
+}
+
+
 def config_blob(lay, flags=0):
     """rom index 1: the magic, then a base and a size per region of CFG_REGIONS,
-    then the flags word (bit 0: init_ss64's m_samsho64_3d_hack). A region the
+    then the flags word (rtl/memory/hng64_romcfg.sv: bit 0 m_samsho64_3d_hack,
+    bit 1 m_roadedge_3d_hack, bits 15:8 m_no_machine_error_code). A region the
     .mra does not carry gets a zero size, which is how the core knows it is
     absent."""
     have = {r: (b, s) for r, b, s in lay}
@@ -277,8 +294,10 @@ def build(game, bl, meta, out_dir):
            '  </switches>',
            f"  <mameversion>{MAMEVERSION}</mameversion>"]
 
-    # init_ss64 sets m_samsho64_3d_hack (hng64.cpp:1847)
-    blob = config_blob(lay, flags=int(init_of(driver(), game) == "init_ss64"))
+    init = init_of(driver(), game)
+    if init not in INIT_FLAGS:
+        sys.exit(f"{game}: {init} has no INIT_FLAGS entry")
+    blob = config_blob(lay, flags=INIT_FLAGS[init])
     # index 1 comes first: the HPS sends roms in file order, and the core needs
     # the layout before anything reads DDR3.
     xml.append('  <rom index="1"><part>' +

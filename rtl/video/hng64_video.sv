@@ -74,6 +74,7 @@ module hng64_video (
     input  logic  [9:0] vis_h,
     input  logic  [7:0] fbcontrol0,
     input  logic  [7:0] fbcontrol2,
+    input  logic        pal3d_fixed,    // roadedge: fbcontrol2 bit 5 leaves the 3D palette base (MAME's m_roadedge_3d_hack)
     input  logic [31:0] fbscroll,
     input  logic        show_valid,
     input  logic        show_plane,
@@ -427,7 +428,7 @@ module hng64_video (
     hng64_mixer u_mix (
         .clk(clk), .reset(reset), .start(mix_start), .rebuild(frame_start), .busy(mix_busy),
         .lb_x(mix_x), .tm_pix(mix_tm), .spr_pix(mix_spr),
-        .d3_pix(dbg_layer_off[5] ? 16'd0 : mix_d3), .d3_palbase(fbcontrol2[5]),
+        .d3_pix(dbg_layer_off[5] ? 16'd0 : mix_d3), .d3_palbase(fbcontrol2[5] && !pal3d_fixed),
         .tileregs(tileregs), .tcram(tcram), .bg_rgb(bg_rgb), .screen_dis(screen_dis),
         .pal_a(pal_a), .pal_d(pal_d),
         .px_we(px_we), .px_x(px_x), .px_rgb(px_rgb), .dbg_spr_seen(mix_spr_seen));

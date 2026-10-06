@@ -76,7 +76,10 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   val backW = Stream(RenderBuf.QBeat())
   val colourW = Stream(RenderBuf.QBeat())
   val wq = StreamFifo(RenderBuf.QBeat(), 16)
-  wq.io.push << StreamArbiterFactory.lowerFirst.on(Seq(backW, colourW, clearW))
+  // colourW through a register: from fBeat through cData's select and the arbiter into wq's RAM it
+  // missed clk3d by 0.23 ns (1e45b50 seed 6649). The frame's end waits for it too (colourWq).
+  val colourWq = colourW.m2sPipe()
+  wq.io.push << StreamArbiterFactory.lowerFirst.on(Seq(backW, colourWq, clearW))
   io.wr << wq.io.pop.translateWith(wq.io.pop.b)
   io.urgent := wq.io.occupancy >= 8
 
@@ -310,7 +313,6 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
   // S
   val px = rF.f.x(3 downto 0)
   def same(v: Bool, f: RenderBuf.Waiting) = v && f.slot === rF.slot && f.f.x(3 downto 0) === px
-  val readWord = Vec(bankRd)(px)
   // The depth test made on each candidate word, then the result picked by the same priority: picked
   // as a word ahead of the tag and depth compares, from sPass through the bypass select into sPass it
   // missed clk3d by 0.44 ns (6063e54 seed 2 with the stronger fitter settings).
@@ -318,8 +320,11 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
     val storedZ = (w(31 downto 24).asUInt === tag) ? w(23 downto 0).asUInt.resize(25 bits) | U(1 << 24, 25 bits)
     rF.f.z.resize(25 bits) < storedZ
   }
+  // the read's test made in each bank and the pixel's picked after it: with the word picked first
+  // (sixteen banks' 32 bits) it missed clk3d by 0.33 ns from the banks into sPass (64f9bd4 seed 6649)
+  val passRead = Vec(bankRd.map(passOf))
   val pass = Bool()
-  pass := passOf(readWord)
+  pass := passRead(px)
   when(lastWr && lastSlot === rF.slot && lastPx === px) { pass := passOf(lastWord) }
   when(same(cValid && cPass, cF)) { pass := passOf(cWord) }
   when(same(sValid && sPass, sF)) { pass := passOf(sWord) }
@@ -438,7 +443,7 @@ case class RenderBuf(c: RasterConfig, fifoDepth: Int = 64, fillLines: Int = 8) e
     drainRead := False
     flushSlot := flushSlot + 1
   }
-  when(fs === F.Flush && !anyBe && !flushing && wq.io.occupancy === 0 && !wq.io.pop.valid) {
+  when(fs === F.Flush && !anyBe && !flushing && !colourWq.valid && wq.io.occupancy === 0 && !wq.io.pop.valid) {
     fs := F.Done
   }
   when(fs === F.Done) {

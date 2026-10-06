@@ -8,12 +8,12 @@
   <manufacturer>SNK</manufacturer>
   <rbf>HyperNG64</rbf>
   <rotation>horizontal</rotation>
-  <buttons names="Light Slash,Medium Slash,Heavy Slash,Kick,Start,Coin,Pause,Service,Test" default="A,B,X,Y,Start,Select,L"/>
+  <buttons names="Light Slash,Medium Slash,Heavy Slash,Kick,Start,Coin,Pause,Service,Test,-,-,-,-" default="A,B,X,Y,Start,Select,L"/>
   <switches default="00" base="0">
     <dip name="Flip Screen" bits="0" ids="Off,On"/>
   </switches>
   <mameversion>0285</mameversion>
-  <rom index="1"><part>48 4E 47 33 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 02 00 00 00 04 10 00 00 02 00 00 00 06 10 00 00 01 00 00 00 07 10 00 00 01 80 00 00 08 90 00 00 01 00 00 00 00 00 00 01</part></rom>
+  <rom index="1"><part>48 4E 47 34 00 00 00 00 02 00 00 00 02 00 00 00 00 10 00 00 02 10 00 00 02 00 00 00 04 10 00 00 02 00 00 00 06 10 00 00 01 00 00 00 07 10 00 00 01 80 00 00 08 90 00 00 01 00 00 00 00 00 01 01</part></rom>
   <rom index="2" zip="hng64.zip" md5="none"><part name="tmp87ph40an.bin" crc="b70df21f" offset="0x4000" length="0x4000"/></rom>
   <!-- gameprg: 0x2000000 bytes at 0x0 -->
   <!-- bios: 0x100000 bytes at 0x2000000 -->

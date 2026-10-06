@@ -13,7 +13,7 @@
 //      the clock after: two instructions dropped), the multiplier
 //   M  the accumulator (MUL MAC MSB LDA ADA ADAV ASHL), and every register write
 // The multi-cycle ops hold E: LDX STX TRSQ TRCP DL a clock more (copy X of the register file
-// serves the indexed reads); SHLV LOG2 NORM three; MIN MAX SHLI SHRI NEG ABS SEXT16 WRAP two; LDA
+// serves the indexed reads); SHLV LOG2 NORM three; MIN MAX two; SHLI SHRI NEG ABS SEXT16 WRAP one; LDA
 // ADA ADAV one; DIV its quotient bits and three; VRD VRDS until their word is there; EMIT 24 while
 // the setup record (22 words) is read out through copy X. An accumulator branch or DIV straight
 // after an accumulator op waits a clock. The accumulator stores (ST STF STV STVW) go in a clock to
@@ -120,7 +120,8 @@ module hng64_geo (
     logic signed [W-1:0]  mVal, wVal, rdA, rdB, rdXraw, rdXq, stxD;
     logic  [8:0] wReg;
     logic signed [AW-1:0] acc, prod, accVal;
-    logic signed [7:0]    mSh;
+    logic  [6:0]          mShL, mShR;       // ASHL's left and right shifts, one of them 0
+    logic                 mShLeft;
 
     logic stall;                            // E holds: F, D and E keep their instructions
     logic suV1, suV2, mSu, suHaz;           // the store unit (below)
@@ -276,10 +277,10 @@ module hng64_geo (
     logic        triValid;
 
     // SHLV, LOG2 and NORM take their operands a clock before they compute and find the top bit and
-    // the shift a clock before they shift. The alu2 ops take a step for their operands. LDA, ADA and
+    // the shift a clock before they shift. The alu2 ops compute at step 0 (alu2R), MIN and MAX at step 1
+    // from their operands latched at step 0. LDA, ADA and
     // ADAV latch their operand and shift a step before the shift into accVal.
-    logic signed [W-1:0]  alu2B, slowA, slowR, alu2R;
-    logic [15:0]          alu2I;
+    logic signed [W-1:0]  slowA, slowR, alu2B;
     logic  [6:0]          accSh;
     logic signed [7:0]    slowB, slowSh;
     logic [48:0]          stT;
@@ -297,9 +298,9 @@ module hng64_geo (
     // so its completion is a register: mcFinal, from E's op, its next step and EMIT's next count.
     function automatic logic finalAt(input logic [5:0] op, input logic [1:0] step, input logic [4:0] cnt);
         case (op)
-            LDX, TRSQ, TRCP, DL, LDA, ADA, ADAV:            finalAt = step != 0;
-            STX, MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
-                                                            finalAt = step == 2;
+            LDX, TRSQ, TRCP, DL, LDA, ADA, ADAV,
+            SHLI, SHRI, NEG, ABS, SEXT16, WRAP:             finalAt = step != 0;
+            STX, MIN, MAX:                                  finalAt = step == 2;
             SHLV, LOG2, NORM, DIV:                          finalAt = step == 3;
             EMIT:                                           finalAt = step != 0 && cnt == 5'd23;
             default:                                        finalAt = 1'b0;
@@ -336,17 +337,14 @@ module hng64_geo (
                         slowTop <= topBit(slowA);
                         slowSh  <= (o == SHLV) ? slowB : slowB - $signed({2'b00, topBit(slowA)});
                     end
-                MIN, MAX, SHLI, SHRI, NEG, ABS, SEXT16, WRAP:
+                MIN, MAX:
                     if (mcStep == 0) begin
                         slowA <= a;
                         alu2B <= b;
-                        alu2I <= imm;
                     end
                 LDA, ADA, ADAV:
                     if (mcStep == 0) begin
                         slowA <= a;
-                        alu2B <= b;
-                        alu2I <= imm;
                         accSh <= (o == ADAV) ? b[6:0] : imm[6:0];
                     end
                 DIV:
@@ -509,21 +507,25 @@ module hng64_geo (
                  eLog2 ? ((slowA > 0) ? $signed(W'(slowTop)) : $signed({W{1'b1}})) :
                          shiftBy(slowA, slowSh);
 
-    // the alu2 ops' result, from their operands latched at step 0, every clock and picked by E's
-    // class; taken at step 2
-    logic signed [W-1:0] alu2Next;
+    // the alu2 ops' result, from E's operands at step 0 into alu2R, which M takes at step 1: from
+    // operands latched at step 0 through the op into M it missed clk3d by 1.23 ns (1a04114 seed 1).
+    // MIN and MAX compare b too, and from the register file's copy B through the compare it missed by
+    // 1.30 ns (3f41ccc seed 6649): they compare latched operands at step 1 into mmA, and M takes the
+    // pick at step 2 (through the compare into the pick it missed by 0.024 ns, 1c73799 seed 6649).
+    logic signed [W-1:0] alu2Next, alu2R;
+    logic                mmA;               // MIN or MAX picks slowA
+    always_ff @(posedge clk)
+        if (mcGo && mcStep == 2'd1) mmA <= eAlu2[0] ? slowA < alu2B : slowA > alu2B;
     always_comb begin
         alu2Next = '0;
-        if (eAlu2[0]) alu2Next |= (slowA < alu2B) ? slowA : alu2B;
-        if (eAlu2[1]) alu2Next |= (slowA > alu2B) ? slowA : alu2B;
-        if (eAlu2[2]) alu2Next |= slowA <<< alu2I[5:0];
-        if (eAlu2[3]) alu2Next |= slowA >>> alu2I[5:0];
-        if (eAlu2[4]) alu2Next |= -slowA;
-        if (eAlu2[5]) alu2Next |= (slowA < 0) ? -slowA : slowA;
-        if (eAlu2[6]) alu2Next |= W'($signed(slowA[15:0]));
-        if (eAlu2[7]) alu2Next |= $signed(W'(wrap[slowA[4:0]]));
+        if (eAlu2[2]) alu2Next |= a <<< imm[5:0];
+        if (eAlu2[3]) alu2Next |= a >>> imm[5:0];
+        if (eAlu2[4]) alu2Next |= -a;
+        if (eAlu2[5]) alu2Next |= (a < 0) ? -a : a;
+        if (eAlu2[6]) alu2Next |= W'($signed(a[15:0]));
+        if (eAlu2[7]) alu2Next |= $signed(W'(wrap[a[4:0]]));
     end
-    always_ff @(posedge clk) alu2R <= alu2Next;
+    always_ff @(posedge clk) if (mcGo && mcStep == 2'd0) alu2R <= alu2Next;
 
     // ---- the store unit ---------------------------------------------------------------------------
     // A store's shift s is STV's and STVW's b + i, else i. Rounded half up, acc / 2^s is
@@ -568,21 +570,24 @@ module hng64_geo (
         if (eMc[4]) mcVal |= W'(vWordPayload);
         if (eMc[5]) mcVal |= W'($signed(vWordPayload));
         if (eMc[6]) mcVal |= slowR;
-        if (eMc[7]) mcVal |= alu2R;
+        if (eMc[7]) mcVal |= (eAlu2[1:0] != 2'd0) ? (mmA ? slowA : alu2B) : alu2R;
     end
     always_ff @(posedge clk) begin
         mVal <= suV2 ? $signed(stOut) : mcVal | alu;
         if (eGo) begin
             prod   <= $signed(a[35:0]) * $signed(b[35:0]);
             accVal <= AW'(slowA) <<< accSh;
-            mSh    <= imm[7:0];                                      // only ASHL uses it
+            // only ASHL uses these; its direction and both amounts registered here, not negated in M
+            // (from mSh through the negation and the shift into acc it missed clk3d by 0.20 ns,
+            // 64f9bd4 seed 6649)
+            mShLeft <= !imm[7];
+            mShL    <= imm[6:0];
+            mShR    <= 7'(-imm[7:0]);
         end
     end
 
     // ---- M ---------------------------------------------------------------------------------------
     wire  [8:0] mDst = fD(mInstr);
-    logic signed [7:0] nMSh;
-    always_comb nMSh = -mSh;
     logic signed [AW-1:0] accNext;
     always_comb begin
         accNext = acc;
@@ -595,7 +600,7 @@ module hng64_geo (
         case (accOp)
             2'd1: accNext = accVal;
             2'd2: accNext = acc + accVal;
-            2'd3: accNext = (mSh >= 0) ? (acc <<< mSh[6:0]) : (acc >>> nMSh[6:0]);
+            2'd3: accNext = mShLeft ? (acc <<< mShL) : (acc >>> mShR);
             default: ;
         endcase
     end
