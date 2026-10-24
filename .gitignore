@@ -65,7 +65,6 @@ sim/**/*dump*.txt
 sim/**/fixture.txt
 /*.raw
 obj_verilator/
-obj_hng64snd/
 simout/
 
 # MAME ROM dumps: never committed
@@ -89,10 +88,9 @@ sta/
 # Local MiSTer connection settings
 mister.env
 
-# Only a verified build belongs in releases/: git add -f releases/<name>.rbf, and its
-# hng64snd_<YYYYMMDD>.zip (scripts/snd_deploy.py --package) the same way
+# Only a verified build belongs in releases/: git add -f releases/<name>.rbf (the sound server is
+# released from MiSTer_ArcadeSoundServer)
 releases/*.rbf
-releases/hng64snd_*.zip
 
 # Editor / OS / Python
 *.bak

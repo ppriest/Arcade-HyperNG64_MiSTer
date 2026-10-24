@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// The sound board's bridge to the ARM process (sw/hng64snd, docs/ROADMAP.md Phase 4). The V53A
+// The sound board's bridge to the ARM sound server (arcsnd, github.com/ppriest/MiSTer_ArcadeSoundServer,
+// src/hng64/; its docs/PROTOCOL.md has this block; docs/ROADMAP.md Phase 4). The V53A
 // and the L7A1045 run there; this side carries what the main CPU gives them, and their replies.
 //
 // The shared block is at SHM in the core's DDR3 window (0x3F200000 to the ARM), little-endian

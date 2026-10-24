@@ -4,8 +4,8 @@ A MiSTer FPGA core for SNK's Hyper NeoGeo 64 arcade hardware (MAME's `hng64`), b
 Prime 17.0.2 Lite for the DE10-nano.
 
 **Status: in development, just about playable.** The 4 versus fighters, the 2 drive sets and Beast
-Busters play, but with graphical glitches and slowdown in places. Sound runs as a program on the
-MiSTer's ARM ([Sound](#sound)) and breaks up in heavy passages.
+Busters play, but with graphical glitches and slowdown in places. Sound runs on the MiSTer's ARM,
+in the sound server ([Sound](#sound)), and breaks up in heavy passages.
 
 **CRT: 31 kHz only.** The core's video is 448-line progressive at a 32.6 kHz line rate. There is no
 15 kHz interlaced mode yet, so it needs a 31 kHz monitor (or HDMI); a 15 kHz CRT is not supported
@@ -18,6 +18,7 @@ yet.
 - [Screenshots](#screenshots)
 - [Games](#games)
 - [Hardware](#hardware)
+  - [Floorplan](#floorplan)
 - [Installation](#installation)
 - [Controls](#controls)
 - [OSD speeds](#osd-speeds)
@@ -64,7 +65,7 @@ The drive sets' network board is not emulated: as MAME, the core answers its net
 | main board I/O | interrupts, DMA, RTC, NVRAM, dual-port RAM | from MAME's driver (`rtl/hng64_io.sv`) |
 | NEO64-SCC, NEO64-SPR | four tilemaps, sprites, mixer | from MAME's video (`rtl/video/`) |
 | 3D chipset | display list, geometry, rasteriser | written here (SpinalHDL, `rtl/3d/`): a microcoded geometry engine and a rasteriser after SpinalVoodoo, render buffer in DDR3 |
-| V53A + L7A1045 | sound CPU and DSP | MAME's code, run on the ARM (`sw/hng64snd`), linked to the core through DDR3 (`rtl/hng64_sndbridge.sv`); [Sound](#sound) |
+| V53A + L7A1045 | sound CPU and DSP | on the HPS ([MiSTer_ArcadeSoundServer](https://github.com/ppriest/MiSTer_ArcadeSoundServer)): MAME's V53A and L7A1045; `rtl/hng64_sndbridge.sv` carries the main CPU's writes and the board's replies through DDR3; [Sound](#sound) |
 | KL5C80A12 | network board | not implemented (`docs/HACKS.md`) |
 
 Video: 25 MHz pixel clock, 512 x 448 visible of 768 x 528, 61.65 Hz, as MAME's screen; MAME gives
@@ -72,19 +73,28 @@ no sync positions, so those are this core's (`docs/HACKS.md`). The line rate is 
 at 25 MHz), so analogue output needs a 31 kHz monitor: there is no 15 kHz interlaced mode yet. There
 is no composite or S-video output, and the scaler has no adaptive scanline filters, to save area.
 
+### Floorplan
+
+Where the logic sits on the Cyclone V, read from the compiled design with `scripts/floorplan.py` (blocks defined in `scripts/floorplan.json`). One cell per LAB, M10K or DSP site, coloured by the block owning most of it, brighter when fuller. The thin columns are M10K and DSP; the empty area at the top right is the HPS; grey is the MiSTer framework. LUT counts are combinational cells, two per ALM.
+
+Revision `HyperNG64`, fitted 03 Oct 2026:
+
+![Floorplan of HyperNG64](docs/floorplan/HyperNG64.png)
+
 ## Installation
 
 `releases/` has a development build: `Arcade-HyperNG64_20261006.rbf` (`7bbc004`, fitter seed 1;
-every clock met but the SDRAM reads' capture, `docs/HACKS.md`) and `hng64snd_20261006.zip`, which
-it needs: an older `hng64snd` does not play the drive sets or Beast Busters.
+every clock met but the SDRAM reads' capture, `docs/HACKS.md`).
 
 * Copy the `.rbf` to `_Arcade/cores`, or build one with `python scripts/build_staged.py` and copy it
   there as `HyperNG64_<anything>.rbf` (`scripts/deploy.py` does this, with a `mister.env`)
 * Put the `.mra` files from `releases/` in `_Arcade` (or an underscore subdirectory)
 * Put the MAME ROM sets and the `hng64` BIOS (`hng64.zip`) in `games/mame`
 * A 32 MB SDRAM module is required
-* For sound, unzip `hng64snd_YYYYMMDD.zip` in `/media/fat`, and after every boot run
-  `HNG64_SoundServer` from the Scripts menu ([Sound](#sound))
+* For sound: install the sound server, `arcsnd`, from
+  [MiSTer_ArcadeSoundServer](https://github.com/ppriest/MiSTer_ArcadeSoundServer) (its README has
+  the steps). It waits in the background and plays whenever a Hyper NeoGeo 64 (or Konami Hornet)
+  set is loaded ([Sound](#sound))
 
 ## Controls
 
@@ -123,51 +133,37 @@ an OSD setting.
 
 ## Sound
 
-The V53A sound CPU and the L7A1045 DSP are not in the FPGA. They are MAME's code, taken out of MAME
-and built as `hng64snd`, a Linux program that runs on the DE10-nano's ARM beside Main_MiSTer
-(`sw/hng64snd/PROVENANCE.md`). The core passes it the main CPU's sound commands, interrupts and
-sound RAM through a shared block of DDR3 (`rtl/hng64_sndbridge.sv`), and it plays through MiSTer's
-ALSA output at 48 kHz, so the pitch does not follow the game's speed. The V53A runs at 16 MHz, not
-MAME's 32 (`docs/MAME_KLUDGES.md`).
+The V53A sound CPU and the L7A1045 DSP are not in the FPGA. They are MAME's code, run on the
+DE10-nano's ARM beside Main_MiSTer by `arcsnd`, the sound server shared with the Konami Hornet core
+([MiSTer_ArcadeSoundServer](https://github.com/ppriest/MiSTer_ArcadeSoundServer), `src/hng64/`). The core passes it the main CPU's sound
+commands, interrupts and sound RAM through a block of DDR3 (`rtl/hng64_sndbridge.sv`; the server's
+`docs/PROTOCOL.md` has the layout), and the server plays through MiSTer's audio output at 48 kHz, so
+the pitch does not follow the game's speed. The V53A runs at 16 MHz, not MAME's 32
+(`docs/MAME_KLUDGES.md`).
 
-Using it:
-
-1. Install once: unzip `releases/hng64snd_YYYYMMDD.zip` in `/media/fat`. That puts the program at
-   `games/HyperNG64/hng64snd` and its start script at `Scripts/HNG64_SoundServer.sh`.
-2. After every cold boot, from the MiSTer main menu, open Scripts and run `HNG64_SoundServer`. Three
-   seconds later it says "hng64snd started" (or why it failed). Nothing starts it at boot.
-3. Load a set. The program waits until the set starts its sound CPU, goes quiet within 0.2 s of
-   any core load starting, and picks up again at the next set; it stays running until the MiSTer
-   restarts.
-4. To stop it, run `HNG64_SoundServer` again: it says "hng64snd stopped".
-
-To have it start at every boot instead, add this line to `/media/fat/linux/user-startup.sh`
-(MiSTer runs it at boot with `start`, and the script then starts the program without waiting):
-
-```sh
-[[ -e /media/fat/Scripts/HNG64_SoundServer.sh ]] && /media/fat/Scripts/HNG64_SoundServer.sh $1
-```
-
-Idle, with no set's sound running, it holds under 1 MB (572 kB measured) and no audio device, and
-reads nothing from DDR3 unless an HNG64 set is loaded.
+Install and start it as its README says: unzip its release onto the SD card's root, or take it from
+the downloader DB it names, then run `arcade_hybridsoundserver` from the Scripts menu (again to stop
+it), or start it at boot from `linux/user-startup.sh`. It waits until a set starts its sound CPU,
+goes quiet within 0.2 s of any core load starting (the bridge's count stops; `rtl/hng64_sndbridge.sv`),
+and picks up at the next set. Without it the core still runs, silent: the bridge answers the main
+CPU's sound handshake (`docs/HACKS.md`).
 
 Notes:
 
-* `scripts/snd_deploy.py` builds it (WSL with `arm-linux-gnueabihf-g++`, and a `mister.env`;
-  `--no-pgo` skips the profiling run on the MiSTer) and installs the program and the start script
-  as above, with a `games/<set>/_handler.sh` for each set, which MiSTer Frontier's daemon runs while
-  the set is loaded; `--package` writes the release zip.
 * The sound is about 80 ms behind the game.
 * In heavy passages the emulation needs more than one of the ARM's two cores (Main_MiSTer has the
   other), and the sound has gaps there. It is most noticeable on the drive sets, where a race keeps
   the ARM 90-95% busy and long sounds such as the engine drop out. A faster V33 emulator is the
   planned fix.
+* `scripts/mame_sound_trace.py` captures the sound board's traffic from MAME for the server's
+  bench, and `scripts/snd_compare.py` compares the bench's output with MAME's.
 
 ## Status
 
 Known issues:
 
-* **Sound** needs `hng64snd` running on the ARM, and has gaps in heavy passages ([Sound](#sound)).
+* **Sound** needs the sound server (`arcsnd`) running on the ARM, and has gaps in heavy passages
+  ([Sound](#sound)).
 * **3D throughput**: the 3D is slower than the real board in heavy scenes (fatfurwa's intro,
   buriki's character intros, Beast Busters), so the game slows there; with Game speed at 100% those
   frames lose polygons instead. `docs/ROADMAP.md` has the measurements.
@@ -184,7 +180,7 @@ Todo:
 - [ ] 3D throughput: keep up with the games' heaviest scenes
 - [ ] Close timing at full speed
 - [x] Sound (V53A, L7A1045), on the ARM
-- [ ] Sound without gaps: a faster V33 emulator
+- [ ] Sound without gaps: a faster V33 emulator (in the sound server)
 - [ ] sams64's I/O error
 - [ ] 15 kHz interlaced output for CRTs
 

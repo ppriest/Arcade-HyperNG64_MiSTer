@@ -27,6 +27,7 @@ Every `hng64` set is `MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND`.
 | COP0 Config clock ratio (bits 30:28) | MAME reports 0. The board wires DivMode0/1 high (hng64.cpp:107), so a real VR4300 reports its own ratio; the N64 core hard-codes `111`. | Set from the reset state to MAME's 0. | A read of Config on the board. |
 | Frame rate by window height | A write setting a 448-line window reconfigures the screen at 59.43 Hz ("appears to sync with hardware"), any other height at 61.65 Hz, both with the 768 x 528 totals (`tcram_w`, hng64_v.cpp:1408-1413). | Differs, by user decision: the core stays at 25 MHz, 768 x 528, 61.65 Hz, 3.7% faster than MAME's 448-line games, because MAME's rate is not taken as the board's. | A frame-rate measurement on a board. |
 | Whole-frame rendering, except at video register writes | MAME renders at vblank from the state then (`screen_update`, hng64_v.cpp:745), except that a write that changes a video register draws the lines above the beam first (`vregs_w`, `hng64.cpp:1119-1135`, `update_partial(vpos - 1)`): fatfurwa swaps its sky and floor tilemaps at line 244 this way every frame. Tile VRAM, palette, sprite and 3D-buffer writes mid-screen do not split the frame, so they show over the whole of it (the 3D buffer as it stood at each split). | The core renders per line from live tile VRAM and video registers; the sprite list is snapshotted and the modified palette (palette through tcram's region modifiers) rebuilt at vblank start. The models draw the parts from the write log's beam positions (`scripts/render_3d.py`, `render_in_parts`). | A PCB capture of a frame with mid-screen tile or palette writes. `scripts/write_timing.py` shows both games making them in play. |
+| Line-mode scroll words, absolute or relative | MAME 8a18b751 (`hng64_v.cpp`, `tilemap_draw_roz_core_line`, xrally's tunnel mist): a line's word with a zero low byte is the position; any other is an offset added to the layer's word, low byte dropped, and y also steps a source row a line. MAME marks the flag and the step TODO, unverified on hardware. | Copies (`rtl/video/hng64_tilemap.sv`, `lword`; `scripts/render_model.py`). Not checked in sim when made (the captures were gone). | The board's tunnel and floors, or the chip's documentation. |
 
 ## Main board I/O
 
@@ -132,7 +133,7 @@ than guesses about the board.
 | Float rounding decides quantised values on exact boundaries | The light kept is `(u8)(rCorrect / 16.0f)` and the texel `(int)textureS` (`:1376-1400`), both truncations of float32 results. Where the true value is a whole number - constant light at a multiple of 16, a texel coordinate on an edge - float rounding puts it either side: on sams64's logo (frame 600) 109,001 of 111,164 drawn pixels have light/16 within 0.001 of a whole number, and MAME's truncation lands below and above about equally (`docs/phase3_3d.md`). | Copies (it is MAME's float32). A fixed-point design gives one side consistently and differs from MAME there. | Nothing to settle: MAME's value there is noise. |
 | Comment slip in the clipper | `frustum_clip_all` labels its +Y clip "W <= +X" (`devices/video/poly.h:1470`); the code clips Y. | n/a | None needed. |
 
-## Sound (`sw/hng64snd`, MAME `a2d0f76268e`)
+## Sound (MiSTer_ArcadeSoundServer `src/hng64/`, MAME `a2d0f76268e`)
 
 | Kludge | MAME | Core | Would settle it |
 |---|---|---|---|

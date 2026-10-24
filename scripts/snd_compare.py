@@ -2,7 +2,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """MAME's -wavwrite output against the sound board bench's, as level envelopes.
 
-    python scripts/snd_compare.py debug/<set>-sound/<set>.wav obj_hng64snd/<set>.wav out.png
+    python scripts/snd_compare.py debug/<set>-sound/<set>.wav <bench>.wav out.png
+
+The bench is the HNG64 sound board's in MiSTer_ArcadeSoundServer (src/hng64/bench.cpp), run on a
+capture from scripts/mame_sound_trace.py.
 
 Prints, per front channel, the RMS of each and the correlation of their 10 ms envelopes, and
 draws the envelopes (MAME above, the bench below, the difference at the bottom).

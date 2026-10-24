@@ -250,15 +250,18 @@ def scroll_params(cap, tm, src_line):
         if zoom_off:
             xtl, xmid, ytl, ymid = 0, 256 << 16, 0, 256 << 16
         else:
+            # MAME 8a18b751: a line word with a zero low byte is the position; any other is an
+            # offset to the layer's word, low byte dropped, and y then steps a source row a line
             lo = (src_line & 0xFFFF) * 0x10
-            xtl, xmid = w(0x40000), w(0x40004)
-            xtl2 = int(vr[(0x40000 + lo + sb) // 4])
-            xmid2 = int(vr[(0x40004 + lo + sb) // 4])
-            if (xtl2 & 0xFF) == 0:
-                xtl = _s32(xtl2)
-            if (xmid2 & 0xFF) == 0:
-                xmid = _s32(xmid2)
-            ytl, ymid = w(0x40008 + lo), w(0x4000C + lo)
+
+            def line_word(off, step):
+                base = int(vr[(off + sb) // 4])
+                v = int(vr[(off + lo + sb) // 4])
+                return _s32(v if (v & 0xFF) == 0 else (base + (v & ~0xFF) + step) & 0xFFFFFFFF)
+
+            ystep = (src_line & 0xFFFF) << 16
+            xtl, xmid = line_word(0x40000, 0), line_word(0x40004, 0)
+            ytl, ymid = line_word(0x40008, ystep), line_word(0x4000C, ystep)
         xinc = _div512(_s32(xmid - xtl))
         if alt_fmt:                                     # y follows x across the line, not down it
             yinc, xinc2, yinc2 = 0, 0, _div512(_s32(ymid - ytl))

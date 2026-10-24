@@ -1118,7 +1118,7 @@ desired operating frequency" says; `v53_device` derives from `v33_base_device` a
 so a V53A given its 32 MHz crystal runs its core at 32 MHz. hng64's sound CPU was `32000000/2`
 until MAME `826b75656f6` doubled it so the timer, which MAME clocks from the input, matched
 footage. Ported as MAME has it, the sound program needed 1.5 of the MiSTer's ARM cores; at 16 MHz,
-the input over 2, it fits and still keeps up with every command (`sw/hng64snd`, docs/ROADMAP.md
+the input over 2, it fits and still keeps up with every command (`sw/hng64snd`, now MiSTer_ArcadeSoundServer `src/hng64/`; docs/ROADMAP.md
 Phase 4). A device's clock in a driver can be set for one of its parts and be wrong for another.
 
 ## Quartus synthesis gotchas (not visible in ModelSim)

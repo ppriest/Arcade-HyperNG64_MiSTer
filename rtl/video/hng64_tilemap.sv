@@ -118,16 +118,26 @@ module hng64_tilemap (
     wire zoom_off = videoreg0[16];
     wire roz      = !linemode && alt_fmt;      // rotation: both increments have two terms
 
-    // in line mode a line word is used only when its low byte is 0 (hng64_v.cpp:298)
-    wire [31:0] lxtl  = (ln_w[0][7:0] == 8'd0) ? ln_w[0] : sb_w[0];
-    wire [31:0] lxmid = (ln_w[1][7:0] == 8'd0) ? ln_w[1] : sb_w[1];
+    // Line mode (MAME 8a18b751, hng64_v.cpp tilemap_draw_roz_core_line): a line word with a zero
+    // low byte is the position itself (fatfurwa's and buriki's floors); any other low byte makes it
+    // an offset to the layer's word, its low byte dropped, and y then also steps a source row a line
+    // (xrally's tunnel mist). MAME has the flag and the step unverified (MAME_KLUDGES.md).
+    function automatic logic [31:0] lword(input logic [31:0] base, input logic [31:0] v,
+                                          input logic [31:0] step);
+        lword = (v[7:0] == 8'd0) ? v : base + {v[31:8], 8'd0} + step;
+    endfunction
+    wire [31:0] lstep = {7'd0, src_line, 16'd0};
+    wire [31:0] lxtl  = lword(sb_w[0], ln_w[0], 32'd0);
+    wire [31:0] lxmid = lword(sb_w[1], ln_w[1], 32'd0);
+    wire [31:0] lytl  = lword(sb_w[2], ln_w[2], lstep);
+    wire [31:0] lymid = lword(sb_w[3], ln_w[3], lstep);
 
     wire signed [31:0] xtl  = roz ? sb_w[0] : zoom_off ? 32'sd0 : linemode ? lxtl  : sb_w[0];
     wire signed [31:0] xmid = roz ? sb_w[4] : zoom_off ? 32'sh0100_0000
                                             : linemode ? lxmid : sb_w[1];
-    wire signed [31:0] ytl  = roz ? sb_w[2] : zoom_off ? 32'sd0 : linemode ? ln_w[2] : sb_w[2];
+    wire signed [31:0] ytl  = roz ? sb_w[2] : zoom_off ? 32'sd0 : linemode ? lytl  : sb_w[2];
     wire signed [31:0] ymid = roz ? sb_w[3] : zoom_off ? 32'sh0100_0000
-                                            : linemode ? ln_w[3] : sb_w[3];
+                                            : linemode ? lymid : sb_w[3];
 
     // xtl/ytl a clock late: the scroll and line words are all in before A_MUL starts, so these
     // hold the same values when the multiply ends and the start position is added

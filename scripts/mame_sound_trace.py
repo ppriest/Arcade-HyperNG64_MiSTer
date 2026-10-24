@@ -6,7 +6,8 @@
     -> debug/<set>-sound/<set>_sound.trace, <set>_sndram_<k>.bin, <set>.wav
        debug/rom/<set>-l7a1045.bin, when missing
 
-What the ARM sound bridge has to carry, and the bench of its emulator: the mailbox, the sound CPU
+What the ARM sound bridge has to carry, and the input of the sound server's HNG64 bench
+(MiSTer_ArcadeSoundServer, src/hng64/bench.cpp): the mailbox, the sound CPU
 enable, the main CPU's sound RAM traffic once the sound CPU runs, sound RAM at each enable, the
 V53A's L7A1045 traffic, and MAME's output at 44.1 kHz. See scripts/mame/soundtrace.lua.
 """

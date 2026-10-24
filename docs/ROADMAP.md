@@ -366,6 +366,10 @@ hng64_3d.ipp. Exit: `sams64` in-game frames match MAME's in simulation, then on 
 
 **Phase 4 — Sound on the ARM (user decision), the MiSTer Frontier model. Approved.**
 
+The sound program below (`sw/hng64snd`, `scripts/snd_deploy.py`, `scripts/snd_arm_bench.py`) has
+moved into the shared sound server, `arcsnd` ([MiSTer_ArcadeSoundServer](https://github.com/ppriest/MiSTer_ArcadeSoundServer),
+`src/hng64/`), which also runs the Konami Hornet core's board; the paths below are where it was.
+
 The V53A and the L7A1045 run in a Linux process on the HPS; the FPGA carries the sound RAM, the
 mailbox and the samples. With no process the core runs as now, silent.
 

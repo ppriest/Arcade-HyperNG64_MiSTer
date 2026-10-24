@@ -1,0 +1,94 @@
+{
+ "groups": [
+  {
+   "name": "MIPS CPU",
+   "match": "^emu\\|u_cpu",
+   "color": "#e6194b"
+  },
+  {
+   "name": "3D rasteriser",
+   "match": "u_core\\|u_3d\\|u_raster",
+   "color": "#00a0ff"
+  },
+  {
+   "name": "3D geometry",
+   "match": "u_core\\|u_3d\\|u_geo",
+   "color": "#7b68ee"
+  },
+  {
+   "name": "3D other",
+   "match": "u_core\\|u_3d",
+   "color": "#9fb4ff"
+  },
+  {
+   "name": "Tilemaps",
+   "match": "u_core\\|u_video\\|g_tm",
+   "color": "#3cb44b"
+  },
+  {
+   "name": "Sprites",
+   "match": "u_core\\|u_video\\|u_spr",
+   "color": "#42d4f4"
+  },
+  {
+   "name": "Mixer",
+   "match": "u_core\\|u_video\\|u_mix",
+   "color": "#fabed4"
+  },
+  {
+   "name": "Video other",
+   "match": "u_core\\|u_video",
+   "color": "#469990"
+  },
+  {
+   "name": "Video bus",
+   "match": "u_core\\|u_vbus",
+   "color": "#f032e6"
+  },
+  {
+   "name": "MCU",
+   "match": "u_core\\|u_mcu",
+   "color": "#dcbeff"
+  },
+  {
+   "name": "I/O",
+   "match": "u_core\\|u_io",
+   "color": "#ffd8b1"
+  },
+  {
+   "name": "SDRAM, DDR3",
+   "match": "u_core\\|(u_sdram|u_ddr)",
+   "color": "#4363d8"
+  },
+  {
+   "name": "Core other",
+   "match": "^emu\\|u_core",
+   "color": "#bfef45"
+  },
+  {
+   "name": "CPU clock domain",
+   "match": "^emu\\|(u_cpu_cdc|pll_cfg)",
+   "color": "#ff7b9c"
+  },
+  {
+   "name": "CRT V-Size",
+   "match": "u_crt_vsize",
+   "color": "#c08040"
+  },
+  {
+   "name": "CRT Adjust",
+   "match": "u_crt_adjust|^emu\\|u_crt",
+   "color": "#9a6324"
+  },
+  {
+   "name": "Video out",
+   "match": "^emu\\|(arcade_video|video_freak|screen_rotate_two|u_rotate)",
+   "color": "#808000"
+  },
+  {
+   "name": "hps_io",
+   "match": "^emu\\|hps_io",
+   "color": "#2f6f6a"
+  }
+ ]
+}
